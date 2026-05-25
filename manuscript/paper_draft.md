@@ -122,7 +122,7 @@ Physics, NEURAL A, NEURAL B, and the additive-sum baseline all pass the quality 
 
 For every (scene, knob) pair we render 7 stimuli with the knob in $\{0, 0.17, 0.33, 0.5, 0.67, 0.83, 1.0\}$ and the other knobs held at 0.5. We compute the Spearman correlation between knob value and each acoustic metric. A pair is *monotonic* if at least one metric satisfies $|\rho| > 0.7$.
 
-**Of 15 (scene, knob) pairs (3 scenes × 5 knobs), 10 are monotonic.** The five non-monotonic pairs correspond to physically inapplicable combinations: *resonance* in gravel scrape (granular events have no body resonance), *rigidity* and *resonance* in the rolling droplet (water has no rigid mode structure), and *granularity* in the rock-impact scene (granularity is an attribute of granular flows, not single impacts). Figure 3 reports the heatmap of $|\rho_{\max}|$ per (scene, knob).
+**Of 15 (scene, knob) pairs (3 scenes × 5 knobs), 9 are monotonic.** The five non-monotonic pairs correspond to physically inapplicable combinations: *resonance* in gravel scrape (granular events have no body resonance), *rigidity* and *resonance* in the rolling droplet (water has no rigid mode structure), and *granularity* in the rock-impact scene (granularity is an attribute of granular flows, not single impacts). Figure 3 reports the heatmap of $|\rho_{\max}|$ per (scene, knob).
 
 Critically, the neural latent-direction sweeps (re-measured on four scene/knob combinations available from prior experiments) are also 4-of-4 monotonic in spectral metrics. **The physics and the neural baselines are indistinguishable on this objective monotonicity test.** What separates them is whether the spectral monotonicity translates into perceptual monotonicity — which the pilot study addresses.
 
