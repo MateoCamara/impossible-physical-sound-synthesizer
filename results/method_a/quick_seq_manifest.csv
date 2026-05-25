@@ -1,0 +1,10 @@
+method,combo,anchor,alpha,beta,gamma,path
+baseline_sum,rolling_drop,fs365161,,,,/home/atorsaev/projects/tecniacustica-prospect/outputs/baseline_sum/quick_seq/rolling_drop_anchor0.wav
+baseline_interp,rolling_drop,fs365161,,,,/home/atorsaev/projects/tecniacustica-prospect/outputs/baseline_interp/quick_seq/rolling_drop_anchor0.wav
+A,rolling_drop,fs365161,0.6,0.6,0.5,/home/atorsaev/projects/tecniacustica-prospect/outputs/method_a/quick_seq/rolling_drop_a0.6_b0.6_g0.5_anchor0.wav
+baseline_sum,liquid_rock_impact,9c95dfbea5d2,,,,/home/atorsaev/projects/tecniacustica-prospect/outputs/baseline_sum/quick_seq/liquid_rock_impact_anchor0.wav
+baseline_interp,liquid_rock_impact,9c95dfbea5d2,,,,/home/atorsaev/projects/tecniacustica-prospect/outputs/baseline_interp/quick_seq/liquid_rock_impact_anchor0.wav
+A,liquid_rock_impact,9c95dfbea5d2,0.6,0.6,0.5,/home/atorsaev/projects/tecniacustica-prospect/outputs/method_a/quick_seq/liquid_rock_impact_a0.6_b0.6_g0.5_anchor0.wav
+baseline_sum,wet_gravel_scrape,23510f4f2a43,,,,/home/atorsaev/projects/tecniacustica-prospect/outputs/baseline_sum/quick_seq/wet_gravel_scrape_anchor0.wav
+baseline_interp,wet_gravel_scrape,23510f4f2a43,,,,/home/atorsaev/projects/tecniacustica-prospect/outputs/baseline_interp/quick_seq/wet_gravel_scrape_anchor0.wav
+A,wet_gravel_scrape,23510f4f2a43,0.6,0.6,0.5,/home/atorsaev/projects/tecniacustica-prospect/outputs/method_a/quick_seq/wet_gravel_scrape_a0.6_b0.6_g0.5_anchor0.wav

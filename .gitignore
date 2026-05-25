@@ -1,0 +1,52 @@
+# --- Python ---
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.DS_Store
+
+# --- Secrets / env ---
+.env
+
+# --- Pesado y regenerable: NO versionar ---
+# Corpus base (11 GB de footsteps externos)
+ULTIMATE-FOOTSTEP-COLLECTION/
+ULTIMATE-FOOTSTEP-COLLECTION.zip
+
+# Claude Code internals
+.claude/
+
+# Datos derivados (regenerables desde scripts/02 y scripts/03)
+data/raw/
+data/processed/
+data/embeddings/
+
+# Audios generados (regenerables desde scripts/06, 08, 13, 20, 21...)
+outputs/
+
+# Demo interactivo audios (regenerables desde scripts/20)
+perceptual_test/interactive_demo/audio/
+
+# Form audios (regenerables desde scripts/16; ya estan en perceptual_test/stimuli)
+perceptual_test/form/audio/
+
+# Respuestas de oyentes (privadas)
+perceptual_test/responses/
+perceptual_test/responses.csv
+
+# Documentos personales del autor (deep research con nombre y referencias propias).
+# Excluir para protejer anonimato del doble ciego.
+deep-research-report*.md
+
+# Backup automatico
+*.bak
+data/*.bak
+labels.csv.bak
+
+# Logs locales
+/tmp/
+*.log

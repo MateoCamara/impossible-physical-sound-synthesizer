@@ -1,0 +1,931 @@
+clip_id,source,parent_id,material,interaction,wetness,rigidity,resonance,granularity,continuity,notes
+214faa78c74f,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_03_WALK M SLOW_KMR81-chunk3.wav
+8928582b051d,ulfc,,rock,step,1,5,3,2,3,path=chunks/DRESS_ASPH_06_JOG_KMR81-chunk6.wav
+49da1206b2b3,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_08_STAIR SLOW_416-chunk2.wav
+0d55c141be4d,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_06_JOG_416-chunk10.wav
+1c2f233404a2,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_07_RUN_416-chunk9.wav
+ade847c99bec,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_03_WALK M SLOW_416-chunk2.wav
+92a9f606575f,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_05_WALK FAST_416-chunk13.wav
+4d07eb321a1c,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_09_STAIR FAST_416-chunk4.wav
+60ac1c64f52f,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_03_WALK M SLOW_416-chunk7.wav
+aa218f089cf8,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_09_STAIR FAST_416-chunk3.wav
+c4da77594d89,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_02_WALK X SLOW_KMR81-chunk1.wav
+cfb02eac013a,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_09_STAIR FAST_KMR81-chunk7.wav
+2a1e121ca0bc,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_08_STAIR SLOW_416-chunk7.wav
+1a68843f4568,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_02_WALK X SLOW_416-chunk4.wav
+8293e17ee34a,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_05_WALK FAST_KMR81-chunk1.wav
+df73030172df,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_03_WALK M SLOW_416-chunk4.wav
+ede4149c0a4f,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_05_WALK FAST_KMR81-chunk20.wav
+524f5a636efd,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_07_RUN_416-chunk24.wav
+d51dde77ee62,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_06_JOG_KMR81-chunk17.wav
+7b664181c9c1,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_06_JOG_416-chunk1.wav
+9f05b262ecf3,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_ASPH_07_RUN_KMR81-chunk8.wav
+7fbad5469e6b,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_08_STAIR SLOW_KMR81-chunk3.wav
+368ae03e6c70,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_06_JOG_KMR81-chunk19.wav
+136fd74472ba,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_06_JOG_KMR81-chunk15.wav
+0aeb9723a06b,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_03_WALK M SLOW_416-chunk12.wav
+71e323528eed,ulfc,,rock,step,1,5,3,2,3,path=chunks/SNEAK_CONC_07_RUN_KMR81-chunk11.wav
+84d32ae3c7e9,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_09_STAIR FAST_KMR81-chunk1.wav
+5c764ab0da1d,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_CONC_08_STAIR SLOW_KMR81-chunk11.wav
+8908be60868e,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_CONC_09_STAIR FAST_416-chunk17.wav
+818748843232,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_04_WALK MED_KMR81-chunk11.wav
+91a37754d434,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_06_JOG_416-chunk16.wav
+1f0934d285f4,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_09_STAIR FAST_416-chunk7.wav
+59dcb63054aa,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_07_RUN_KMR81-chunk12.wav
+87b70567c6a3,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_CONC_06_JOG_416-chunk9.wav
+a3f1ae89a4f8,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_02_WALK X SLOW_416-chunk5.wav
+255df23b96a7,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_CONC_07_RUN_KMR81-chunk19.wav
+6637e6a22514,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_03_WALK M SLOW_416-chunk9.wav
+565f854fad55,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_06_JOG_416-chunk21.wav
+0175ce539ead,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_06_JOG_KMR81-chunk6.wav
+978256658fd1,ulfc,,rock,step,1,5,3,2,3,path=chunks/DRESS_CONC_07_RUN_416-chunk10.wav
+7ddcad27b299,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_06_JOG_KMR81-chunk15.wav
+76150dff6d9a,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_02_WALK X SLOW_KMR81-chunk5.wav
+f4c5582e831e,ulfc,,rock,step,1,5,3,2,3,path=chunks/SNEAK_ASPH_07_RUN_KMR81-chunk4.wav
+1425d531862e,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_07_RUN_KMR81-chunk17.wav
+ddc82411c294,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_02_WALK X SLOW_KMR81-chunk6.wav
+eb2105eb254b,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_04_WALK MED_416-chunk15.wav
+179b2a504152,ulfc,,rock,step,1,5,3,2,3,path=chunks/DRESS_CONC_07_RUN_416-chunk11.wav
+5e693b3c9f10,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_ASPH_06_JOG_416-chunk5.wav
+77ac49072fe3,ulfc,,rock,step,1,5,3,2,3,path=chunks/DRESS_ASPH_06_JOG_KMR81-chunk0.wav
+38caeeb7519f,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_04_WALK MED_416-chunk2.wav
+9692697a6698,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_03_WALK M SLOW_416-chunk10.wav
+133ba84ac006,ulfc,,rock,step,1,5,3,2,3,path=chunks/DRESS_CONC_06_JOG_416-chunk19.wav
+a0bae9ad7290,ulfc,,rock,step,1,5,3,2,3,path=chunks/DRESS_CONC_07_RUN_416-chunk20.wav
+7d46c7f93ec0,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_08_STAIR SLOW_416-chunk11.wav
+af098b25a3a3,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_01_WALK XX SLOW_KMR81-chunk5.wav
+af725610fde0,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_CONC_07_RUN_416-chunk12.wav
+f9efcbeb6642,ulfc,,rock,step,1,5,3,2,3,path=chunks/HEEL_CONC_03_WALK M SLOW_KMR81-chunk7.wav
+4611e157d3b0,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_ASPH_09_STAIR FAST_416-chunk17.wav
+4a344c4247dd,ulfc,,rock,step,1,5,3,2,3,path=chunks/BOOT_CONC_06_JOG_KMR81-chunk18.wav
+3777eba41da4,ulfc,,rock,step,1,5,3,2,3,path=chunks/FLAT_CONC_06_JOG_KMR81-chunk8.wav
+270acf639659,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_11_LAND_416-chunk8.wav
+3cc69e6ab19d,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_ASPH_10_STOMP_416-chunk13.wav
+2c29ee0be6da,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_ASPH_11_LAND_416-chunk3.wav
+0450bb2a5326,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_CONC_11_LAND_KMR81-chunk4.wav
+1a231ebec6c3,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_CONC_11_LAND_KMR81-chunk7.wav
+652d94d7bec2,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_11_LAND_KMR81-chunk2.wav
+a6523f02a889,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_10_STOMP_KMR81-chunk3.wav
+ebf3a7f65e37,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_ASPH_10_STOMP_416-chunk11.wav
+d5cdf36a33f5,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_CONC_11_LAND_KMR81-chunk8.wav
+9436b860d263,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_CONC_10_STOMP_416-chunk15.wav
+269054fee26b,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_ASPH_10_STOMP_416-chunk2.wav
+fa28cfff50f1,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_11_LAND_KMR81-chunk6.wav
+0acd5beb0476,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_11_LAND_416-chunk2.wav
+51377336c163,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_11_LAND_416-chunk9.wav
+515590af9bb0,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_10_STOMP_KMR81-chunk2.wav
+9ff23630e875,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_ASPH_10_STOMP_416-chunk7.wav
+03c1a0f09236,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_11_LAND_416-chunk10.wav
+373a1edc5e05,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_10_STOMP_416-chunk4.wav
+76b7864c8868,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_CONC_10_STOMP_416-chunk11.wav
+15b3022b8c58,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_CONC_10_STOMP_KMR81-chunk5.wav
+71ae2608fe27,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_11_LAND_416-chunk9.wav
+c53cc930a756,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_10_STOMP_416-chunk14.wav
+62435083be85,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_ASPH_11_LAND_416-chunk1.wav
+8867eeb29ca1,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_CONC_10_STOMP_416-chunk8.wav
+7042ae2e173a,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_10_STOMP_416-chunk12.wav
+4486c3343e8b,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_11_LAND_KMR81-chunk4.wav
+a74c29e793e5,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_10_STOMP_KMR81-chunk5.wav
+a172b2809b30,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_CONC_10_STOMP_KMR81-chunk6.wav
+b6794c42e525,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_ASPH_10_STOMP_416-chunk12.wav
+802e34642102,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_10_STOMP_KMR81-chunk12.wav
+b708e50a841e,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_11_LAND_KMR81-chunk8.wav
+917e06d12553,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_11_LAND_416-chunk6.wav
+cf774b3a9d4c,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_ASPH_10_STOMP_KMR81-chunk5.wav
+bf3a9e081b09,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_ASPH_11_LAND_416-chunk4.wav
+56058d0e588f,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_ASPH_10_STOMP_KMR81-chunk10.wav
+1a6a38270bbe,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_CONC_11_LAND_KMR81-chunk11.wav
+e858b6984dc7,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_11_LAND_416-chunk11.wav
+7b1738d596b5,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_ASPH_10_STOMP_416-chunk6.wav
+166f21380c39,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_ASPH_10_STOMP_416-chunk12.wav
+a3a6ac4b20cb,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_11_LAND_KMR81-chunk9.wav
+5be52bf83b5f,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_10_STOMP_416-chunk12.wav
+9fb049ed22d9,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_10_STOMP_KMR81-chunk5.wav
+6cab1cde4d40,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_ASPH_11_LAND_416-chunk0.wav
+9a1788b049a2,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_10_STOMP_416-chunk3.wav
+ad6d0a4eba21,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_ASPH_10_STOMP_KMR81-chunk10.wav
+a51b3b95525a,ulfc,,rock,impact,1,5,3,2,1,path=chunks/HEEL_ASPH_10_STOMP_KMR81-chunk5.wav
+c8c1e9b0935e,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_10_STOMP_KMR81-chunk6.wav
+9c95dfbea5d2,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_10_STOMP_KMR81-chunk13.wav
+6a587177edd2,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_10_STOMP_416-chunk4.wav
+27e5123a527f,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_ASPH_11_LAND_KMR81-chunk1.wav
+ac8d9d498d66,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_10_STOMP_KMR81-chunk9.wav
+eb93ecf407a1,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_CONC_11_LAND_416-chunk11.wav
+0fd8194b0981,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_CONC_11_LAND_416-chunk0.wav
+57cf935579ab,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_ASPH_10_STOMP_416-chunk9.wav
+e7fcb5fc0895,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_ASPH_11_LAND_KMR81-chunk7.wav
+b1004336c230,ulfc,,rock,impact,1,5,3,2,1,path=chunks/SNEAK_ASPH_11_LAND_416-chunk2.wav
+3e63d804f2bb,ulfc,,rock,impact,1,5,3,2,1,path=chunks/DRESS_CONC_11_LAND_416-chunk4.wav
+dbacf132fb76,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_10_STOMP_KMR81-chunk10.wav
+1da07a729dfe,ulfc,,rock,impact,1,5,3,2,1,path=chunks/BOOT_ASPH_11_LAND_KMR81-chunk6.wav
+b8b7c5f6b977,ulfc,,rock,impact,1,5,3,2,1,path=chunks/FLAT_CONC_11_LAND_KMR81-chunk11.wav
+f1d83f98f0f0,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_CONC_16_SCRAPE4_KMR81-chunk1.wav
+9664f2815b62,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_16_SCRAPE4_KMR81-chunk8.wav
+12113e925a00,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_CONC_15_SCRAPE3_KMR81-chunk10.wav
+be12feecf014,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_17_SCRAPE5_KMR81-chunk2.wav
+97dc85ab7ecd,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_15_SCRAPE3_416-chunk0.wav
+23510f4f2a43,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_15_SCRAPE3_KMR81-chunk1.wav
+50f74b3a771f,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_ASPH_17_SCRAPE5_KMR81-chunk1.wav
+18bf58456a10,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_14_SCRAPE2_KMR81-chunk4.wav
+2f7ea422670d,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_15_SCRAPE3_KMR81-chunk1.wav
+a006fa7d4d5d,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_ASPH_15_SCRAPE3_KMR81-chunk13.wav
+0b1c9fb6e388,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_15_SCRAPE3_KMR81-chunk0.wav
+e41dcc74d0ce,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_CONC_16_SCRAPE4_416-chunk12.wav
+fdc7e9ebfa0b,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_16_SCRAPE4_416-chunk12.wav
+989079bd206a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_13_SCRAPE1_416-chunk7.wav
+569de54d3163,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_15_SCRAPE3_416-chunk8.wav
+c5504d8a57f6,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_17_SCRAPE5_416-chunk1.wav
+f759073c5741,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_14_SCRAPE2_416-chunk1.wav
+449e1f9e7a1a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_CONC_12_SCUFF_416-chunk6.wav
+dcca1befe93b,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_17_SCRAPE5_416-chunk0.wav
+2c1f43beeea7,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_ASPH_13_SCRAPE1_416-chunk5.wav
+f5fb7cd1aeba,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_13_SCRAPE1_KMR81-chunk9.wav
+85ccce5cd313,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_15_SCRAPE3_416-chunk5.wav
+f06630218f5d,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_15_SCRAPE3_416-chunk10.wav
+febd75e0fefe,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_12_SCUFF_KMR81-chunk0.wav
+7ff818c4da83,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_ASPH_12_SCUFF_KMR81-chunk1.wav
+3741a47448ef,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_12_SCUFF_416-chunk8.wav
+8414c66695a3,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_15_SCRAPE3_416-chunk4.wav
+3b205192ef89,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_15_SCRAPE3_416-chunk7.wav
+323d17823abd,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_CONC_13_SCRAPE1_416-chunk3.wav
+7e781edb9d3a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_12_SCUFF_KMR81-chunk1.wav
+620b5959d9f3,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_CONC_16_SCRAPE4_KMR81-chunk2.wav
+14a2425b36d0,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_17_SCRAPE5_KMR81-chunk0.wav
+4c442888ee92,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_ASPH_15_SCRAPE3_416-chunk1.wav
+3b2a28552eca,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_ASPH_13_SCRAPE1_KMR81-chunk6.wav
+48286db34868,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_13_SCRAPE1_416-chunk4.wav
+7c73a68d30d1,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_13_SCRAPE1_416-chunk10.wav
+ce6a2fd2f7bb,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_14_SCRAPE2_416-chunk3.wav
+adabfab7760a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_ASPH_12_SCUFF_416-chunk9.wav
+1f900516f969,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_CONC_13_SCRAPE1_416-chunk14.wav
+bd19101db890,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_13_SCRAPE1_416-chunk10.wav
+3c055b61d525,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_ASPH_14_SCRAPE2_KMR81-chunk4.wav
+7cb6ddb0cb86,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_ASPH_13_SCRAPE1_KMR81-chunk8.wav
+5cc47f23145a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_13_SCRAPE1_KMR81-chunk1.wav
+e7b8d3c5b67d,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_ASPH_13_SCRAPE1_416-chunk9.wav
+8ede879d892b,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_ASPH_12_SCUFF_416-chunk0.wav
+8bd8c760e71c,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_14_SCRAPE2_KMR81-chunk0.wav
+146f7183f70a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_ASPH_16_SCRAPE4_KMR81-chunk8.wav
+df1921005ea7,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_13_SCRAPE1_KMR81-chunk5.wav
+48624e54037a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_14_SCRAPE2_416-chunk13.wav
+a0abbbafad42,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_15_SCRAPE3_416-chunk5.wav
+191222c222a9,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_CONC_16_SCRAPE4_KMR81-chunk5.wav
+a88e1d539d96,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_14_SCRAPE2_KMR81-chunk8.wav
+b2ef43f56e0f,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_16_SCRAPE4_KMR81-chunk4.wav
+f6fec8faafb0,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_15_SCRAPE3_KMR81-chunk3.wav
+a90894c4932a,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/FLAT_ASPH_13_SCRAPE1_KMR81-chunk6.wav
+72e40b413bdb,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/SNEAK_CONC_15_SCRAPE3_KMR81-chunk3.wav
+83e02e6fd3ad,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_16_SCRAPE4_KMR81-chunk14.wav
+8232f7b2ec53,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/BOOT_ASPH_15_SCRAPE3_KMR81-chunk10.wav
+3569716a4454,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/DRESS_ASPH_12_SCUFF_KMR81-chunk3.wav
+79fc8ebf6057,ulfc,,rock,scrape,1,5,3,2,4,path=chunks/HEEL_CONC_12_SCUFF_416-chunk6.wav
+3fe4ce97455a,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_05_WALK FAST_KMR81-chunk14.wav
+f83f68125c77,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_01_WALK XX SLOW_KMR81-chunk11.wav
+17215ff3a5a6,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_METAL1_05_WALK FAST_KMR81-chunk5.wav
+0789c5595e6d,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_GRATE_02_WALK X SLOW_416-chunk6.wav
+2f9b56f97e6a,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_DIAMOND_07_RUN_416-chunk12.wav
+ce7a6d5a2475,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_05_WALK FAST_KMR81-chunk3.wav
+71a0b9f9eeb0,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_GRATE_01_WALK XX SLOW_KMR81-chunk7.wav
+af8d5497dd32,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_08_STAIR SLOW_KMR81-chunk10.wav
+d44c7cc3340c,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_GRATE_06_JOG_KMR81-chunk21.wav
+d8d9a5c9a5d7,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_08_STAIR SLOW_KMR81-chunk1.wav
+2def7874df00,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_07_RUN_416-L-chunk8.wav
+4ed326aacc86,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_05_WALK FAST_KMR81-chunk16.wav
+4892c4a612aa,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_GRATE_07_RUN_416-chunk1.wav
+5e2beff4ebe2,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_09_STAIR FAST_KMR81-chunk19.wav
+15f9119f67d9,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_GRATE_06_JOG_KMR81-chunk18.wav
+6402ca45c574,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_09_STAIR FAST_KMR81-chunk0.wav
+81f6fb3217a5,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_DIAMOND_01_WALK XX SLOW_416-chunk3.wav
+802a5d331bb7,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_01_WALK XX SLOW_416-chunk3.wav
+1de32df6d9b5,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_METAL1_06_JOG_416-chunk3.wav
+0c67e4f70fc2,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_GRATE_09_STAIR FAST_416-chunk15.wav
+d6fe5a2523f5,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_06_JOG_416-chunk3.wav
+73732c8695c1,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_GRATE_09_STAIR FAST_416-chunk14.wav
+96443e6704ba,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_07_RUN_KMR81-chunk23.wav
+75209b3e291e,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_METAL1_07_RUN_416-chunk12.wav
+abf1bbebd62e,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_METAL1_06_JOG_KMR81-chunk6.wav
+c63ca8231201,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_DIAMOND_07_RUN_416-chunk13.wav
+55ea40ad5ca7,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_DIAMOND_04_WALK MED_416-chunk1.wav
+9373ef024489,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_07_RUN_416-chunk22.wav
+693a1d23de0f,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_02_WALK X SLOW_416-chunk14.wav
+57414d0c0da8,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_05_WALK FAST_416-chunk10.wav
+dd6e4fa7f02f,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_GRATE_08_STAIR SLOW_KMR81-chunk1.wav
+38e6b4cccb80,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_GRATE_02_WALK X SLOW_416-chunk0.wav
+cef01c57076d,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_06_JOG_KMR81-chunk18.wav
+63aff4ce3a81,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_05_WALK FAST_416-chunk12.wav
+18cc3ebc5db3,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_METAL1_08_STAIR SLOW_KMR81-chunk13.wav
+0f8364a28470,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_METAL1_02_WALK X SLOW_416-chunk6.wav
+9a2801e56338,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_07_RUN_416-L-chunk11.wav
+8670cb7a1aa4,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_METAL1_02_WALK X SLOW_KMR81-chunk13.wav
+1932f98540c7,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_08_STAIR SLOW_416-chunk6.wav
+a1c686846d06,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_DIAMOND_05_WALK FAST_KMR81-chunk12.wav
+4bd57f5c5e20,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_DIAMOND_09_STAIR FAST_416-chunk17.wav
+a43812e2cb14,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_03_WALK M SLOW_416-chunk5.wav
+043c290d3ee9,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_DIAMOND_07_RUN_KMR81-chunk19.wav
+b3da8f73eaef,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_01_WALK XX SLOW_KMR81-chunk2.wav
+38f9421034a3,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_06_JOG_416-chunk23.wav
+444ad63e75d9,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_06_JOG_KMR81-chunk21.wav
+87bc1a605e62,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_03_WALK M SLOW_416-chunk3.wav
+4560b70c9a95,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_05_WALK FAST_416-chunk9.wav
+d55c621d2df0,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_01_WALK XX SLOW_KMR81-chunk12.wav
+b07ca5b4ed4b,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_06_JOG_KMR81-chunk7.wav
+27231d98437a,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_METAL1_01_WALK XX SLOW_KMR81-chunk6.wav
+e110ce484f3b,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_DIAMOND_06_JOG_KMR81-chunk12.wav
+838cf0c4aae5,ulfc,,metal,step,1,5,4,2,3,path=chunks/FLAT_METAL1_01_WALK XX SLOW_416-chunk8.wav
+24fffaaeef32,ulfc,,metal,step,1,5,4,2,3,path=chunks/DRESS_DIAMOND_05_WALK FAST_416-chunk17.wav
+3a637aea3bfe,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_01_WALK XX SLOW_416-chunk10.wav
+56cb81b2fb5f,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_GRATE_09_STAIR FAST_416-chunk13.wav
+4675f9591c07,ulfc,,metal,step,1,5,4,2,3,path=chunks/HEEL_METAL1_04_WALK MED_KMR81-chunk8.wav
+a75b6d73085d,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_METAL1_06_JOG_KMR81-chunk16.wav
+7b0882da4fa7,ulfc,,metal,step,1,5,4,2,3,path=chunks/BOOT_GRATE_05_WALK FAST_416-chunk11.wav
+8f32e32ccf0f,ulfc,,metal,step,1,5,4,2,3,path=chunks/SNEAK_DIAMOND_06_JOG_KMR81-chunk19.wav
+63bdc04d19a2,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_10_STOMP_416-chunk10.wav
+4ca79fb4667b,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_416-chunk13.wav
+8ac418acf786,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_DIAMOND_10_STOMP_416-chunk12.wav
+2aa7713bd3a2,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_11_LAND_KMR81-chunk1.wav
+8aa1812c37c9,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_GRATE_11_LAND_KMR81-chunk0.wav
+39f17ff8de7e,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_10_STOMP_KMR81-chunk4.wav
+36c160dc1f8a,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_KMR81-chunk6.wav
+04ab3a0c1095,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_DIAMOND_10_STOMP_416-chunk16.wav
+15c0adc9ea3f,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_GRATE_10_STOMP_KMR81-chunk3.wav
+26a813d82da9,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_DIAMOND_10_STOMP_KMR81-chunk10.wav
+220a754e77c1,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_GRATE_10_STOMP_416-chunk6.wav
+e7660c74cc08,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_GRATE_11_LAND_KMR81-chunk8.wav
+0ba167d8adfd,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_METAL1_10_STOMP_KMR81-chunk4.wav
+ba84f66e65b7,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_METAL1_10_STOMP_KMR81-chunk14.wav
+996449317192,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_KMR81-chunk1.wav
+5fabc0180d6e,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_METAL1_11_LAND_416-chunk6.wav
+7b90bda8dda1,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_METAL1_11_LAND_KMR81-chunk2.wav
+c60dd2dc2c6c,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_METAL1_10_STOMP_416-chunk13.wav
+9b7aa956f3a3,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_METAL1_10_STOMP_416-chunk10.wav
+3cc3d784c267,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_METAL1_11_LAND_416-chunk7.wav
+c647eb2c8aae,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_METAL1_10_STOMP_KMR81-chunk4.wav
+fbfd780ed565,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_DIAMOND_10_STOMP_KMR81-chunk14.wav
+7609db9188de,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_METAL1_10_STOMP_KMR81-chunk1.wav
+63a74c7befb6,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_KMR81-chunk4.wav
+67c3eded56c9,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_DIAMOND_10_STOMP_KMR81-chunk6.wav
+a1df1942bfd4,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_METAL1_11_LAND_KMR81-chunk1.wav
+8e8afcaca1b7,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_GRATE_11_LAND_416-chunk2.wav
+c7650974cfc0,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_GRATE_10_STOMP_416-chunk4.wav
+d22e7adfc750,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_GRATE_11_LAND_416-chunk1.wav
+d0ab33eff487,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_GRATE_10_STOMP_KMR81-chunk13.wav
+da346fdd4d10,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_METAL1_11_LAND_416-chunk4.wav
+ea5557b173f7,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_METAL1_11_LAND_416-chunk11.wav
+f404abd9ba03,ulfc,,metal,impact,1,5,4,2,1,path=chunks/FLAT_METAL1_10_STOMP_KMR81-chunk15.wav
+1cf795af38a7,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_KMR81-chunk5.wav
+f02d4d0b9020,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_11_LAND_KMR81-chunk6.wav
+5affbd289f7b,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_416-chunk3.wav
+f2d056885ad9,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_GRATE_10_STOMP_KMR81-chunk6.wav
+ec9b6c4de913,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_METAL1_10_STOMP_416-chunk15.wav
+db33d38c11c3,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_DIAMOND_10_STOMP_416-chunk11.wav
+13bacce287de,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_DIAMOND_10_STOMP_416-chunk7.wav
+d85b64509b31,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_10_STOMP_416-chunk2.wav
+435fa5a9cc6b,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_KMR81-chunk15.wav
+8e030040c309,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_METAL1_10_STOMP_416-chunk14.wav
+3d4222f7665e,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_GRATE_10_STOMP_416-chunk10.wav
+c982f62f764e,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_GRATE_11_LAND_KMR81-chunk3.wav
+66fc848b0a07,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_DIAMOND_10_STOMP_416-chunk17.wav
+3e2b07ea15bf,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_GRATE_10_STOMP_416-chunk3.wav
+76e463ab05bd,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_GRATE_10_STOMP_KMR81-chunk11.wav
+d4566845b18d,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_11_LAND_416-chunk6.wav
+9fa3e070f9d8,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_10_STOMP_416-chunk7.wav
+2dcfc5917f88,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_GRATE_11_LAND_416-chunk5.wav
+f8ae676a4066,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_METAL1_10_STOMP_416-chunk4.wav
+563f3a786664,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_DIAMOND_10_STOMP_416-chunk12.wav
+b525931439c8,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_DIAMOND_10_STOMP_416-chunk15.wav
+0bfb6c98d0f8,ulfc,,metal,impact,1,5,4,2,1,path=chunks/SNEAK_DIAMOND_11_LAND_KMR81-chunk3.wav
+d155c0843151,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_METAL1_11_LAND_KMR81-chunk4.wav
+f665631dce37,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_METAL1_10_STOMP_416-chunk7.wav
+d1b6d4e14877,ulfc,,metal,impact,1,5,4,2,1,path=chunks/DRESS_GRATE_10_STOMP_KMR81-chunk4.wav
+c18aad37f6d5,ulfc,,metal,impact,1,5,4,2,1,path=chunks/BOOT_DIAMOND_10_STOMP_KMR81-chunk3.wav
+a55fb909368f,ulfc,,metal,impact,1,5,4,2,1,path=chunks/HEEL_DIAMOND_10_STOMP_KMR81-chunk3.wav
+6c2456c2dd5f,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_DIAMOND_15_SCRAPE3_KMR81-chunk9.wav
+ae2f413f0d5f,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_METAL1_16_SCRAPE4_KMR81-chunk1.wav
+ed984e896401,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_METAL1_15_SCRAPE3_416-chunk0.wav
+b8cfbe03b8f6,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_17_SCRAPE5_416-chunk0.wav
+14e472730831,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_GRATE_13_SCRAPE1_416-chunk0.wav
+c88d6246c6fe,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_GRATE_17_SCRAPE5_416-chunk0.wav
+9d7b429f1311,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/DRESS_DIAMOND_15_SCRAPE3_KMR81-chunk0.wav
+d36a7a71be5b,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_DIAMOND_16_SCRAPE4_416-chunk6.wav
+f846f90057f2,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_DIAMOND_14_SCRAPE2_416-chunk2.wav
+0be33e2294d9,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_DIAMOND_16_SCRAPE4_416-chunk0.wav
+d4d54923c88b,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_13_SCRAPE1_KMR81-chunk12.wav
+6241fe1d2e60,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_15_SCRAPE3_KMR81-chunk16.wav
+f533770eaf1d,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_DIAMOND_13_SCRAPE1_416-chunk5.wav
+ddbf934f1c4b,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_GRATE_17_SCRAPE5_KMR81-chunk4.wav
+e4da3360a889,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_14_SCRAPE2_KMR81-chunk5.wav
+f7d8bb9e0217,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_METAL1_16_SCRAPE4_KMR81-chunk10.wav
+367ad801003a,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_13_SCRAPE1_KMR81-chunk6.wav
+26213b9365ac,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_16_SCRAPE4_KMR81-chunk5.wav
+335f5eecbbdc,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_METAL1_16_SCRAPE4_KMR81-chunk2.wav
+022354f8b771,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_12_SCUFF_KMR81-chunk0.wav
+646b4e5e701a,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/DRESS_DIAMOND_14_SCRAPE2_416-chunk0.wav
+5c538556536c,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_METAL1_16_SCRAPE4_KMR81-chunk0.wav
+4f006f0422c8,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_17_SCRAPE5_KMR81-chunk14.wav
+c43d338c3d17,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_16_SCRAPE4_KMR81-chunk3.wav
+7e4f045c8856,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_GRATE_16_SCRAPE4_KMR81-chunk3.wav
+5fb542f7ac64,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_DIAMOND_15_SCRAPE3_KMR81-chunk6.wav
+629471bf2a25,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_GRATE_13_SCRAPE1_KMR81-chunk2.wav
+726167fc97c6,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_16_SCRAPE4_KMR81-chunk5.wav
+8bdcd9b3ba4a,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_14_SCRAPE2_KMR81-chunk15.wav
+3d501579c090,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_14_SCRAPE2_416-chunk9.wav
+dd3ca40b7377,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_DIAMOND_16_SCRAPE4_416-chunk1.wav
+5286466b4686,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_16_SCRAPE4_KMR81-chunk2.wav
+1380c41276ca,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_15_SCRAPE3_KMR81-chunk9.wav
+3a1d81afde68,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_12_SCUFF_KMR81-chunk4.wav
+b71c2b46a805,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_DIAMOND_15_SCRAPE3_416-chunk2.wav
+f6cb1d5207f3,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_METAL1_15_SCRAPE3_416-chunk0.wav
+d881f86ef357,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_DIAMOND_14_SCRAPE2_416-chunk3.wav
+8af4515437d3,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_DIAMOND_13_SCRAPE1_416-chunk1.wav
+58d4818c2b26,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_14_SCRAPE2_KMR81-chunk3.wav
+c73814bf6650,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_DIAMOND_13_SCRAPE1_416-chunk2.wav
+83bd1654a93a,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_15_SCRAPE3_KMR81-chunk9.wav
+f6ba5626d1c6,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_METAL1_15_SCRAPE3_KMR81-chunk0.wav
+d80b120cb980,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/DRESS_GRATE_16_SCRAPE4_KMR81-chunk0.wav
+0d7f4a260620,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_GRATE_16_SCRAPE4_416-chunk4.wav
+9b8161ce52cb,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_15_SCRAPE3_KMR81-chunk5.wav
+78cbb04d1899,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_DIAMOND_16_SCRAPE4_416-chunk10.wav
+2ee3c65d51f5,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/FLAT_METAL1_16_SCRAPE4_416-chunk10.wav
+f03e5b0ca732,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_METAL1_15_SCRAPE3_416-chunk3.wav
+cd158623a013,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_DIAMOND_16_SCRAPE4_KMR81-chunk4.wav
+7ee3ee0cf34f,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/SNEAK_METAL1_17_SCRAPE5_KMR81-chunk18.wav
+bd982b053522,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_15_SCRAPE3_KMR81-chunk7.wav
+266bad0aa695,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_16_SCRAPE4_KMR81-chunk16.wav
+1f20a6dfe46e,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_DIAMOND_14_SCRAPE2_KMR81-chunk0.wav
+663f497d8a94,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_15_SCRAPE3_416-chunk12.wav
+758408c67197,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_METAL1_14_SCRAPE2_KMR81-chunk1.wav
+4b301c2387a0,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_METAL1_15_SCRAPE3_KMR81-chunk10.wav
+33ecea234ca1,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_GRATE_16_SCRAPE4_KMR81-chunk3.wav
+0dd04a3fcd08,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/BOOT_METAL1_15_SCRAPE3_KMR81-chunk4.wav
+3b4e86991e4d,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_16_SCRAPE4_416-chunk4.wav
+57846325da4c,ulfc,,metal,scrape,1,5,4,2,4,path=chunks/HEEL_DIAMOND_16_SCRAPE4_416-chunk9.wav
+59969b7d33cc,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_07_RUN_416-chunk8.wav
+567e5988d373,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_06_JOG_KMR81-chunk3.wav
+c5651d7a0302,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk14.wav
+0b30d274d66d,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk17.wav
+390056105b2e,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk3.wav
+29a040841634,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk13.wav
+951178e7d700,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_07_RUN_416-chunk1.wav
+8572f2c301d0,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk14.wav
+65b963414d3e,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_08_SLOW STAIR_416-chunk5.wav
+5c925b51ee66,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_06_JOG_KMR81-chunk7.wav
+bd8f5452f839,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_07_RUN_416-chunk2.wav
+1443d96e8da3,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_08_STAIR SLOW_KMR81-chunk3.wav
+1bf70914b8b7,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk5.wav
+870a51d9837e,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_08_STAIR SLOW_KMR81-chunk1.wav
+e638e3ba3e71,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk1.wav
+d46a38c4140a,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_09_STAIR FAST_416-chunk1.wav
+3285410b3a78,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_07_RUN_416-chunk0.wav
+1de31dbb4e7b,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_04_WALK MED_416-chunk1.wav
+f0b914045a16,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_01_WALK XX SLOW_KMR81-chunk1.wav
+17577ef5fdd8,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_07_RUN_KMR81-chunk9.wav
+d91094a783a3,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk7.wav
+498f3e6f6654,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_08_SLOW STAIR_416-chunk4.wav
+12de66009493,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk12.wav
+a8ab263e4067,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk4.wav
+2e08a4a4da41,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk8.wav
+41ad851dffd9,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk12.wav
+bba5114830f6,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_08_SLOW STAIR_KMR81-chunk3.wav
+92fe9ff240a0,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk4.wav
+1c1bdccb666c,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_08_STAIR SLOW_KMR81-chunk0.wav
+c572a5e497ea,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_07_RUN_416-chunk13.wav
+871d59d86157,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk12.wav
+3cdca76cc723,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_07_RUN_KMR81-chunk4.wav
+92e87f041f75,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk5.wav
+a358357b19d2,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_KMR81-chunk2.wav
+acf867d411f0,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_09_STAIR FAST_416-chunk3.wav
+4ba1c157e4ec,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk3.wav
+962c5a8421a9,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_08_SLOW STAIR_416-chunk2.wav
+51c7eac5fd1a,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk13.wav
+faf2f33355b7,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk7.wav
+7b0bdee4fb7a,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_07_RUN_KMR81-chunk11.wav
+a8d631c1fce1,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk15.wav
+828f1f06f0cf,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_01_WALK XX SLOW_KMR81-chunk0.wav
+c66933ba70a4,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_07_RUN_416-chunk1.wav
+804794ff61f7,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_08_STAIR SLOW_416-chunk0.wav
+c45e8f9515ea,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_07_RUN_KMR81-chunk3.wav
+ba3555750d83,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk16.wav
+19ada5222d6b,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk14.wav
+ec9a6a90aa2b,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_09_STAIR FAST_KMR81-chunk4.wav
+49968d7a7bcb,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_09_STAIR FAST_KMR81-chunk0.wav
+162b2aed3293,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_KMR81-chunk0.wav
+eea2980a8360,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_05_WALK FAST_416-chunk0.wav
+414d8ca67ebb,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_08_STAIR SLOW_KMR81-chunk6.wav
+24ea0257f653,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_416-chunk1.wav
+27c11a0fbeb1,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_06_JOG_KMR81-chunk5.wav
+40f7966154d2,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_06_JOG_KMR81-chunk4.wav
+b67d2dfa4a7b,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_07_RUN_416-chunk11.wav
+4ff71d216802,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_06_JOG_KMR81-chunk0.wav
+0996ac82ba75,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_KMR81-chunk1.wav
+241f84f55f4a,ulfc,,earth,step,1,2,1,3,3,path=chunks/SNEAK_DIRT_09_STAIR FAST_416-chunk9.wav
+065286220be7,ulfc,,earth,step,1,2,1,3,3,path=chunks/BOOT_DIRT_06_JOG_KMR81-chunk6.wav
+5fdf8961eeb3,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk1.wav
+9a0b6111a74d,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_KMR81-chunk11.wav
+e61419aac24a,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk5.wav
+70a024764364,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk10.wav
+266e9806f80e,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk8.wav
+9276deb2826c,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_416-chunk3.wav
+94990e224bd3,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk13.wav
+11fd85f73b7f,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk3.wav
+c1de7e672a6f,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_416-chunk12.wav
+c5b9161358fb,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk1.wav
+faebea9c3f0c,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk6.wav
+35b7eb6ae018,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk11.wav
+9db7bac152e0,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk7.wav
+df6c5ae203ef,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk7.wav
+05674da36a83,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk1.wav
+24b75078ed7b,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_KMR81-chunk5.wav
+75bc0785e917,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk0.wav
+52b59f38ba04,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk2.wav
+978dc17b9c05,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk4.wav
+7c3c8b73b451,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk10.wav
+928f5547d78c,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_416-chunk12.wav
+130f64b0d59f,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_KMR81-chunk7.wav
+658d3a64f50b,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_416-chunk2.wav
+b5b3ba7ec1a2,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_416-chunk5.wav
+79608a664d52,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk9.wav
+3cd46e4652fc,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk15.wav
+30be93113887,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_KMR81-chunk7.wav
+7b6565f6c513,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_416-chunk3.wav
+7d6d07ba06b0,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk14.wav
+f20eedc01651,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk6.wav
+d75d8ec9d4e3,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk2.wav
+7de9b056c142,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk12.wav
+0c83d9cad39a,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_KMR81-chunk1.wav
+ec996c34b2b3,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_KMR81-chunk3.wav
+956ace2260b4,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk11.wav
+8fdee4b5076b,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_416-chunk11.wav
+6846f856faef,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_416-chunk4.wav
+ca1c0f86ab9d,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk4.wav
+c9b0bd449073,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk8.wav
+30debe97f66d,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk0.wav
+ecb9c9304227,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_KMR81-chunk0.wav
+fefdaea3088f,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_416-chunk10.wav
+95176fd4ba77,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_KMR81-chunk2.wav
+4896297bdf79,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_10_STOMP_416-chunk8.wav
+b8f1e1960718,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_KMR81-chunk3.wav
+16ec05d47056,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk8.wav
+ff5022202aff,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_416-chunk16.wav
+79e913526786,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk10.wav
+118535e3cc63,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk9.wav
+fdb51e5d92a2,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_KMR81-chunk0.wav
+43738de13a93,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk7.wav
+513de807ae5c,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk7.wav
+457de88d1333,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_416-chunk2.wav
+efd522cdccc6,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_10_STOMP_KMR81-chunk16.wav
+e598f77edc78,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk2.wav
+8f1d3040f21d,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_KMR81-chunk0.wav
+12e9c8e79f2d,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk4.wav
+8798fb477f3a,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_KMR81-chunk1.wav
+7db1b003e018,ulfc,,earth,impact,1,2,1,3,1,path=chunks/BOOT_DIRT_11_LAND_416-chunk11.wav
+9845711c074b,ulfc,,earth,impact,1,2,1,3,1,path=chunks/SNEAK_DIRT_11_LAND_KMR81-chunk9.wav
+a04a1f7eb45b,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_KMR81-chunk0.wav
+52dc478d1e37,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk15.wav
+ad9496a5225c,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_16_SCRAPE4_416-chunk0.wav
+825318843b1d,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_416-chunk7.wav
+24f436f689fd,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_416-chunk6.wav
+9c4109014fca,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_KMR81-chunk13.wav
+d2b85c123698,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk8.wav
+339852618051,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_KMR81-chunk1.wav
+946732964535,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_KMR81-chunk6.wav
+5c0711c8623f,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_KMR81-chunk1.wav
+ccfce98dd022,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk21.wav
+b44be339030f,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk2.wav
+86708d516fc8,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_KMR81-chunk10.wav
+86031f44bd67,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_KMR81-chunk2.wav
+319cd60cff21,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk5.wav
+d6466122513f,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_KMR81-chunk4.wav
+c46baf658691,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk5.wav
+e4a5a8dd5adf,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_416-chunk4.wav
+1d79f401bb9e,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk3.wav
+3f5a835bf474,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk14.wav
+ca761a56655c,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk20.wav
+d6b1c287a4a5,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_416-chunk13.wav
+8c993485d63c,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_416-chunk12.wav
+f762b4d3c99d,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk15.wav
+03cb4500ef52,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk9.wav
+b5a5bba24694,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_KMR81-chunk10.wav
+4207d66b1aa6,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk0.wav
+bc91ebfe4ab9,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_KMR81-chunk7.wav
+15a6b222f496,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_KMR81-chunk17.wav
+95e5392ffbd7,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_416-chunk9.wav
+8cb3fe25be9f,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_KMR81-chunk12.wav
+bccf74ac6594,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk1.wav
+8547cae3aea6,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk1.wav
+e0b9feb8a901,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk14.wav
+f275e05fde64,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_KMR81-chunk5.wav
+b45e91acdf1d,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk3.wav
+0ba891d355d1,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_KMR81-chunk10.wav
+da014cd4d61b,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_KMR81-chunk1.wav
+f7817bc0cafa,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk10.wav
+8d8dd4311fa3,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_KMR81-chunk4.wav
+75a30fe5f7f7,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk1.wav
+e90716b5a155,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk11.wav
+ab58de0b755d,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk2.wav
+bdebe33d1003,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_416-chunk19.wav
+ee530e156de0,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_KMR81-chunk10.wav
+7b7d719156e3,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_416-chunk12.wav
+bac0a64d679e,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_416-chunk11.wav
+e3475428742c,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_416-chunk3.wav
+6f9c58819021,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_KMR81-chunk5.wav
+ed8c539c5a1f,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_KMR81-chunk0.wav
+94c920ef9149,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/BOOT_DIRT_17_SCRAPE5_416-chunk3.wav
+6d8768d5d267,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_KMR81-chunk13.wav
+448fda35d905,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_KMR81-chunk0.wav
+141a7fa6dbdb,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_14_SCRAPE2_KMR81-chunk3.wav
+41032ddcf331,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_416-chunk10.wav
+695c520c65db,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_16_SCRAPE4_416-chunk8.wav
+558ef8b02296,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_KMR81-chunk7.wav
+9d188a74fbdc,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_15_SCRAPE3_KMR81-chunk7.wav
+dcc8eac44f18,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_13_SCRAPE1_KMR81-chunk12.wav
+157b5f0edbde,ulfc,,earth,scrape,1,2,1,3,4,path=chunks/SNEAK_DIRT_17_SCRAPE5_416-chunk1.wav
+700fdaf44323,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk22.wav
+d2935f14ab6e,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk11.wav
+0e9d61b039f0,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk17.wav
+8646134af01e,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk0.wav
+b983a1a22376,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk14.wav
+2ffee3487a89,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk11.wav
+e99ec7d08513,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk23.wav
+c7c4cdf2940e,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk9.wav
+5eb88ec59cef,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk18.wav
+4452d0ca7db8,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk18.wav
+278d88885630,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk4.wav
+1df62665ea8a,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk9.wav
+4b836fa15765,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_KMR81-chunk1.wav
+8d17dba29e7b,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk1.wav
+8b3ea1de62ac,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk5.wav
+d16adbc4a084,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk5.wav
+fa6fbc657501,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk1.wav
+37712364c505,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_05_WALK FAST_KMR81-chunk0.wav
+a105d0d6f75e,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk4.wav
+7fb9df03a0c6,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_06_JOG_KMR81-chunk2.wav
+b9be806b3fac,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_KMR81-chunk8.wav
+fb031c1e8aee,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk2.wav
+9a2ca8b10dae,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk5.wav
+2acfa83299e4,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_KMR81-chunk12.wav
+7924281de64a,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk5.wav
+ef2bfea931be,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk0.wav
+5a5f4a48cdd7,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_06_JOG_416-chunk0.wav
+afd2436c8000,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_06_JOG_416-chunk1.wav
+2d2f764535c1,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk7.wav
+42dd93304dc3,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk6.wav
+4afd10e006e4,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk3.wav
+7aa990e933c5,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk13.wav
+ae0dad73de42,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk15.wav
+ee7dc8f63a48,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_KMR81-chunk7.wav
+6958a31d4786,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_KMR81-chunk0.wav
+b3312253c540,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk8.wav
+48eb9fb01cee,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_KMR81-chunk9.wav
+d32f3c30904c,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_KMR81-chunk1.wav
+c2e34d9dfff7,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk14.wav
+eb4473f182a6,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_416-chunk2.wav
+1867247c6000,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk8.wav
+bd8bf8003d9a,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_KMR81-chunk10.wav
+8b8acf4c4fb9,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_KMR81-chunk4.wav
+bf641d18cb9d,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk8.wav
+8b487ab079f3,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_09_STAIR FAST_KMR81-chunk10.wav
+e023c61988ec,ulfc,,other,step,1,3,2,3,3,path=chunks/SNEAK_GRASS_07_RUN_416-chunk0.wav
+81d1e20ab151,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk11.wav
+e1e8d331447a,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_416-chunk7.wav
+a8288547aa3e,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk11.wav
+b780b07ef0b9,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk2.wav
+239854fc0369,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk16.wav
+7838faf63198,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk0.wav
+abe314e93af7,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk6.wav
+0c651bb633e5,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_KMR81-chunk6.wav
+8958558d4e68,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk0.wav
+47cb4daf18ba,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_08_STAIR SLOW_KMR81-chunk12.wav
+7c189a86b72f,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk19.wav
+8b7ee4f706c5,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk2.wav
+a3dae7481fcf,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_KMR81-chunk9.wav
+736a5753edae,ulfc,,other,step,1,3,2,3,3,path=chunks/BOOT_GRASS_07_RUN_416-chunk10.wav
+aabc710fa40b,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk5.wav
+482bd568e28f,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_416-chunk8.wav
+84adbdd49e62,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_KMR81-chunk7.wav
+ad4d747a7de8,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk11.wav
+651a27c122ce,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_KMR81-chunk6.wav
+0a85d1128d89,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk3.wav
+da1b04541357,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk2.wav
+f5d2b18f2aa4,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk5.wav
+cb04617a6a81,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_KMR81-chunk3.wav
+2759ee81d386,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk10.wav
+10657ec7942e,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_416-chunk7.wav
+f7404a4d0021,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_416-chunk0.wav
+7e570680606d,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk9.wav
+28548433712e,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk8.wav
+44562c1272b4,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk9.wav
+926e55f7a0d0,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk2.wav
+42aa6cd97fc0,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk0.wav
+cfab72ed2636,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_416-chunk9.wav
+a597c86724dd,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk7.wav
+ba757c24b387,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk16.wav
+22d21e5e9771,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_KMR81-chunk1.wav
+6b2bae2308a3,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk13.wav
+78739215f4e1,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk8.wav
+02ba6e4b00a7,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk2.wav
+5cc6e78028e0,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_KMR81-chunk2.wav
+1ce9d6257930,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk13.wav
+9a47838aa2af,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk13.wav
+f590d1c29313,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_KMR81-chunk9.wav
+b1c3a30f67a3,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk14.wav
+0148f06b2e19,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk3.wav
+71a825abbf98,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk3.wav
+6b97b1860d7c,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk12.wav
+815592f88a46,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk10.wav
+0effc0455319,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk8.wav
+13f2a9c6a4ad,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk5.wav
+bac70ee0cca7,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk5.wav
+5ac82d90ab44,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_KMR81-chunk9.wav
+efce11733e91,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk10.wav
+f02a64becaf9,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk4.wav
+22b0dadbc786,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk6.wav
+2ac6fffa0f73,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk7.wav
+d73533c8e5f2,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_KMR81-chunk0.wav
+6f0271fb15b7,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk17.wav
+ad7f6f88d942,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk12.wav
+4ca5beb18d6c,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk6.wav
+35363897b6ff,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_KMR81-chunk6.wav
+33efe2eda91d,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk1.wav
+3e5ce674ac5b,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_416-chunk6.wav
+13589306980c,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_KMR81-chunk7.wav
+40c269601091,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_416-chunk2.wav
+3e59ec0893d1,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_416-chunk1.wav
+de18f179fd48,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_416-chunk2.wav
+b1bf6c4315f7,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_416-chunk6.wav
+93c753b97be3,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_416-chunk8.wav
+ef033d70bae9,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk15.wav
+859e9dc16599,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_11_LAND_416-chunk3.wav
+80852c66c9cc,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_416-chunk5.wav
+0e497db3f4a1,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_11_LAND_416-chunk8.wav
+0e268343b1cd,ulfc,,other,impact,1,3,2,3,1,path=chunks/SNEAK_GRASS_10_STOMP_KMR81-chunk3.wav
+324efabb29fe,ulfc,,other,impact,1,3,2,3,1,path=chunks/BOOT_GRASS_10_STOMP_KMR81-chunk11.wav
+c327bfa7250c,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_16_SCRAPE4_KMR81-chunk14.wav
+187b8d04f816,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_14_SCRAPE2_416-chunk4.wav
+1ff2d46a5317,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_KMR81-chunk3.wav
+3a4bc92e6ba7,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_KMR81-chunk7.wav
+ed36a9d8c74d,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_KMR81-chunk4.wav
+dcbdece1e23e,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_416-chunk13.wav
+97b285bfbade,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_416-chunk8.wav
+f7e220261a80,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_KMR81-chunk8.wav
+ccf8742e6673,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_15_SCRAPE3_KMR81-chunk7.wav
+fc91fca7933c,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_416-chunk11.wav
+697cd7b81ab0,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_416-chunk0.wav
+5e7b2408ce98,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_16_SCRAPE4_416-chunk12.wav
+6e13f56e9970,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_14_SCRAPE2_KMR81-chunk5.wav
+b6f4deb424bb,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_14_SCRAPE2_KMR81-chunk0.wav
+0edbec59a3a5,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_KMR81-chunk10.wav
+a9a7a69a487c,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_15_SCRAPE3_416-chunk0.wav
+3a64120d4dc7,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_416-chunk10.wav
+af21f5b2b6ef,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_416-chunk10.wav
+a1e97d4a1d08,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_14_SCRAPE2_416-chunk9.wav
+bb53b3f9841a,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_13_SCRAPE1_KMR81-chunk5.wav
+bbf97e2eaae4,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_416-chunk11.wav
+50498f60d1b1,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_416-chunk0.wav
+c49f6828671b,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_416-chunk2.wav
+e82d5840f5b0,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_416-chunk8.wav
+d6ffdd0ef484,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_16_SCRAPE4_416-chunk0.wav
+51258f7121ce,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_KMR81-chunk6.wav
+e6297a34c63a,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_416-chunk3.wav
+9f4a7768cab7,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_KMR81-chunk14.wav
+811ca8e9bef7,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_416-chunk5.wav
+8bc59a932db4,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_15_SCRAPE3_KMR81-chunk8.wav
+f6e134a4de21,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_KMR81-chunk9.wav
+8fbf8758b5f2,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_KMR81-chunk2.wav
+931e48839e22,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_416-chunk10.wav
+7726d4d4e670,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_16_SCRAPE4_KMR81-chunk13.wav
+dbc9caab830e,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_13_SCRAPE1_416-chunk9.wav
+aed6286d8c40,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_15_SCRAPE3_KMR81-chunk10.wav
+a9929a6ad8a7,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_416-chunk4.wav
+b1a7dc0babe8,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_KMR81-chunk4.wav
+26468836cc19,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_416-chunk6.wav
+71f34a1f857f,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_13_SCRAPE1_416-chunk5.wav
+d0c24a1c201e,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_KMR81-chunk2.wav
+b91ad9718603,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_KMR81-chunk8.wav
+3869131d8c3d,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_13_SCRAPE1_KMR81-chunk8.wav
+1eb953db3c6c,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_13_SCRAPE1_416-chunk4.wav
+c09eb8e39d1e,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_416-chunk2.wav
+dc587d67723e,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_15_SCRAPE3_KMR81-chunk1.wav
+762ab3e6503e,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_KMR81-chunk13.wav
+656992e7972f,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_KMR81-chunk11.wav
+9c428f59a466,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_16_SCRAPE4_416-chunk9.wav
+6960f12ecfd1,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_416-chunk11.wav
+9bad6d5064b5,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_416-chunk11.wav
+25068c36ba9b,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_14_SCRAPE2_416-chunk10.wav
+5a346dabc2d8,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_416-chunk7.wav
+16ebbfdd0534,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_16_SCRAPE4_KMR81-chunk4.wav
+54cb8dcfbb6f,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_13_SCRAPE1_KMR81-chunk3.wav
+9a0863d29ea2,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_13_SCRAPE1_416-chunk2.wav
+2496b46ef566,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_15_SCRAPE3_416-chunk7.wav
+c509b97f6bca,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_12_SCUFF_416-chunk0.wav
+e9655b166d33,ulfc,,other,scrape,1,3,2,3,4,path=chunks/BOOT_GRASS_15_SCRAPE3_KMR81-chunk3.wav
+7bb479dd9059,ulfc,,other,scrape,1,3,2,3,4,path=chunks/SNEAK_GRASS_14_SCRAPE2_KMR81-chunk0.wav
+fs273869,freesound,,liquid,drip,5,1,2,4,1,fs=273869 license=http://creativecommons.org/pub path=raw/freesound/liquid/drip/273869.mp3
+fs273868,freesound,,liquid,drip,5,1,2,4,1,fs=273868 license=http://creativecommons.org/pub path=raw/freesound/liquid/drip/273868.mp3
+fs853895,freesound,,liquid,drip,5,1,2,4,1,fs=853895 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853895.mp3
+fs853894,freesound,,liquid,drip,5,1,2,4,1,fs=853894 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853894.mp3
+fs853893,freesound,,liquid,drip,5,1,2,4,1,fs=853893 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853893.mp3
+fs853892,freesound,,liquid,drip,5,1,2,4,1,fs=853892 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853892.mp3
+fs853891,freesound,,liquid,drip,5,1,2,4,1,fs=853891 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853891.mp3
+fs853890,freesound,,liquid,drip,5,1,2,4,1,fs=853890 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853890.mp3
+fs853889,freesound,,liquid,drip,5,1,2,4,1,fs=853889 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/853889.mp3
+fs160118,freesound,,liquid,drip,5,1,2,4,1,fs=160118 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/160118.mp3
+fs271334,freesound,,liquid,drip,5,1,2,4,1,fs=271334 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/271334.mp3
+fs129299,freesound,,liquid,drip,5,1,2,4,1,fs=129299 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/129299.mp3
+fs129296,freesound,,liquid,drip,5,1,2,4,1,fs=129296 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/129296.mp3
+fs96352,freesound,,liquid,drip,5,1,2,4,1,fs=96352 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/96352.mp3
+fs96351,freesound,,liquid,drip,5,1,2,4,1,fs=96351 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/96351.mp3
+fs50775,freesound,,liquid,drip,5,1,2,4,1,fs=50775 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/50775.mp3
+fs386518,freesound,,liquid,drip,5,1,2,4,1,fs=386518 license=http://creativecommons.org/lic path=raw/freesound/liquid/drip/386518.mp3
+fs175396,freesound,,liquid,drip,5,1,2,4,1,fs=175396 license=https://creativecommons.org/li path=raw/freesound/liquid/drip/175396.mp3
+fs249806,freesound,,liquid,drip,5,1,2,4,1,fs=249806 license=http://creativecommons.org/pub path=raw/freesound/liquid/drip/249806.mp3
+fs223366,freesound,,liquid,drip,5,1,2,4,1,fs=223366 license=http://creativecommons.org/pub path=raw/freesound/liquid/drip/223366.mp3
+fs829676,freesound,,liquid,splash,5,1,2,4,2,fs=829676 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/829676.mp3
+fs811439,freesound,,liquid,splash,5,1,2,4,2,fs=811439 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/811439.mp3
+fs842165,freesound,,liquid,splash,5,1,2,4,2,fs=842165 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/842165.mp3
+fs814847,freesound,,liquid,splash,5,1,2,4,2,fs=814847 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/814847.mp3
+fs524513,freesound,,liquid,splash,5,1,2,4,2,fs=524513 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/524513.mp3
+fs524512,freesound,,liquid,splash,5,1,2,4,2,fs=524512 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/524512.mp3
+fs170739,freesound,,liquid,splash,5,1,2,4,2,fs=170739 license=https://creativecommons.org/li path=raw/freesound/liquid/splash/170739.mp3
+fs170738,freesound,,liquid,splash,5,1,2,4,2,fs=170738 license=https://creativecommons.org/li path=raw/freesound/liquid/splash/170738.mp3
+fs166823,freesound,,liquid,splash,5,1,2,4,2,fs=166823 license=http://creativecommons.org/lic path=raw/freesound/liquid/splash/166823.mp3
+fs27361,freesound,,liquid,splash,5,1,2,4,2,fs=27361 license=https://creativecommons.org/li path=raw/freesound/liquid/splash/27361.mp3
+fs410335,freesound,,liquid,splash,5,1,2,4,2,fs=410335 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/410335.mp3
+fs696200,freesound,,liquid,splash,5,1,2,4,2,fs=696200 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/696200.mp3
+fs696199,freesound,,liquid,splash,5,1,2,4,2,fs=696199 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/696199.mp3
+fs696198,freesound,,liquid,splash,5,1,2,4,2,fs=696198 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/696198.mp3
+fs696201,freesound,,liquid,splash,5,1,2,4,2,fs=696201 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/696201.mp3
+fs186747,freesound,,liquid,splash,5,1,2,4,2,fs=186747 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/186747.mp3
+fs186748,freesound,,liquid,splash,5,1,2,4,2,fs=186748 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/186748.mp3
+fs807961,freesound,,liquid,splash,5,1,2,4,2,fs=807961 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/807961.mp3
+fs807962,freesound,,liquid,splash,5,1,2,4,2,fs=807962 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/807962.mp3
+fs807963,freesound,,liquid,splash,5,1,2,4,2,fs=807963 license=http://creativecommons.org/pub path=raw/freesound/liquid/splash/807963.mp3
+fs740116,freesound,,liquid,pour,5,1,2,4,5,fs=740116 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/740116.mp3
+fs421184,freesound,,liquid,pour,5,1,2,4,5,fs=421184 license=https://creativecommons.org/li path=raw/freesound/liquid/pour/421184.mp3
+fs51435,freesound,,liquid,pour,5,1,2,4,5,fs=51435 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/51435.mp3
+fs51434,freesound,,liquid,pour,5,1,2,4,5,fs=51434 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/51434.mp3
+fs51433,freesound,,liquid,pour,5,1,2,4,5,fs=51433 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/51433.mp3
+fs51432,freesound,,liquid,pour,5,1,2,4,5,fs=51432 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/51432.mp3
+fs166820,freesound,,liquid,pour,5,1,2,4,5,fs=166820 license=http://creativecommons.org/lic path=raw/freesound/liquid/pour/166820.mp3
+fs50625,freesound,,liquid,pour,5,1,2,4,5,fs=50625 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/50625.mp3
+fs166822,freesound,,liquid,pour,5,1,2,4,5,fs=166822 license=http://creativecommons.org/lic path=raw/freesound/liquid/pour/166822.mp3
+fs166821,freesound,,liquid,pour,5,1,2,4,5,fs=166821 license=http://creativecommons.org/lic path=raw/freesound/liquid/pour/166821.mp3
+fs336383,freesound,,liquid,pour,5,1,2,4,5,fs=336383 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/336383.mp3
+fs398343,freesound,,liquid,pour,5,1,2,4,5,fs=398343 license=https://creativecommons.org/li path=raw/freesound/liquid/pour/398343.mp3
+fs367689,freesound,,liquid,pour,5,1,2,4,5,fs=367689 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/367689.mp3
+fs624776,freesound,,liquid,pour,5,1,2,4,5,fs=624776 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/624776.mp3
+fs723209,freesound,,liquid,pour,5,1,2,4,5,fs=723209 license=http://creativecommons.org/pub path=raw/freesound/liquid/pour/723209.mp3
+fs514414,freesound,,liquid,impact,5,1,2,4,1,fs=514414 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514414.mp3
+fs514412,freesound,,liquid,impact,5,1,2,4,1,fs=514412 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514412.mp3
+fs514411,freesound,,liquid,impact,5,1,2,4,1,fs=514411 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514411.mp3
+fs514410,freesound,,liquid,impact,5,1,2,4,1,fs=514410 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514410.mp3
+fs514409,freesound,,liquid,impact,5,1,2,4,1,fs=514409 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514409.mp3
+fs514408,freesound,,liquid,impact,5,1,2,4,1,fs=514408 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514408.mp3
+fs514407,freesound,,liquid,impact,5,1,2,4,1,fs=514407 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514407.mp3
+fs514396,freesound,,liquid,impact,5,1,2,4,1,fs=514396 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514396.mp3
+fs514394,freesound,,liquid,impact,5,1,2,4,1,fs=514394 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514394.mp3
+fs514393,freesound,,liquid,impact,5,1,2,4,1,fs=514393 license=https://creativecommons.org/li path=raw/freesound/liquid/impact/514393.mp3
+fs521950,freesound,,liquid,impact,5,1,2,4,1,fs=521950 license=http://creativecommons.org/pub path=raw/freesound/liquid/impact/521950.mp3
+fs479071,freesound,,liquid,impact,5,1,2,4,1,fs=479071 license=http://creativecommons.org/pub path=raw/freesound/liquid/impact/479071.mp3
+fs479070,freesound,,liquid,impact,5,1,2,4,1,fs=479070 license=http://creativecommons.org/pub path=raw/freesound/liquid/impact/479070.mp3
+fs376819,freesound,,liquid,impact,5,1,2,4,1,fs=376819 license=http://creativecommons.org/lic path=raw/freesound/liquid/impact/376819.mp3
+fs376818,freesound,,liquid,impact,5,1,2,4,1,fs=376818 license=http://creativecommons.org/lic path=raw/freesound/liquid/impact/376818.mp3
+fs31152,freesound,,gravel,step,1,3,2,5,3,fs=31152 license=http://creativecommons.org/lic path=raw/freesound/gravel/step/31152.mp3
+fs166276,freesound,,gravel,step,1,3,2,5,3,fs=166276 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/166276.mp3
+fs166275,freesound,,gravel,step,1,3,2,5,3,fs=166275 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/166275.mp3
+fs364702,freesound,,gravel,step,1,3,2,5,3,fs=364702 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/364702.mp3
+fs419931,freesound,,gravel,step,1,3,2,5,3,fs=419931 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/419931.mp3
+fs537180,freesound,,gravel,step,1,3,2,5,3,fs=537180 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/537180.mp3
+fs814266,freesound,,gravel,step,1,3,2,5,3,fs=814266 license=https://creativecommons.org/li path=raw/freesound/gravel/step/814266.mp3
+fs814265,freesound,,gravel,step,1,3,2,5,3,fs=814265 license=https://creativecommons.org/li path=raw/freesound/gravel/step/814265.mp3
+fs814264,freesound,,gravel,step,1,3,2,5,3,fs=814264 license=https://creativecommons.org/li path=raw/freesound/gravel/step/814264.mp3
+fs814263,freesound,,gravel,step,1,3,2,5,3,fs=814263 license=https://creativecommons.org/li path=raw/freesound/gravel/step/814263.mp3
+fs814262,freesound,,gravel,step,1,3,2,5,3,fs=814262 license=https://creativecommons.org/li path=raw/freesound/gravel/step/814262.mp3
+fs384889,freesound,,gravel,step,1,3,2,5,3,fs=384889 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384889.mp3
+fs384888,freesound,,gravel,step,1,3,2,5,3,fs=384888 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384888.mp3
+fs384887,freesound,,gravel,step,1,3,2,5,3,fs=384887 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384887.mp3
+fs384886,freesound,,gravel,step,1,3,2,5,3,fs=384886 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384886.mp3
+fs384885,freesound,,gravel,step,1,3,2,5,3,fs=384885 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384885.mp3
+fs384884,freesound,,gravel,step,1,3,2,5,3,fs=384884 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384884.mp3
+fs384882,freesound,,gravel,step,1,3,2,5,3,fs=384882 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384882.mp3
+fs384881,freesound,,gravel,step,1,3,2,5,3,fs=384881 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384881.mp3
+fs384878,freesound,,gravel,step,1,3,2,5,3,fs=384878 license=http://creativecommons.org/pub path=raw/freesound/gravel/step/384878.mp3
+fs729212,freesound,,gravel,roll,1,3,2,5,5,fs=729212 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/729212.mp3
+fs594609,freesound,,gravel,roll,1,3,2,5,5,fs=594609 license=http://creativecommons.org/pub path=raw/freesound/gravel/roll/594609.mp3
+fs398698,freesound,,gravel,roll,1,3,2,5,5,fs=398698 license=http://creativecommons.org/pub path=raw/freesound/gravel/roll/398698.mp3
+fs729214,freesound,,gravel,roll,1,3,2,5,5,fs=729214 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/729214.mp3
+fs729213,freesound,,gravel,roll,1,3,2,5,5,fs=729213 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/729213.mp3
+fs516313,freesound,,gravel,roll,1,3,2,5,5,fs=516313 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/516313.mp3
+fs398697,freesound,,gravel,roll,1,3,2,5,5,fs=398697 license=http://creativecommons.org/pub path=raw/freesound/gravel/roll/398697.mp3
+fs398694,freesound,,gravel,roll,1,3,2,5,5,fs=398694 license=http://creativecommons.org/pub path=raw/freesound/gravel/roll/398694.mp3
+fs169552,freesound,,gravel,roll,1,3,2,5,5,fs=169552 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/169552.mp3
+fs390798,freesound,,gravel,roll,1,3,2,5,5,fs=390798 license=http://creativecommons.org/pub path=raw/freesound/gravel/roll/390798.mp3
+fs389728,freesound,,gravel,roll,1,3,2,5,5,fs=389728 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/389728.mp3
+fs389726,freesound,,gravel,roll,1,3,2,5,5,fs=389726 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/389726.mp3
+fs389725,freesound,,gravel,roll,1,3,2,5,5,fs=389725 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/389725.mp3
+fs389724,freesound,,gravel,roll,1,3,2,5,5,fs=389724 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/389724.mp3
+fs389723,freesound,,gravel,roll,1,3,2,5,5,fs=389723 license=https://creativecommons.org/li path=raw/freesound/gravel/roll/389723.mp3
+fs215006,freesound,,gravel,pour,1,3,2,5,5,fs=215006 license=http://creativecommons.org/lic path=raw/freesound/gravel/pour/215006.mp3
+fs467301,freesound,,gravel,pour,1,3,2,5,5,fs=467301 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/467301.mp3
+fs199362,freesound,,gravel,pour,1,3,2,5,5,fs=199362 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/199362.mp3
+fs199361,freesound,,gravel,pour,1,3,2,5,5,fs=199361 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/199361.mp3
+fs199334,freesound,,gravel,pour,1,3,2,5,5,fs=199334 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/199334.mp3
+fs199331,freesound,,gravel,pour,1,3,2,5,5,fs=199331 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/199331.mp3
+fs199326,freesound,,gravel,pour,1,3,2,5,5,fs=199326 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/199326.mp3
+fs199325,freesound,,gravel,pour,1,3,2,5,5,fs=199325 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/199325.mp3
+fs588467,freesound,,gravel,pour,1,3,2,5,5,fs=588467 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/588467.mp3
+fs34175,freesound,,gravel,pour,1,3,2,5,5,fs=34175 license=http://creativecommons.org/pub path=raw/freesound/gravel/pour/34175.mp3
+fs381617,freesound,,wood,impact,1,4,3,2,1,fs=381617 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381617.mp3
+fs381609,freesound,,wood,impact,1,4,3,2,1,fs=381609 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381609.mp3
+fs381606,freesound,,wood,impact,1,4,3,2,1,fs=381606 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381606.mp3
+fs381605,freesound,,wood,impact,1,4,3,2,1,fs=381605 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381605.mp3
+fs381604,freesound,,wood,impact,1,4,3,2,1,fs=381604 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381604.mp3
+fs381602,freesound,,wood,impact,1,4,3,2,1,fs=381602 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381602.mp3
+fs381598,freesound,,wood,impact,1,4,3,2,1,fs=381598 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381598.mp3
+fs381594,freesound,,wood,impact,1,4,3,2,1,fs=381594 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381594.mp3
+fs381593,freesound,,wood,impact,1,4,3,2,1,fs=381593 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381593.mp3
+fs381590,freesound,,wood,impact,1,4,3,2,1,fs=381590 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/381590.mp3
+fs369710,freesound,,wood,impact,1,4,3,2,1,fs=369710 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/369710.mp3
+fs319709,freesound,,wood,impact,1,4,3,2,1,fs=319709 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/319709.mp3
+fs173941,freesound,,wood,impact,1,4,3,2,1,fs=173941 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/173941.mp3
+fs594389,freesound,,wood,impact,1,4,3,2,1,fs=594389 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/594389.mp3
+fs553297,freesound,,wood,impact,1,4,3,2,1,fs=553297 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/553297.mp3
+fs637644,freesound,,wood,impact,1,4,3,2,1,fs=637644 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/637644.mp3
+fs629986,freesound,,wood,impact,1,4,3,2,1,fs=629986 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/629986.mp3
+fs629987,freesound,,wood,impact,1,4,3,2,1,fs=629987 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/629987.mp3
+fs144950,freesound,,wood,impact,1,4,3,2,1,fs=144950 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/144950.mp3
+fs144949,freesound,,wood,impact,1,4,3,2,1,fs=144949 license=http://creativecommons.org/pub path=raw/freesound/wood/impact/144949.mp3
+fs152788,freesound,,wood,step,1,4,3,2,3,fs=152788 license=https://creativecommons.org/li path=raw/freesound/wood/step/152788.mp3
+fs152783,freesound,,wood,step,1,4,3,2,3,fs=152783 license=https://creativecommons.org/li path=raw/freesound/wood/step/152783.mp3
+fs152782,freesound,,wood,step,1,4,3,2,3,fs=152782 license=https://creativecommons.org/li path=raw/freesound/wood/step/152782.mp3
+fs152781,freesound,,wood,step,1,4,3,2,3,fs=152781 license=https://creativecommons.org/li path=raw/freesound/wood/step/152781.mp3
+fs152787,freesound,,wood,step,1,4,3,2,3,fs=152787 license=https://creativecommons.org/li path=raw/freesound/wood/step/152787.mp3
+fs152786,freesound,,wood,step,1,4,3,2,3,fs=152786 license=https://creativecommons.org/li path=raw/freesound/wood/step/152786.mp3
+fs754782,freesound,,wood,step,1,4,3,2,3,fs=754782 license=https://creativecommons.org/li path=raw/freesound/wood/step/754782.mp3
+fs754786,freesound,,wood,step,1,4,3,2,3,fs=754786 license=https://creativecommons.org/li path=raw/freesound/wood/step/754786.mp3
+fs754785,freesound,,wood,step,1,4,3,2,3,fs=754785 license=https://creativecommons.org/li path=raw/freesound/wood/step/754785.mp3
+fs754784,freesound,,wood,step,1,4,3,2,3,fs=754784 license=https://creativecommons.org/li path=raw/freesound/wood/step/754784.mp3
+fs620333,freesound,,wood,step,1,4,3,2,3,fs=620333 license=https://creativecommons.org/li path=raw/freesound/wood/step/620333.mp3
+fs620330,freesound,,wood,step,1,4,3,2,3,fs=620330 license=https://creativecommons.org/li path=raw/freesound/wood/step/620330.mp3
+fs620329,freesound,,wood,step,1,4,3,2,3,fs=620329 license=https://creativecommons.org/li path=raw/freesound/wood/step/620329.mp3
+fs620332,freesound,,wood,step,1,4,3,2,3,fs=620332 license=https://creativecommons.org/li path=raw/freesound/wood/step/620332.mp3
+fs620331,freesound,,wood,step,1,4,3,2,3,fs=620331 license=https://creativecommons.org/li path=raw/freesound/wood/step/620331.mp3
+fs194689,freesound,,wood,drag,1,4,3,2,5,fs=194689 license=http://creativecommons.org/pub path=raw/freesound/wood/drag/194689.mp3
+fs525178,freesound,,wood,drag,1,4,3,2,5,fs=525178 license=https://creativecommons.org/li path=raw/freesound/wood/drag/525178.mp3
+fs613818,freesound,,wood,drag,1,4,3,2,5,fs=613818 license=http://creativecommons.org/pub path=raw/freesound/wood/drag/613818.mp3
+fs147008,freesound,,wood,drag,1,4,3,2,5,fs=147008 license=https://creativecommons.org/li path=raw/freesound/wood/drag/147008.mp3
+fs147007,freesound,,wood,drag,1,4,3,2,5,fs=147007 license=https://creativecommons.org/li path=raw/freesound/wood/drag/147007.mp3
+fs147006,freesound,,wood,drag,1,4,3,2,5,fs=147006 license=https://creativecommons.org/li path=raw/freesound/wood/drag/147006.mp3
+fs147005,freesound,,wood,drag,1,4,3,2,5,fs=147005 license=https://creativecommons.org/li path=raw/freesound/wood/drag/147005.mp3
+fs147004,freesound,,wood,drag,1,4,3,2,5,fs=147004 license=https://creativecommons.org/li path=raw/freesound/wood/drag/147004.mp3
+fs327909,freesound,,wood,drag,1,4,3,2,5,fs=327909 license=http://creativecommons.org/lic path=raw/freesound/wood/drag/327909.mp3
+fs464124,freesound,,wood,drag,1,4,3,2,5,fs=464124 license=http://creativecommons.org/pub path=raw/freesound/wood/drag/464124.mp3
+fs481863,freesound,,fabric,drag,1,1,1,2,5,fs=481863 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/481863.mp3
+fs435793,freesound,,fabric,drag,1,1,1,2,5,fs=435793 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/435793.mp3
+fs496188,freesound,,fabric,drag,1,1,1,2,5,fs=496188 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/496188.mp3
+fs727348,freesound,,fabric,drag,1,1,1,2,5,fs=727348 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/727348.mp3
+fs340221,freesound,,fabric,drag,1,1,1,2,5,fs=340221 license=http://creativecommons.org/lic path=raw/freesound/fabric/drag/340221.mp3
+fs556711,freesound,,fabric,drag,1,1,1,2,5,fs=556711 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/556711.mp3
+fs430721,freesound,,fabric,drag,1,1,1,2,5,fs=430721 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/430721.mp3
+fs340236,freesound,,fabric,drag,1,1,1,2,5,fs=340236 license=http://creativecommons.org/lic path=raw/freesound/fabric/drag/340236.mp3
+fs340235,freesound,,fabric,drag,1,1,1,2,5,fs=340235 license=http://creativecommons.org/lic path=raw/freesound/fabric/drag/340235.mp3
+fs256310,freesound,,fabric,drag,1,1,1,2,5,fs=256310 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/256310.mp3
+fs518971,freesound,,fabric,drag,1,1,1,2,5,fs=518971 license=https://creativecommons.org/li path=raw/freesound/fabric/drag/518971.mp3
+fs778066,freesound,,fabric,drag,1,1,1,2,5,fs=778066 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/778066.mp3
+fs525284,freesound,,fabric,drag,1,1,1,2,5,fs=525284 license=https://creativecommons.org/li path=raw/freesound/fabric/drag/525284.mp3
+fs525285,freesound,,fabric,drag,1,1,1,2,5,fs=525285 license=https://creativecommons.org/li path=raw/freesound/fabric/drag/525285.mp3
+fs14187,freesound,,fabric,drag,1,1,1,2,5,fs=14187 license=http://creativecommons.org/pub path=raw/freesound/fabric/drag/14187.mp3
+fs495467,freesound,,fabric,scrape,1,1,1,2,4,fs=495467 license=https://creativecommons.org/li path=raw/freesound/fabric/scrape/495467.mp3
+fs495465,freesound,,fabric,scrape,1,1,1,2,4,fs=495465 license=https://creativecommons.org/li path=raw/freesound/fabric/scrape/495465.mp3
+fs495466,freesound,,fabric,scrape,1,1,1,2,4,fs=495466 license=https://creativecommons.org/li path=raw/freesound/fabric/scrape/495466.mp3
+fs495464,freesound,,fabric,scrape,1,1,1,2,4,fs=495464 license=https://creativecommons.org/li path=raw/freesound/fabric/scrape/495464.mp3
+fs495468,freesound,,fabric,scrape,1,1,1,2,4,fs=495468 license=https://creativecommons.org/li path=raw/freesound/fabric/scrape/495468.mp3
+fs19291,freesound,,fabric,scrape,1,1,1,2,4,fs=19291 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/19291.mp3
+fs128233,freesound,,fabric,scrape,1,1,1,2,4,fs=128233 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/128233.mp3
+fs641383,freesound,,fabric,scrape,1,1,1,2,4,fs=641383 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/641383.mp3
+fs641382,freesound,,fabric,scrape,1,1,1,2,4,fs=641382 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/641382.mp3
+fs641381,freesound,,fabric,scrape,1,1,1,2,4,fs=641381 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/641381.mp3
+fs708110,freesound,,fabric,scrape,1,1,1,2,4,fs=708110 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/708110.mp3
+fs435829,freesound,,fabric,scrape,1,1,1,2,4,fs=435829 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/435829.mp3
+fs677288,freesound,,fabric,scrape,1,1,1,2,4,fs=677288 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/677288.mp3
+fs614919,freesound,,fabric,scrape,1,1,1,2,4,fs=614919 license=http://creativecommons.org/pub path=raw/freesound/fabric/scrape/614919.mp3
+fs490101,freesound,,fabric,scrape,1,1,1,2,4,fs=490101 license=https://creativecommons.org/li path=raw/freesound/fabric/scrape/490101.mp3
+fs460173,freesound,,metal,roll,1,5,4,2,5,fs=460173 license=https://creativecommons.org/li path=raw/freesound/metal/roll/460173.mp3
+fs460172,freesound,,metal,roll,1,5,4,2,5,fs=460172 license=https://creativecommons.org/li path=raw/freesound/metal/roll/460172.mp3
+fs460174,freesound,,metal,roll,1,5,4,2,5,fs=460174 license=https://creativecommons.org/li path=raw/freesound/metal/roll/460174.mp3
+fs45804,freesound,,metal,roll,1,5,4,2,5,fs=45804 license=https://creativecommons.org/li path=raw/freesound/metal/roll/45804.mp3
+fs365161,freesound,,metal,roll,1,5,4,2,5,fs=365161 license=http://creativecommons.org/lic path=raw/freesound/metal/roll/365161.mp3
+fs260778,freesound,,metal,roll,1,5,4,2,5,fs=260778 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/260778.mp3
+fs682867,freesound,,metal,roll,1,5,4,2,5,fs=682867 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/682867.mp3
+fs579680,freesound,,metal,roll,1,5,4,2,5,fs=579680 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/579680.mp3
+fs429104,freesound,,metal,roll,1,5,4,2,5,fs=429104 license=https://creativecommons.org/li path=raw/freesound/metal/roll/429104.mp3
+fs851090,freesound,,metal,roll,1,5,4,2,5,fs=851090 license=https://creativecommons.org/li path=raw/freesound/metal/roll/851090.mp3
+fs755083,freesound,,metal,roll,1,5,4,2,5,fs=755083 license=https://creativecommons.org/li path=raw/freesound/metal/roll/755083.mp3
+fs448180,freesound,,metal,roll,1,5,4,2,5,fs=448180 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/448180.mp3
+fs448179,freesound,,metal,roll,1,5,4,2,5,fs=448179 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/448179.mp3
+fs448169,freesound,,metal,roll,1,5,4,2,5,fs=448169 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/448169.mp3
+fs334223,freesound,,metal,roll,1,5,4,2,5,fs=334223 license=http://creativecommons.org/pub path=raw/freesound/metal/roll/334223.mp3
+fs182344,freesound,,rock,roll,1,5,3,2,5,fs=182344 license=http://creativecommons.org/lic path=raw/freesound/rock/roll/182344.mp3
+fs760681,freesound,,rock,roll,1,5,3,2,5,fs=760681 license=https://creativecommons.org/li path=raw/freesound/rock/roll/760681.mp3
+fs182345,freesound,,rock,roll,1,5,3,2,5,fs=182345 license=http://creativecommons.org/lic path=raw/freesound/rock/roll/182345.mp3
+fs425037,freesound,,rock,roll,1,5,3,2,5,fs=425037 license=https://creativecommons.org/li path=raw/freesound/rock/roll/425037.mp3
+fs425036,freesound,,rock,roll,1,5,3,2,5,fs=425036 license=https://creativecommons.org/li path=raw/freesound/rock/roll/425036.mp3

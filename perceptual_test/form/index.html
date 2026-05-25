@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Listening test: impossible sounds</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; color: #222; }
+h1 { font-size: 1.4em; }
+.stimulus { border: 1px solid #ddd; padding: 16px 18px; margin: 16px 0; border-radius: 8px; background: #fafafa; }
+audio { width: 100%; margin: 8px 0; }
+fieldset { border: 0; padding: 0; margin: 12px 0; }
+label { display: inline-block; padding: 2px 6px; }
+.likert label { padding: 4px 10px; border: 1px solid #ccc; margin: 2px; border-radius: 4px; cursor: pointer; }
+.likert input[type=radio] { display: none; }
+.likert input[type=radio]:checked + span { background: #5e8de2; color: white; padding: 4px 8px; border-radius: 3px; }
+button { background: #2e6fd2; color: white; border: 0; padding: 10px 24px; font-size: 1em; border-radius: 6px; cursor: pointer; }
+button:hover { background: #1c54a8; }
+.progress { font-weight: bold; color: #2e6fd2; }
+.intro { background: #eef5ff; padding: 12px 16px; border-radius: 6px; }
+.warn { color: #b71c1c; font-size: 0.9em; }
+select { font-size: 0.95em; padding: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Listening test: impossible sounds</h1>
+<div class="intro">
+  <p>This study explores the perception of synthesized sound events that combine
+  materials and physical interactions in ways that do not occur in nature
+  (rolling drops, liquid rocks, wet gravel). For each sound, please report what
+  you perceive. No technical expertise is required; trust your ear.</p>
+  <p><strong>~7 minutes</strong>. Use headphones if possible. You will hear
+  <strong>12 of 24</strong> short clips (5 s each).</p>
+  <p class="warn">No personal data is collected. A CSV with your numeric
+  answers will be offered for download at the end so you can email it to the
+  experimenter.</p>
+</div>
+
+<p>Listener ID (any short string; helps deduplicate):
+  <input id="listener" type="text" placeholder="e.g., L01" size="10" required>
+</p>
+<p>Years of audio experience (Foley / mixing / instrument):
+  <select id="experience">
+    <option value="0">None</option>
+    <option value="1">&lt; 1</option>
+    <option value="3">1-5</option>
+    <option value="7">5-10</option>
+    <option value="15">&gt; 10</option>
+  </select>
+</p>
+
+<button id="start" onclick="begin()">Start</button>
+
+<div id="test" style="display:none"></div>
+
+<script>
+const STIMULI = [{"file": "A_rolling_droplet__canonical.wav", "combo": "rolling_droplet", "variant": "canonical"}, {"file": "A_rolling_droplet__very_wet.wav", "combo": "rolling_droplet", "variant": "very_wet"}, {"file": "A_rolling_droplet__dry_drip.wav", "combo": "rolling_droplet", "variant": "dry_drip"}, {"file": "A_rolling_droplet__slow_roll.wav", "combo": "rolling_droplet", "variant": "slow_roll"}, {"file": "A_rolling_droplet__fast_roll.wav", "combo": "rolling_droplet", "variant": "fast_roll"}, {"file": "A_rolling_droplet__grainy_path.wav", "combo": "rolling_droplet", "variant": "grainy_path"}, {"file": "A_rolling_droplet__smooth_path.wav", "combo": "rolling_droplet", "variant": "smooth_path"}, {"file": "A_rolling_droplet__big_droplet.wav", "combo": "rolling_droplet", "variant": "big_droplet"}, {"file": "B_liquid_rock_impact__canonical.wav", "combo": "liquid_rock_impact", "variant": "canonical"}, {"file": "B_liquid_rock_impact__dry_impact.wav", "combo": "liquid_rock_impact", "variant": "dry_impact"}, {"file": "B_liquid_rock_impact__full_splash.wav", "combo": "liquid_rock_impact", "variant": "full_splash"}, {"file": "B_liquid_rock_impact__hard_rock.wav", "combo": "liquid_rock_impact", "variant": "hard_rock"}, {"file": "B_liquid_rock_impact__soft_resonant.wav", "combo": "liquid_rock_impact", "variant": "soft_resonant"}, {"file": "B_liquid_rock_impact__dampened.wav", "combo": "liquid_rock_impact", "variant": "dampened"}, {"file": "B_liquid_rock_impact__watery_thunk.wav", "combo": "liquid_rock_impact", "variant": "watery_thunk"}, {"file": "B_liquid_rock_impact__dry_resonant.wav", "combo": "liquid_rock_impact", "variant": "dry_resonant"}, {"file": "C_wet_gravel_scrape__canonical.wav", "combo": "wet_gravel_scrape", "variant": "canonical"}, {"file": "C_wet_gravel_scrape__dry_gravel.wav", "combo": "wet_gravel_scrape", "variant": "dry_gravel"}, {"file": "C_wet_gravel_scrape__muddy.wav", "combo": "wet_gravel_scrape", "variant": "muddy"}, {"file": "C_wet_gravel_scrape__fine_grain.wav", "combo": "wet_gravel_scrape", "variant": "fine_grain"}, {"file": "C_wet_gravel_scrape__coarse_grain.wav", "combo": "wet_gravel_scrape", "variant": "coarse_grain"}, {"file": "C_wet_gravel_scrape__slow_scrape.wav", "combo": "wet_gravel_scrape", "variant": "slow_scrape"}, {"file": "C_wet_gravel_scrape__fast_scrape.wav", "combo": "wet_gravel_scrape", "variant": "fast_scrape"}, {"file": "C_wet_gravel_scrape__flooded.wav", "combo": "wet_gravel_scrape", "variant": "flooded"}];
+const MATERIALS = ["wood", "metal", "rock", "fabric", "earth", "liquid", "gravel", "other", "not sure"];
+const INTERACTIONS = ["impact", "scrape", "roll", "drip", "splash", "pour", "drag", "step", "not sure"];
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function begin() {
+  const listener = document.getElementById('listener').value.trim();
+  if (!listener) { alert('Please enter a listener ID'); return; }
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('listener').disabled = true;
+  document.getElementById('experience').disabled = true;
+  const subset = shuffle(STIMULI.slice()).slice(0, 12);
+  buildTest(subset);
+}
+
+function buildTest(subset) {
+  const div = document.getElementById('test');
+  div.style.display = '';
+  subset.forEach((s, idx) => {
+    div.appendChild(makeBlock(s, idx, subset.length));
+  });
+  const submit = document.createElement('button');
+  submit.textContent = 'Submit and download CSV';
+  submit.onclick = () => collect(subset);
+  div.appendChild(submit);
+}
+
+function makeBlock(s, idx, total) {
+  const block = document.createElement('div');
+  block.className = 'stimulus';
+  block.innerHTML = `
+    <p class="progress">Sound ${idx+1} of ${total}</p>
+    <audio controls src="audio/${s.file}"></audio>
+    <fieldset>
+      <label>What MATERIAL do you hear?</label>
+      <select name="mat_${idx}">
+        ${MATERIALS.map(m => `<option value="${m}">${m}</option>`).join('')}
+      </select>
+    </fieldset>
+    <fieldset>
+      <label>What INTERACTION do you hear?</label>
+      <select name="int_${idx}">
+        ${INTERACTIONS.map(m => `<option value="${m}">${m}</option>`).join('')}
+      </select>
+    </fieldset>
+    <fieldset class="likert">
+      <label><strong>How hybrid/impossible does it sound?</strong> (1 = sounds totally natural, 7 = clearly impossible)</label><br>
+      ${[1,2,3,4,5,6,7].map(v => `<label><input type="radio" name="imp_${idx}" value="${v}" required><span>${v}</span></label>`).join('')}
+    </fieldset>
+    <fieldset class="likert">
+      <label><strong>How coherent is it as a single event?</strong> (1 = collage of unrelated sounds, 7 = single coherent event)</label><br>
+      ${[1,2,3,4,5,6,7].map(v => `<label><input type="radio" name="coh_${idx}" value="${v}" required><span>${v}</span></label>`).join('')}
+    </fieldset>
+  `;
+  return block;
+}
+
+function collect(subset) {
+  const listener = document.getElementById('listener').value.trim();
+  const experience = document.getElementById('experience').value;
+  const rows = [];
+  rows.push(['listener','experience','stim_file','combo','variant','material_pred','interaction_pred','impossibility_likert','coherence_likert']);
+  subset.forEach((s, idx) => {
+    const mat = document.querySelector(`select[name=mat_${idx}]`).value;
+    const intx = document.querySelector(`select[name=int_${idx}]`).value;
+    const imp = document.querySelector(`input[name=imp_${idx}]:checked`);
+    const coh = document.querySelector(`input[name=coh_${idx}]:checked`);
+    if (!imp || !coh) { alert('Please complete all Likert questions before submitting'); return; }
+    rows.push([listener, experience, s.file, s.combo, s.variant, mat, intx, imp.value, coh.value]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `responses_${listener}_${Date.now()}.csv`;
+  a.click();
+  alert('Thank you! Please email the downloaded CSV file to the experimenter.');
+}
+</script>
+
+</body>
+</html>

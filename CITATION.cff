@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: "How does a rolling droplet sound? A physics-informed parametric framework for the synthesis of impossible sounds"
+message: "If you use this work, please cite it as below."
+type: software
+authors:
+  - given-names: "Anonymous"
+    family-names: "Author"
+    note: "Double-blind submission to Tecniacústica 2026"
+date-released: 2026-05-25
+repository-code: "https://github.com/[redacted]/impossible_mix"
+license: MIT
+keywords:
+  - sound synthesis
+  - physics-informed
+  - foley
+  - impossible sounds
+  - parametric synthesis
+  - modal synthesis
+  - Minnaert resonance
+  - rolling droplet
+preferred-citation:
+  type: conference-paper
+  title: "How does a rolling droplet sound? A physics-informed parametric framework for the synthesis of impossible sounds"
+  authors:
+    - given-names: "Anonymous"
+      family-names: "Author"
+  collection-title: "Proceedings of Tecniacústica 2026"
+  year: 2026
