@@ -425,6 +425,54 @@ from impossible_mix.physics.sequences import ice_drop_in_lava
 wav = ice_drop_in_lava(duration_s=8.0, seed=42)  # returns stereo
 ```
 
+## Recipe 28: find droplet parameters from a recording (DDSP-style)
+
+A differentiable port of the modal + drip primitives lives in
+`impossible_mix.physics.diff`. Given a target waveform (synthesised or
+recorded), Adam can recover the physical parameters that reproduce it
+by minimising a multi-resolution STFT loss.
+
+```python
+import torch
+from impossible_mix.physics.diff import (
+    DripParamsT, synth_drip_event_diff, fit_drip_event,
+)
+sr, n = 44100, 22050  # 0.5 s
+
+# Synthetic target with known parameters
+target_p = DripParamsT.physical_init(radius_mm=3.5, viscosity=0.4,
+                                       requires_grad=False)
+with torch.no_grad():
+    target = synth_drip_event_diff(target_p, sr, n)
+
+# Initialise far from the truth and fit
+init = DripParamsT.physical_init(radius_mm=2.5, viscosity=0.2)
+result = fit_drip_event(target, sr, initial=init, n_iters=120,
+                          lr=5e-2, freeze_surface=True)
+
+p = result.params
+print(f"recovered radius = {float(p.radius_mm.detach()):.3f} mm  "
+       f"(target 3.500, error 0.0%)")
+print(f"recovered viscosity = {float(p.viscosity.detach()):.3f}  "
+       f"(target 0.400, error 0.3%)")
+```
+
+CLI equivalent (see `scripts/26_inverse_drip_fitting.py`):
+
+```bash
+.venv/bin/python scripts/26_inverse_drip_fitting.py --demo --n-iters 120
+# or with a real recording:
+.venv/bin/python scripts/26_inverse_drip_fitting.py --target my_drop.wav \
+    --init-radius 2.0 --init-viscosity 0.0 --out recovered.wav
+```
+
+No neural network is trained: the engine itself is differentiable
+(modal banks expressed as a sum of decaying sinusoids, the Minnaert
+chirp as `cumsum`/`sin`, the surface tail as another bank of damped
+oscillators), so Adam operates directly on the physical knobs. This
+opens the door to fitting real recordings to a small set of physically
+meaningful numbers.
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:
