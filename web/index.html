@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>How does a rolling droplet sound? — WebAudio demo</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 880px; margin: 24px auto;
+  body { font-family: system-ui, sans-serif; max-width: 920px; margin: 24px auto;
          padding: 0 16px; color: #1a1a1a; background: #fafafa; }
   h1 { font-size: 1.5em; color: #1565c0; margin-bottom: 4px; }
   h2 { font-size: 1.1em; margin-top: 28px; color: #444; }
@@ -19,7 +19,7 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   .row { display: flex; align-items: center; gap: 14px; margin: 10px 0; }
-  .row label { min-width: 150px; font-weight: 600; }
+  .row label { min-width: 160px; font-weight: 600; }
   .row input[type=range] { flex: 1; }
   .row .value { min-width: 70px; text-align: right; font-family: monospace;
                 color: #1565c0; font-weight: 600; }
@@ -30,6 +30,9 @@
   button.render:hover { background: #1c54a8; }
   .note { background: #fff3cd; border-left: 4px solid #ffc107;
           padding: 10px 14px; margin: 14px 0; font-size: 0.9em; }
+  .reverb-panel { background: #eaf3ff; border: 1px solid #b8d4ff;
+                  border-radius: 10px; padding: 14px 18px; margin: 18px 0; }
+  .reverb-panel h2 { margin: 0 0 8px 0; color: #1565c0; }
   code { background: #eef5ff; padding: 1px 5px; border-radius: 3px; }
   footer { color: #666; font-size: 0.85em; text-align: center; margin: 30px 0; }
 </style>
@@ -37,8 +40,8 @@
 <body>
 
 <h1>How does a rolling droplet sound?</h1>
-<p class="subtitle">Pure Web Audio demo — modal &amp; drip primitives ported
-from the Python physics engine. No backend.</p>
+<p class="subtitle">Pure Web Audio demo — modal, drip and granular primitives
+ported from the Python physics engine. Optional convolution reverb. No backend.</p>
 
 <div class="note">
   Click a slider, then <strong>Render</strong>. The first click also unlocks
@@ -48,14 +51,14 @@ from the Python physics engine. No backend.</p>
 <div class="tabs">
   <button class="tab-btn active" data-tab="modal">Modal impact</button>
   <button class="tab-btn" data-tab="drip">Drip event</button>
+  <button class="tab-btn" data-tab="granular">Granular flow</button>
 </div>
 
 <!-- ========= MODAL ========= -->
 <div id="panel-modal" class="tab-panel active panel">
   <h2>Modal impact — banked biquads excited by a noise burst</h2>
-  <p class="subtitle">Pick a material profile, shape the exciter, and listen.
+  <p class="subtitle">Pick a material profile, shape the exciter, listen.
   Equivalent to the Python <code>synth_modal_impact</code>.</p>
-
   <div class="row">
     <label>Material</label>
     <select id="modal-profile">
@@ -109,9 +112,7 @@ from the Python physics engine. No backend.</p>
 <!-- ========= DRIP ========= -->
 <div id="panel-drip" class="tab-panel panel">
   <h2>Drip event — Minnaert chirp + surface tail + bubble pop</h2>
-  <p class="subtitle">Equivalent to Python <code>synth_drip_event</code>.
-  Each surface profile gives a different "ping".</p>
-
+  <p class="subtitle">Equivalent to Python <code>synth_drip_event</code>.</p>
   <div class="row">
     <label>Surface</label>
     <select id="drip-surface">
@@ -153,6 +154,83 @@ from the Python physics engine. No backend.</p>
     <input id="drip-seed" type="number" value="42" min="0" max="9999" />
   </div>
   <button id="drip-render" class="render">Render drip event</button>
+</div>
+
+<!-- ========= GRANULAR ========= -->
+<div id="panel-granular" class="tab-panel panel">
+  <h2>Granular flow — stochastic cloud of micro-impacts</h2>
+  <p class="subtitle">Pebbles, sand, ice shards, ash... each grain is a tiny
+  damped sinusoid pre-mixed into an <code>AudioBuffer</code> manually for
+  efficiency (no thousands of <code>OscillatorNode</code>s). Equivalent to
+  Python <code>synth_granular_flow</code>.</p>
+  <div class="row">
+    <label>Grain profile</label>
+    <select id="gran-profile">
+      <option value="pebble" selected>pebble</option>
+      <option value="fine_gravel">fine_gravel</option>
+      <option value="coarse_gravel">coarse_gravel</option>
+      <option value="sand">sand</option>
+      <option value="crushed_glass">crushed_glass</option>
+      <option value="ice_shards">ice_shards</option>
+      <option value="snow_crunch">snow_crunch</option>
+      <option value="ash">ash</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Density</label>
+    <input id="gran-density" type="range" min="5" max="300" step="1" value="80" />
+    <span class="value" id="gran-density-val"></span>
+  </div>
+  <div class="row">
+    <label>Density jitter</label>
+    <input id="gran-jitter" type="range" min="0" max="1" step="0.05" value="0.7" />
+    <span class="value" id="gran-jitter-val"></span>
+  </div>
+  <div class="row">
+    <label>Cluster factor</label>
+    <input id="gran-cluster" type="range" min="0" max="1" step="0.05" value="0.4" />
+    <span class="value" id="gran-cluster-val"></span>
+  </div>
+  <div class="row">
+    <label>Energy</label>
+    <input id="gran-energy" type="range" min="0.1" max="1.5" step="0.05" value="0.6" />
+    <span class="value" id="gran-energy-val"></span>
+  </div>
+  <div class="row">
+    <label>Pitch spread</label>
+    <input id="gran-spread" type="range" min="0.1" max="2.0" step="0.05" value="0.7" />
+    <span class="value" id="gran-spread-val"></span>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="gran-duration" type="range" min="0.5" max="6.0" step="0.1" value="3.0" />
+    <span class="value" id="gran-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="gran-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="gran-render" class="render">Render granular flow</button>
+</div>
+
+<!-- ========= GLOBAL REVERB ========= -->
+<div class="reverb-panel">
+  <h2>Global reverb (applied to any render)</h2>
+  <p class="subtitle" style="margin-bottom: 6px">Synthetic IRs convolved via <code>ConvolverNode</code>. Set mix to 0 to bypass.</p>
+  <div class="row">
+    <label>Space / IR</label>
+    <select id="global-reverb-preset">
+      <option value="dry" selected>dry (bypass)</option>
+      <option value="small_room">small_room</option>
+      <option value="medium_hall">medium_hall</option>
+      <option value="cathedral">cathedral</option>
+      <option value="cave">cave</option>
+      <option value="exterior">exterior</option>
+    </select>
+    <label>Mix</label>
+    <input id="global-reverb-mix" type="range" min="0" max="1" step="0.05" value="0.4" />
+    <span class="value" id="global-reverb-mix-val"></span>
+  </div>
 </div>
 
 <footer>

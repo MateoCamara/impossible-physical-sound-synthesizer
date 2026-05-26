@@ -21,10 +21,12 @@ or push it to a GitHub Pages branch. Pure HTML+JS, ~10 KB total.
 
 | File | Purpose |
 |---|---|
-| `index.html` | UI with two tabs (Modal / Drip) and sliders. |
-| `main.js` | Wiring, AudioContext bootstrapping, slider bindings. |
+| `index.html` | UI with three tabs (Modal / Drip / Granular) + global reverb panel. |
+| `main.js` | Wiring, AudioContext bootstrapping, slider bindings, reverb pass-through. |
 | `modal.js` | `MODAL_PROFILES` + `renderModalImpact(ctx, opts)`. |
 | `drip.js` | Surface profiles + `renderDripEvent(ctx, opts)`. |
+| `granular.js` | `GRAIN_PROFILES` (8 minerals) + `renderGranularFlow(ctx, opts)`. |
+| `reverb.js` | `IR_PRESETS` + `generateIR(ctx, preset, seed)` + `applyReverb(ctx, dry, ir, mix)`. |
 
 ## Parity with Python
 
@@ -37,10 +39,12 @@ JS functions to their Python counterparts:
 | `impossible_mix.physics.modal.PROFILES` | `modal.js → MODAL_PROFILES` |
 | `impossible_mix.physics.droplet.synth_drip_event` | `drip.js → renderDripEvent` |
 | `impossible_mix.physics.droplet.SURFACE_PROFILES` | `drip.js → SURFACE_PROFILES` (subset of 6 surfaces) |
+| `impossible_mix.physics.granular.synth_granular_flow` | `granular.js → renderGranularFlow` |
+| `impossible_mix.physics.granular.GRAIN_PROFILES` | `granular.js → GRAIN_PROFILES` (8 minerals) |
+| `impossible_mix.physics.reverb.generate_ir` | `reverb.js → generateIR` |
+| `impossible_mix.physics.reverb.apply_reverb` | `reverb.js → applyReverb` (uses `ConvolverNode`) |
 | `impossible_mix.physics.droplet.synth_rolling_droplet` | — (not yet in JS) |
 | `impossible_mix.physics.composer.compose_impossible` | — |
-| `impossible_mix.physics.granular.*` | — |
-| `impossible_mix.physics.reverb.*` | — (Web Audio has `ConvolverNode` available for a future step) |
 
 ## Implementation notes
 

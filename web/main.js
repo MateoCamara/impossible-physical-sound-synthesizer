@@ -1,5 +1,7 @@
 import { MODAL_PROFILES, renderModalImpact } from "./modal.js";
 import { renderDripEvent } from "./drip.js";
+import { GRAIN_PROFILES, renderGranularFlow } from "./granular.js";
+import { IR_PRESETS, generateIR, applyReverb } from "./reverb.js";
 
 // Single shared AudioContext (created on first user gesture)
 let ctx = null;
@@ -7,6 +9,15 @@ function ensureCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (ctx.state === "suspended") ctx.resume();
   return ctx;
+}
+
+async function maybeReverb(buf) {
+  // If the global Reverb panel has a non-dry preset and mix > 0, apply it.
+  const preset = document.getElementById("global-reverb-preset").value;
+  const mix = parseFloat(document.getElementById("global-reverb-mix").value);
+  if (preset === "dry" || mix <= 0.001) return buf;
+  const ir = generateIR(ctx, preset, 42);
+  return await applyReverb(ctx, buf, ir, mix);
 }
 
 function playBuffer(buf) {
@@ -17,7 +28,6 @@ function playBuffer(buf) {
   src.start();
 }
 
-// Helper: build a slider with live label
 function bindSlider(rangeId, labelId, fmt = (v) => v) {
   const range = document.getElementById(rangeId);
   const label = document.getElementById(labelId);
@@ -46,7 +56,8 @@ document.getElementById("modal-render").addEventListener("click", async () => {
     seed: parseInt(document.getElementById("modal-seed").value, 10) || 0,
   };
   try {
-    const buf = await renderModalImpact(c, opts);
+    let buf = await renderModalImpact(c, opts);
+    buf = await maybeReverb(buf);
     playBuffer(buf);
   } catch (e) {
     alert("Modal render failed: " + e);
@@ -72,12 +83,45 @@ document.getElementById("drip-render").addEventListener("click", async () => {
     seed: parseInt(document.getElementById("drip-seed").value, 10) || 0,
   };
   try {
-    const buf = await renderDripEvent(c, opts);
+    let buf = await renderDripEvent(c, opts);
+    buf = await maybeReverb(buf);
     playBuffer(buf);
   } catch (e) {
     alert("Drip render failed: " + e);
   }
 });
+
+// ------- Granular tab -------
+bindSlider("gran-density", "gran-density-val", (v) => `${v.toFixed(0)} /s`);
+bindSlider("gran-jitter", "gran-jitter-val", (v) => v.toFixed(2));
+bindSlider("gran-cluster", "gran-cluster-val", (v) => v.toFixed(2));
+bindSlider("gran-energy", "gran-energy-val", (v) => v.toFixed(2));
+bindSlider("gran-spread", "gran-spread-val", (v) => `${v.toFixed(2)} oct`);
+bindSlider("gran-duration", "gran-duration-val", (v) => `${v.toFixed(1)} s`);
+
+document.getElementById("gran-render").addEventListener("click", async () => {
+  const c = ensureCtx();
+  const opts = {
+    profile_name: document.getElementById("gran-profile").value,
+    density_hz: parseFloat(document.getElementById("gran-density").value),
+    density_jitter: parseFloat(document.getElementById("gran-jitter").value),
+    cluster_factor: parseFloat(document.getElementById("gran-cluster").value),
+    energy_mean: parseFloat(document.getElementById("gran-energy").value),
+    spread_octaves_override: parseFloat(document.getElementById("gran-spread").value),
+    duration_s: parseFloat(document.getElementById("gran-duration").value),
+    seed: parseInt(document.getElementById("gran-seed").value, 10) || 0,
+  };
+  try {
+    let buf = renderGranularFlow(c, opts);
+    buf = await maybeReverb(buf);
+    playBuffer(buf);
+  } catch (e) {
+    alert("Granular render failed: " + e);
+  }
+});
+
+// ------- Global reverb panel -------
+bindSlider("global-reverb-mix", "global-reverb-mix-val", (v) => v.toFixed(2));
 
 // ------- Tab switching -------
 document.querySelectorAll(".tab-btn").forEach((btn) => {

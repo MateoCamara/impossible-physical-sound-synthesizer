@@ -657,6 +657,43 @@ spectral parameters (hardness, body_freq, velocity_mean) and treat
 `body_t60_s` as informative only as a rough decay-class indicator.
 CLI: `scripts/30_inverse_friction_fitting.py`.
 
+## Recipe 33: granular + reverb in the browser (WebAudio phase 2)
+
+The `web/` MVP now covers three of the engine's core primitives plus
+optional convolution reverb, still without a backend.
+
+```
+web/
+├── modal.js     biquad bank, MODAL_PROFILES
+├── drip.js     OscillatorNode chirp + surface tail
+├── granular.js manual AudioBuffer mixing, 8 GRAIN_PROFILES
+├── reverb.js   synthetic IR + ConvolverNode, 6 IR_PRESETS
+├── main.js     wiring + global reverb pass-through
+└── index.html  3 tabs (Modal / Drip / Granular) + reverb panel
+```
+
+Granular implementation note: instead of scheduling N `OscillatorNode`s
+(which scales poorly past a couple hundred), `renderGranularFlow`
+builds the output `AudioBuffer` manually in JS, summing damped
+sinusoids per grain into the channel data. This mirrors what the
+Python engine does and keeps the renders snappy even at 200+ grains.
+
+Reverb is just `ConvolverNode` with a synthetic IR. Six presets
+(`small_room` to `cathedral`) generated with the same noise-times-
+exponential-decay + early-reflections model as the Python
+`generate_ir`. The global reverb panel sits below the tabs, so the
+same wet/dry mix applies to whichever primitive you render.
+
+Run:
+
+```bash
+cd web && python3 -m http.server 8080
+# open http://localhost:8080
+```
+
+Drop the folder into Netlify Drop and you have a public, static, no-
+backend demo of the engine ready to share.
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:
