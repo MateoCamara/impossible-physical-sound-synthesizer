@@ -170,6 +170,81 @@ wav = apply_reverb(fire, ir, mix=0.25)
 
 ---
 
+## Recipe 11: bell with selective damping (multi-band)
+
+A bell where the fundamental rings for 1.5 s but the upper partials die
+in 100 ms — produces a "muted bell" effect impossible with global damping.
+
+```python
+from impossible_mix.physics.modal import synth_modal_impact, PROFILES
+wav = synth_modal_impact(
+    PROFILES["metal"], sr=44100, duration_s=3.0,
+    impact_strength=0.9, excitation_shape="felt",
+    t60_per_mode={0: 1.5, 1: 0.15, 2: 0.10, 3: 0.05, 4: 0.05},
+)
+```
+
+## Recipe 12: bell with custom ADSR envelope
+
+An ADSR envelope on the exciter (instead of the hardcoded `felt`/`steel`
+shapes) gives full control over attack/release independently of the
+modal bank.
+
+```python
+from impossible_mix.physics.modal import synth_modal_impact, PROFILES, EnvelopeParams
+env = EnvelopeParams(attack_ms=30, hold_ms=20, release_ms=80, sustain_db=-3)
+wav = synth_modal_impact(
+    PROFILES["glass"], sr=44100, duration_s=3.0,
+    envelope_params=env, coupling=0.4,
+)
+```
+
+## Recipe 13: a single drip frozen into a 5 s drone
+
+Granular freezer turns a 400 ms drip event into a sustained 5 s drone
+by repeating a small grain with Hann cross-fade.
+
+```python
+from impossible_mix.physics.droplet import DropletParams, synth_drip_event
+from impossible_mix.physics.timewarp import FreezerParams, synth_granular_freezer
+src = synth_drip_event(DropletParams(droplet_radius_mm=2.0,
+                                       surface_profile="ceramic",
+                                       duration_s=0.4), sr=44100)
+drone = synth_granular_freezer(
+    src, FreezerParams(freeze_start_s=0.08, grain_ms=120,
+                       output_duration_s=5.0, overlap=0.6),
+    sr=44100,
+)
+```
+
+## Recipe 14: slow-motion splash (½× time stretch)
+
+Stretching the audio to half-speed without altering pitch reveals the
+cascade of bubbles that a normal-speed splash hides.
+
+```python
+from impossible_mix.physics.liquid import SplashParams, synth_splash
+from impossible_mix.physics.timewarp import TimeStretchParams, apply_time_stretch
+src = synth_splash(SplashParams(intensity=0.8, n_bubbles=40, duration_s=2.0),
+                    sr=44100)
+slow = apply_time_stretch(src, TimeStretchParams(rate=0.5, method="librosa"),
+                            sr=44100)
+```
+
+## Recipe 15: droplet inside St Andrews chapel (real IR)
+
+Requires running `python scripts/24_download_irs.py` first.
+
+```python
+from impossible_mix.physics.sequences import droplet_story
+from impossible_mix.physics.reverb import get_ir, apply_reverb
+from impossible_mix.physics.spatial import place_source
+dry = droplet_story(duration_s=8.0, seed=42)
+ir = get_ir("st_andrews_chapel", sr=44100)
+stereo = place_source(dry, 44100, distance_m=5.0, pan=0.1)
+wet = apply_reverb(stereo, ir, mix=0.55)
+```
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:

@@ -96,11 +96,70 @@ def _modal_resonator(sr: int, freq_hz: float, t60_s: float) -> tuple[np.ndarray,
     return b, a
 
 
+@dataclass
+class EnvelopeParams:
+    """Envolvente ADSR explicita para el excitador.
+
+    Si se pasa a synth_modal_impact, sobrescribe la forma hardcoded del
+    parametro `excitation_shape` y permite control fino del ataque y
+    sostenido. Util para campanas con golpe largo, scrapes con ataque
+    progresivo, etc.
+
+    attack_ms: tiempo en que la amplitud sube de 0 a 1 (rampa coseno).
+    hold_ms:   tiempo durante el cual el exciter mantiene amplitud sustain.
+    release_ms: tiempo en que la amplitud cae de sustain a 0 (exponencial).
+    sustain_db: nivel del hold en dBFS (negativo). 0 = mismo nivel que el
+                peak post-attack; -6 = mitad de amplitud.
+    """
+    attack_ms: float = 1.0
+    hold_ms: float = 0.0
+    release_ms: float = 5.0
+    sustain_db: float = -6.0
+
+
+def _adsr_envelope(n: int, sr: int, p: EnvelopeParams) -> np.ndarray:
+    """Construye envolvente ADSR de longitud n."""
+    a_n = max(1, int(p.attack_ms / 1000.0 * sr))
+    h_n = max(0, int(p.hold_ms / 1000.0 * sr))
+    r_n = max(1, int(p.release_ms / 1000.0 * sr))
+    sustain_gain = float(10 ** (p.sustain_db / 20))
+    env = np.zeros(n, dtype=np.float32)
+    # Attack: raised cosine de 0 a 1
+    attack_seg = 0.5 * (1 - np.cos(np.pi * np.arange(a_n) / a_n)).astype(np.float32)
+    env[: min(n, a_n)] = attack_seg[: min(n, a_n)]
+    # Hold a nivel sustain
+    if a_n < n and h_n > 0:
+        end_h = min(n, a_n + h_n)
+        env[a_n:end_h] = sustain_gain
+    # Release exponencial de sustain a 0
+    rel_start = min(n, a_n + h_n)
+    if rel_start < n:
+        rel_n = min(r_n, n - rel_start)
+        env[rel_start:rel_start + rel_n] = sustain_gain * np.exp(-np.linspace(0, 5, rel_n))
+    return env
+
+
 # Excitation shapes: el "exciter" se forma con esta funcion en lugar del
 # pulso corto + ruido. Cambia drasticamente el ataque sin tocar el banco modal.
 def _make_exciter(n: int, sr: int, shape: str, strength: float, sharpness: float,
-                   rng: np.random.Generator) -> np.ndarray:
-    """Genera el excitador de longitud n con la forma especificada."""
+                   rng: np.random.Generator,
+                   envelope_params: EnvelopeParams | None = None) -> np.ndarray:
+    """Genera el excitador de longitud n con la forma especificada.
+
+    Si envelope_params no es None, ignora el `shape` hardcoded y usa una
+    envolvente ADSR explicita aplicada a ruido blanco.
+    """
+    # Camino ADSR explicito (sobrescribe shape)
+    if envelope_params is not None:
+        total_ms = envelope_params.attack_ms + envelope_params.hold_ms + envelope_params.release_ms
+        m_n = max(8, int(total_ms / 1000.0 * sr))
+        env = _adsr_envelope(m_n, sr, envelope_params)
+        noise = rng.standard_normal(m_n).astype(np.float32) * 0.7 + 0.3
+        exc_block = (env * noise * strength).astype(np.float32)
+        exc = np.zeros(n, dtype=np.float32)
+        end = min(n, m_n)
+        exc[:end] = exc_block[:end]
+        return exc
     if shape == "felt":
         # Mallet acolchado: ataque suave (raised cosine), banda media
         m_n = max(8, int(0.005 / max(sharpness, 0.1) * sr))
@@ -154,6 +213,8 @@ def synth_modal_impact(
     excitation_shape: str = "default",
     velocity: float = 1.0,
     damping_anisotropy: float = 0.5,
+    t60_per_mode: dict[int, float] | None = None,
+    envelope_params: "EnvelopeParams | None" = None,
 ) -> np.ndarray:
     """Genera un golpe modal mejorado.
 
@@ -166,14 +227,21 @@ def synth_modal_impact(
     damping_anisotropy: 0..1 — cuanto mas, los modos altos decaen mas rapido
         que la fundamental (real en metales y placas). 0 = todos los modos
         decaen igual.
+    t60_per_mode: dict opcional {mode_index: t60_seconds} para override
+        individual del decay de cada modo. Modos no listados usan el calculo
+        anisotropico estandar. Permite efectos como "solo la fundamental
+        suena, las parciales mueren al instante".
+    envelope_params: EnvelopeParams opcional con ataque/hold/release/sustain
+        en ms. Si None, usa el shape hardcoded ('felt', 'wood', etc).
     """
     n = int(duration_s * sr)
     out = np.zeros(n, dtype=np.float32)
     rng = np.random.default_rng(profile.seed)
 
-    # Construir excitador con la forma pedida
+    # Construir excitador con la forma pedida (o con envelope ADSR custom)
     eff_strength = impact_strength * float(np.clip(velocity, 0.3, 2.0))
-    exc_local = _make_exciter(n, sr, excitation_shape, eff_strength, sharpness, rng)
+    exc_local = _make_exciter(n, sr, excitation_shape, eff_strength, sharpness, rng,
+                              envelope_params=envelope_params)
     start = max(0, int(impact_time_s * sr))
     exc = np.zeros(n, dtype=np.float32)
     end_idx = min(n, start + len(exc_local))
@@ -192,10 +260,15 @@ def synth_modal_impact(
             mode_responses.append(np.zeros(n, dtype=np.float32))
             continue
         rel = fh / profile.fundamental_hz
-        # Damping anisotropico: modos altos decaen mas rapido.
-        # exponente base 0.3 -> con anisotropy=1 sube a 0.9 (efecto fuerte)
-        aniso_exp = 0.3 + 0.6 * damping_anisotropy
-        t60 = profile.damping_ms / 1000.0 / max(rel ** aniso_exp, 1.0)
+        # Damping: o bien override per-mode, o anisotropico estandar
+        mode_idx = mode_responses.__len__()  # indice del modo actual
+        if t60_per_mode is not None and mode_idx in t60_per_mode:
+            t60 = float(t60_per_mode[mode_idx])
+        else:
+            # Damping anisotropico: modos altos decaen mas rapido.
+            # exponente base 0.3 -> con anisotropy=1 sube a 0.9 (efecto fuerte)
+            aniso_exp = 0.3 + 0.6 * damping_anisotropy
+            t60 = profile.damping_ms / 1000.0 / max(rel ** aniso_exp, 1.0)
         b, a = _modal_resonator(sr, fh, t60)
         y = signal.lfilter(b, a, exc).astype(np.float32)
         mode_responses.append(g * y)

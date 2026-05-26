@@ -36,6 +36,17 @@ PRESETS: dict[str, IRPreset] = {
 }
 
 
+# Registro de IRs reales (WAV) descargados. Se llena dinamicamente por
+# `register_real_ir` o por el script de descarga (scripts/24_download_irs.py).
+REAL_IR_PATHS: dict[str, str] = {}
+
+
+def register_real_ir(name: str, wav_path: str) -> None:
+    """Registra una IR real para uso via `get_ir(name)`. wav_path puede ser
+    relativo al repo o absoluto."""
+    REAL_IR_PATHS[name] = wav_path
+
+
 def generate_ir(preset: str = "medium_hall", sr: int = 44_100, seed: int = 0) -> np.ndarray:
     """Genera una impulse response sintetica para el preset dado."""
     if preset not in PRESETS:
@@ -71,6 +82,45 @@ def generate_ir(preset: str = "medium_hall", sr: int = 44_100, seed: int = 0) ->
     norm = float(np.sqrt(np.sum(ir ** 2)) + 1e-9)
     ir = ir / norm * 0.3
     return ir
+
+
+def load_ir_from_wav(path: str, sr_target: int = 44_100,
+                      normalize: bool = True) -> np.ndarray:
+    """Carga una IR desde un WAV, opcionalmente resampleando a sr_target.
+    Devuelve mono float32. La normalizacion la deja con peak~0.3 para
+    evitar clipping al convolucionar con audio peak-normalized.
+    """
+    import soundfile as sf
+    wav, sr_src = sf.read(path, dtype="float32", always_2d=False)
+    if wav.ndim == 2:
+        wav = wav.mean(axis=1).astype(np.float32)
+    if sr_src != sr_target:
+        try:
+            import librosa
+            wav = librosa.resample(wav, orig_sr=sr_src, target_sr=sr_target).astype(np.float32)
+        except ImportError:
+            # Fallback: scipy.signal.resample_poly
+            from math import gcd
+            g = gcd(sr_src, sr_target)
+            up = sr_target // g
+            down = sr_src // g
+            wav = signal.resample_poly(wav, up, down).astype(np.float32)
+    if normalize:
+        peak = float(np.max(np.abs(wav)) + 1e-9)
+        wav = (wav / peak * 0.3).astype(np.float32)
+    return wav
+
+
+def get_ir(preset: str, sr: int = 44_100, seed: int = 0) -> np.ndarray:
+    """Despacha: si `preset` esta en PRESETS, genera IR sintetica.
+    Si esta en REAL_IR_PATHS, carga WAV real. Si no, ValueError.
+    """
+    if preset in PRESETS:
+        return generate_ir(preset, sr=sr, seed=seed)
+    if preset in REAL_IR_PATHS:
+        return load_ir_from_wav(REAL_IR_PATHS[preset], sr_target=sr)
+    raise ValueError(f"Preset desconocido: {preset}. "
+                     f"Sinteticos: {list(PRESETS)}. Reales: {list(REAL_IR_PATHS)}")
 
 
 def apply_reverb(dry: np.ndarray, ir: np.ndarray, mix: float = 0.4) -> np.ndarray:
