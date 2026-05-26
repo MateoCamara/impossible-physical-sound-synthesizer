@@ -25,9 +25,14 @@ from impossible_mix.physics.diff.droplet import (
     synth_drip_event_diff,
 )
 from impossible_mix.physics.diff.losses import multi_resolution_stft_loss
+from impossible_mix.physics.diff.granular import (
+    GranularFlowParamsT,
+    synth_granular_flow_diff,
+)
 from impossible_mix.physics.diff.fitting import (
     fit_drip_event,
     fit_drip_event_multistart,
+    fit_granular_flow,
     fit_modal_impact,
     fit_modal_impact_multistart,
 )
@@ -42,4 +47,7 @@ __all__ = [
     "fit_drip_event_multistart",
     "fit_modal_impact",
     "fit_modal_impact_multistart",
+    "GranularFlowParamsT",
+    "synth_granular_flow_diff",
+    "fit_granular_flow",
 ]

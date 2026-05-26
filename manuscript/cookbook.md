@@ -528,6 +528,67 @@ of the framework: every primitive that is exposed as a forward synthesis
 function in Python has a matching differentiable port that can recover
 its physical parameters from audio.
 
+## Recipe 30: profile a granular cloud (DDSP-style, with honest caveats)
+
+The differentiable port covers granular flows too — but the situation
+is qualitatively different from drip/modal fitting, and the cookbook
+records the limitation transparently.
+
+The forward model fixes the per-grain timing/velocity schedule from a
+seed and learns five scalars: `base_freq_hz`, `spread_octaves`,
+`damping_ms`, `log_density_amp`, `gain`. The audio is the
+scatter-summed superposition of damped sinusoids with frequencies
+`base_freq * 2 ** (jitter_k * spread_octaves)`.
+
+**Limitation.** A granular cloud produces a *diffuse* spectral texture
+without discrete peaks. Mathematically, raising `base_freq_hz` and
+lowering `spread_octaves` (or vice-versa) leaves the spectrum almost
+unchanged. So an uninformed fit drives the STFT loss down (the audio
+becomes perceptually close) but can land on a degenerate solution
+where each individual parameter is off by 40-60%.
+
+**Workaround**: pass an informed guess for `init_base_freq_hz`. When
+the user can estimate the centre of the granular band (e.g. from the
+spectral centroid of a clean pre-roll), the fit converges cleanly:
+
+```python
+import torch
+from impossible_mix.physics.diff import (
+    GranularFlowParamsT, synth_granular_flow_diff, fit_granular_flow,
+)
+sr, dur = 44100, 2.0
+n = int(dur * sr)
+
+# Synthetic target with known parameters (pebble-ish)
+tgt = GranularFlowParamsT.physical_init(
+    base_freq_hz=550.0, spread_octaves=0.6, damping_ms=35.0,
+    requires_grad=False, seed=11, n_grains=80,
+    grain_dur_ms=200.0, duration_s=dur,
+)
+with torch.no_grad():
+    target = synth_granular_flow_diff(tgt, sr, n)
+
+# Fit with informed init -> base_freq error < 0.1 %
+result = fit_granular_flow(
+    target, sr, duration_s=dur, n_iters=180, lr=8e-2,
+    seed=11, n_grains=80, init_base_freq_hz=550.0,
+)
+# Recovered: base 549.6 Hz, spread 0.54 oct, damping 21.8 ms
+```
+
+CLI:
+
+```bash
+.venv/bin/python scripts/28_inverse_granular_fitting.py --demo \
+    --init-base-freq 550 --n-iters 180 --out granular_recovered.wav
+```
+
+This **completes** the inverse-problem coverage of the framework
+(drip, modal, granular) and is the natural endpoint of the DDSP-style
+section in the September paper: a continuum from quirurgical recovery
+(drip, modal) to honestly-ill-posed (granular), each with documented
+mechanisms behind the difference.
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:

@@ -13,6 +13,11 @@ import torch
 
 from impossible_mix.physics.diff.droplet import DripParamsT, synth_drip_event_diff
 from impossible_mix.physics.diff.losses import multi_resolution_stft_loss
+from impossible_mix.physics.diff.granular import (
+    GranularFlowParamsT,
+    _make_schedule,
+    synth_granular_flow_diff,
+)
 from impossible_mix.physics.diff.modal import ModalParamsT, synth_modal_impact_diff
 
 
@@ -266,6 +271,124 @@ def fit_modal_impact_multistart(
         if best is None or res.final_loss < best.final_loss:
             best = res
     return best  # type: ignore[return-value]
+
+
+@dataclass
+class GranularFitResult:
+    params: GranularFlowParamsT
+    final_pred: torch.Tensor
+    loss_history: list[float]
+    final_loss: float
+
+
+def _spectral_centroid(wav: torch.Tensor, sr: int) -> float:
+    """Centroide espectral del audio (Hz). Util para inicializar base_freq_hz."""
+    mag = torch.fft.rfft(wav).abs() + 1e-9
+    freqs = torch.fft.rfftfreq(wav.shape[-1], d=1.0 / sr).to(wav.device)
+    return float((mag * freqs).sum() / mag.sum())
+
+
+def init_granular_from_target(target_wav: torch.Tensor, sr: int,
+                                duration_s: float = 5.0,
+                                seed: int = 0,
+                                n_grains: int = 200,
+                                grain_dur_ms: float = 40.0,
+                                requires_grad: bool = True) -> GranularFlowParamsT:
+    """Inicializa GranularFlowParamsT con base_freq_hz seteada al spectral
+    centroid del target (heuristica simple pero efectiva)."""
+    centroid_hz = max(200.0, min(8000.0, _spectral_centroid(target_wav, sr)))
+    return GranularFlowParamsT.physical_init(
+        base_freq_hz=centroid_hz,
+        spread_octaves=1.0,
+        damping_ms=20.0,
+        log_density_amp=0.0,
+        gain=0.5,
+        device=target_wav.device,
+        requires_grad=requires_grad,
+        seed=seed, n_grains=n_grains,
+        grain_dur_ms=grain_dur_ms,
+        duration_s=duration_s,
+    )
+
+
+def fit_granular_flow(
+    target_wav: torch.Tensor,
+    sr: int,
+    duration_s: float | None = None,
+    initial: GranularFlowParamsT | None = None,
+    n_iters: int = 200,
+    lr: float = 3e-2,
+    log_every: int = 30,
+    verbose: bool = True,
+    seed: int = 0,
+    n_grains: int = 200,
+    init_base_freq_hz: float | None = None,
+) -> GranularFitResult:
+    """Ajusta GranularFlowParamsT por gradiente para reproducir target_wav.
+
+    El schedule de granos (timings, jitter, velocity) se fija con `seed` y
+    no se entrena. Lo entrenable es el perfil del grano: base_freq_hz,
+    spread_octaves, damping_ms, log_density_amp, gain.
+
+    duration_s: si None, se infiere de la longitud del target.
+    initial: si None, se inicializa con base_freq_hz = spectral centroid
+              del target (o init_base_freq_hz si se pasa).
+
+    LIMITACION HONESTA: a diferencia del drip (Minnaert mapea radius->
+    frecuencia uniquamente) y el modal (picos espectrales discretos), el
+    granular flow tiene una textura espectral difusa donde (base_freq_hz,
+    spread_octaves) son MATEMATICAMENTE REDUNDANTES — subir base un X% y
+    bajar spread compensa. La loss STFT baja correctamente (el audio se
+    aproxima), pero la recuperacion exacta de cada parametro individual
+    requiere multistart o priors externos. Aqui ofrecemos init_base_freq_hz
+    para que el usuario pase un guess razonable cuando lo conoce.
+    """
+    n_samples = target_wav.shape[0]
+    if duration_s is None:
+        duration_s = n_samples / sr
+    if initial is None:
+        initial = init_granular_from_target(target_wav, sr,
+                                              duration_s=duration_s, seed=seed,
+                                              n_grains=n_grains)
+        if init_base_freq_hz is not None:
+            # Override del init automatico con el guess del usuario
+            initial.base_freq_hz = torch.tensor(
+                float(init_base_freq_hz),
+                device=target_wav.device, dtype=torch.float32,
+            ).requires_grad_(True)
+    p = initial
+
+    # Pre-computar schedule (constante durante todo el fit)
+    schedule = _make_schedule(p, sr, device=target_wav.device)
+
+    trainable = p.trainable()
+    optim = torch.optim.Adam(trainable, lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=n_iters,
+                                                            eta_min=lr / 10)
+    history: list[float] = []
+
+    for it in range(n_iters):
+        optim.zero_grad()
+        pred = synth_granular_flow_diff(p, sr, n_samples=n_samples,
+                                          schedule=schedule)
+        loss = multi_resolution_stft_loss(pred, target_wav)
+        loss.backward()
+        optim.step()
+        scheduler.step()
+        p.clamp_()
+        history.append(float(loss.detach()))
+        if verbose and (it % log_every == 0 or it == n_iters - 1):
+            print(f"  iter {it:4d}  loss={history[-1]:.4f}  "
+                   f"base_freq={float(p.base_freq_hz.detach()):.0f}Hz  "
+                   f"spread={float(p.spread_octaves.detach()):.2f}oct  "
+                   f"damping={float(p.damping_ms.detach()):.1f}ms")
+
+    with torch.no_grad():
+        final_pred = synth_granular_flow_diff(p, sr, n_samples=n_samples,
+                                                schedule=schedule)
+        final_loss = float(multi_resolution_stft_loss(final_pred, target_wav))
+    return GranularFitResult(params=p, final_pred=final_pred,
+                               loss_history=history, final_loss=final_loss)
 
 
 def fit_drip_event_multistart(
