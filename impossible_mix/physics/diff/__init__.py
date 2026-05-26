@@ -25,7 +25,12 @@ from impossible_mix.physics.diff.droplet import (
     synth_drip_event_diff,
 )
 from impossible_mix.physics.diff.losses import multi_resolution_stft_loss
-from impossible_mix.physics.diff.fitting import fit_drip_event, fit_drip_event_multistart
+from impossible_mix.physics.diff.fitting import (
+    fit_drip_event,
+    fit_drip_event_multistart,
+    fit_modal_impact,
+    fit_modal_impact_multistart,
+)
 
 __all__ = [
     "ModalParamsT",
@@ -35,4 +40,6 @@ __all__ = [
     "multi_resolution_stft_loss",
     "fit_drip_event",
     "fit_drip_event_multistart",
+    "fit_modal_impact",
+    "fit_modal_impact_multistart",
 ]

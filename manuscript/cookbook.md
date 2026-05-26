@@ -473,6 +473,61 @@ oscillators), so Adam operates directly on the physical knobs. This
 opens the door to fitting real recordings to a small set of physically
 meaningful numbers.
 
+## Recipe 29: decompose an impact into its modes (DDSP-style)
+
+The differentiable path also covers modal impacts. Given any short
+recording of a hit (a bell, a stone, a metal plate) we can recover the
+K most prominent modes — their frequency, decay time and relative
+gain — by gradient descent on a multi-resolution STFT loss. The trick
+that makes this converge in 180 iterations is **initialising the modal
+frequencies at the K largest spectral peaks of the target** instead of
+a blind log-spacing.
+
+```python
+import torch
+from impossible_mix.physics.diff import (
+    ModalParamsT, synth_modal_impact_diff, fit_modal_impact,
+)
+sr, n = 44100, 22050
+
+# Synthetic target: a 4-mode harmonic-ish bell
+target_p = ModalParamsT.from_lists(
+    freqs_hz=[440.0, 880.0, 1320.0, 1760.0],
+    t60s_s=[1.2, 0.6, 0.3, 0.15],
+    gains=[1.0, 0.5, 0.3, 0.15],
+    requires_grad=False,
+)
+with torch.no_grad():
+    target = synth_modal_impact_diff(target_p, sr, n)
+
+# Fit 4 modes; freqs are seeded from the target spectrum
+result = fit_modal_impact(target, sr, n_modes=4, n_iters=180,
+                           init_from_target=True)
+
+p = result.params
+order = sorted(range(4), key=lambda i: p.freqs_hz[i].item())
+freqs = [round(p.freqs_hz[i].item(), 1) for i in order]
+t60s = [round(p.t60s_s[i].item(), 3) for i in order]
+# -> freqs  ≈ [441.0, 877.7, 1319.5, 1760.8] Hz   (errors < 0.3 %)
+# -> t60s   ≈ [1.209, 0.599, 0.300, 0.150] s     (errors < 1 %)
+```
+
+CLI equivalent:
+
+```bash
+.venv/bin/python scripts/27_inverse_modal_fitting.py --demo --n-modes 4 \
+    --n-iters 180 --out modal_recovered.wav
+
+# or with a real impact recording:
+.venv/bin/python scripts/27_inverse_modal_fitting.py --target hit.wav \
+    --n-modes 6 --multistart
+```
+
+Together with recipe 28 (drip fitting), this closes the **inverse loop**
+of the framework: every primitive that is exposed as a forward synthesis
+function in Python has a matching differentiable port that can recover
+its physical parameters from audio.
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:
