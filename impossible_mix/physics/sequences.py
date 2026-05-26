@@ -175,6 +175,179 @@ def mercury_drama(duration_s: float = 8.0, seed: int = 42,
     return seq.render()
 
 
+# ====================================================================
+# DSL textual: parsear una receta en string a Sequence
+# ====================================================================
+
+import re
+
+_DSL_LINE_RE = re.compile(
+    r"^\s*(?P<func>\w+)\s*\((?P<args>.*?)\)\s*@\s*(?P<t>[\d.]+)\s*s?"
+    r"(?:\s+(?P<extras>.+))?\s*$"
+)
+_KV_RE = re.compile(r"(\w+)\s*=\s*([^,\s]+)")
+
+
+def _parse_args(args_str: str) -> dict[str, float | str]:
+    """Parsea 'radius_mm=2, viscosity=0.3' -> {'radius_mm': 2.0, 'viscosity': 0.3}.
+
+    Acepta float o string sin comillas (e.g. material=rock).
+    """
+    out: dict[str, float | str] = {}
+    for m in _KV_RE.finditer(args_str):
+        key = m.group(1)
+        val = m.group(2)
+        try:
+            out[key] = float(val)
+        except ValueError:
+            out[key] = val
+    return out
+
+
+def _parse_extras(extras_str: str | None) -> dict[str, float]:
+    """Parsea 'gain=0.9 pan=-0.5 distance_m=1.5' -> dict."""
+    if not extras_str:
+        return {}
+    out: dict[str, float] = {}
+    for m in _KV_RE.finditer(extras_str):
+        try:
+            out[m.group(1)] = float(m.group(2))
+        except ValueError:
+            pass
+    return out
+
+
+# Despachadores por nombre de funcion DSL
+_DSL_DISPATCH: dict[str, "callable"] = {}
+
+
+def _dsl_register(name: str):
+    """Decorador para registrar un dispatcher DSL."""
+    def deco(fn):
+        _DSL_DISPATCH[name] = fn
+        return fn
+    return deco
+
+
+@_dsl_register("drip")
+def _dsl_drip(args: dict, sr: int) -> np.ndarray:
+    return evt_drip(
+        radius_mm=float(args.get("radius_mm", 2.0)),
+        viscosity=float(args.get("viscosity", 0.0)),
+        surface_hardness=float(args.get("surface_hardness", 0.5)),
+        seed=int(args.get("seed", 0)),
+        sr=sr,
+    )
+
+
+@_dsl_register("roll")
+def _dsl_roll(args: dict, sr: int) -> np.ndarray:
+    return evt_rolling(
+        duration_s=float(args.get("duration_s", 3.0)),
+        radius_mm=float(args.get("radius_mm", 2.0)),
+        viscosity=float(args.get("viscosity", 0.0)),
+        surface_hardness=float(args.get("surface_hardness", 0.5)),
+        roll_velocity_hz=float(args.get("roll_velocity_hz", 14.0)),
+        path_roughness=float(args.get("path_roughness", 0.35)),
+        seed=int(args.get("seed", 0)),
+        sr=sr,
+    )
+
+
+@_dsl_register("splash")
+def _dsl_splash(args: dict, sr: int) -> np.ndarray:
+    return evt_splash(
+        intensity=float(args.get("intensity", 0.7)),
+        n_bubbles=int(args.get("n_bubbles", 30)),
+        seed=int(args.get("seed", 0)),
+        sr=sr,
+    )
+
+
+@_dsl_register("impact")
+def _dsl_impact(args: dict, sr: int) -> np.ndarray:
+    mat = args.get("material", "rock")
+    if not isinstance(mat, str):
+        mat = "rock"
+    return evt_impact(
+        material=mat,
+        rigidity=float(args.get("rigidity", 0.5)),
+        resonance=float(args.get("resonance", 0.4)),
+        seed=int(args.get("seed", 0)),
+        sr=sr,
+    )
+
+
+@_dsl_register("pour")
+def _dsl_pour(args: dict, sr: int) -> np.ndarray:
+    return evt_pour(
+        flow_rate=float(args.get("flow_rate", 0.6)),
+        viscosity=float(args.get("viscosity", 0.1)),
+        duration_s=float(args.get("duration_s", 2.0)),
+        seed=int(args.get("seed", 0)),
+        sr=sr,
+    )
+
+
+def parse_dsl(dsl_string: str, total_duration_s: float | None = None,
+              sr: int = SAMPLE_RATE) -> Sequence:
+    """Parsea una receta de texto y construye una Sequence lista para render.
+
+    Sintaxis de cada linea (una linea = un evento):
+
+        <func>(arg1=val1, arg2=val2, ...) @ <time>s [extra=val ...]
+
+    Donde:
+      - func ∈ {drip, roll, splash, impact, pour}
+      - args son keyword (float o string sin comillas)
+      - time es float en segundos
+      - extras (opcional): gain, pan, distance_m
+
+    Lineas vacias y las que empiezan con # se ignoran. Si total_duration_s
+    es None, se infiere como el tiempo del ultimo evento + 2 s de margen.
+
+    Ejemplo:
+        drip(radius_mm=2) @ 0.3s gain=0.9 pan=-0.5
+        roll(duration_s=3, surface_hardness=0.6) @ 1.0s
+        splash(intensity=0.7) @ 4.5s pan=0.4 distance_m=2.0
+        impact(material=rock, rigidity=0.8) @ 3.0s
+    """
+    events_raw: list[tuple[str, dict, float, dict]] = []
+    for line_no, raw_line in enumerate(dsl_string.strip().splitlines(), 1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = _DSL_LINE_RE.match(line)
+        if not m:
+            raise ValueError(f"DSL parse error (line {line_no}): {line!r}")
+        func = m.group("func")
+        if func not in _DSL_DISPATCH:
+            raise ValueError(f"DSL unknown function (line {line_no}): {func!r}. "
+                             f"Available: {sorted(_DSL_DISPATCH)}")
+        args = _parse_args(m.group("args") or "")
+        t = float(m.group("t"))
+        extras = _parse_extras(m.group("extras"))
+        events_raw.append((func, args, t, extras))
+
+    if not events_raw:
+        raise ValueError("DSL has no events to render")
+
+    if total_duration_s is None:
+        last_t = max(e[2] for e in events_raw)
+        total_duration_s = last_t + 2.0
+
+    seq = Sequence(duration_s=total_duration_s, sr=sr)
+    for func, args, t, extras in events_raw:
+        wav = _DSL_DISPATCH[func](args, sr)
+        seq.add_at(
+            t, wav,
+            gain=float(extras.get("gain", 1.0)),
+            pan=float(extras.get("pan", 0.0)),
+            distance_m=float(extras.get("distance_m", 0.0)),
+        )
+    return seq
+
+
 def lava_step_into_water(duration_s: float = 8.0, seed: int = 42,
                           sr: int = SAMPLE_RATE) -> np.ndarray:
     """Paso pesado sobre lava, salpicadura espesa, gotas viscosas cayendo."""

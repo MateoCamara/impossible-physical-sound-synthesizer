@@ -245,6 +245,44 @@ stereo = place_source(dry, 44100, distance_m=5.0, pan=0.1)
 wet = apply_reverb(stereo, ir, mix=0.55)
 ```
 
+## Recipe 16: a droplet sonata in 5 lines of DSL
+
+The text-driven DSL parses a recipe and assembles the corresponding
+`Sequence`. Per-event `pan` and `distance_m` make the output stereo
+automatically.
+
+```python
+from impossible_mix.physics.sequences import parse_dsl
+recipe = """
+# Droplet sonata
+drip(radius_mm=1.5) @ 0.3s gain=0.8 pan=-0.6
+drip(radius_mm=2.0) @ 0.7s gain=0.9 pan=-0.2
+roll(duration_s=2.5, roll_velocity_hz=14) @ 1.2s distance_m=1.0
+splash(intensity=0.7, n_bubbles=30) @ 4.0s pan=0.4 distance_m=2.0
+impact(material=rock, rigidity=0.7) @ 5.6s gain=0.6
+"""
+wav = parse_dsl(recipe).render()  # stereo float32
+```
+
+Supported DSL functions: `drip`, `roll`, `splash`, `impact`, `pour`. Each
+line accepts named arguments (`radius_mm=2`, `material=rock`, etc.) plus
+optional `gain`, `pan` and `distance_m` extras for the event placement.
+
+## Recipe 17: play the engine from a MIDI keyboard
+
+See `MIDI_INPUT.md` for full instructions. The short version:
+
+```bash
+pip install -e ".[midi]"
+python scripts/25_midi_input.py --list-ports
+python scripts/25_midi_input.py --mode drip --material ceramic
+```
+
+Each `note_on` triggers a drip event whose `radius_mm` follows the MIDI
+note (each octave doubles the radius) and whose `velocity_factor` is set
+by the MIDI velocity. The cache keeps latency under ~10 ms by re-using
+pre-rendered wavs per `(note, velocity bin)`.
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:

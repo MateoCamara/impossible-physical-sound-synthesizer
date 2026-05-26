@@ -30,7 +30,7 @@ from impossible_mix.physics.exotic import (
     synth_glass_break, synth_ocean_wave,
 )
 from impossible_mix.physics.sequences import (
-    droplet_story, mercury_drama, lava_step_into_water,
+    droplet_story, mercury_drama, lava_step_into_water, parse_dsl,
 )
 from impossible_mix.physics.spatial import place_source
 from impossible_mix.physics.reverb import generate_ir, apply_reverb, PRESETS as IR_PRESETS
@@ -336,6 +336,40 @@ with gr.Blocks(title="How does a rolling droplet sound?") as app:
                     inputs=[story, duration_c, seed_c, distance_c, pan_c, with_delay,
                             ir_preset, reverb_mix],
                     outputs=audio_c)
+
+    # ------- Tab 6: DSL --------
+    with gr.Tab("DSL (text recipes)"):
+        gr.Markdown(
+            "**Text-driven event sequencing.** Write your scene as a small "
+            "recipe and the engine assembles it. Each line is one event: "
+            "`<func>(arg=value, ...) @ <time>s [gain=... pan=... distance_m=...]`. "
+            "Functions: `drip, roll, splash, impact, pour`. Lines starting with "
+            "`#` are comments."
+        )
+        default_recipe = """\
+# Droplet sonata in 5 lines
+drip(radius_mm=1.5) @ 0.3s gain=0.8 pan=-0.6
+drip(radius_mm=2.0) @ 0.7s gain=0.9 pan=-0.2
+roll(duration_s=2.5, roll_velocity_hz=14) @ 1.2s pan=0.0 distance_m=1.0
+splash(intensity=0.7, n_bubbles=30) @ 4.0s pan=0.4 distance_m=2.0
+impact(material=rock, rigidity=0.7) @ 5.6s gain=0.6
+"""
+        dsl_input = gr.Textbox(value=default_recipe, label="DSL recipe", lines=8)
+        btn_dsl = gr.Button("Parse & render", variant="primary")
+        audio_dsl = gr.Audio(label="Output (auto-detects stereo)", autoplay=True)
+        dsl_info = gr.Markdown()
+
+        def render_dsl(recipe: str):
+            try:
+                seq = parse_dsl(recipe)
+                wav = seq.render()
+                msg = f"OK · {len(seq.events)} events · duration {seq.duration_s:.1f}s · "
+                msg += "stereo" if wav.ndim == 2 else "mono"
+                return (SAMPLE_RATE, wav.astype(np.float32)), msg
+            except ValueError as e:
+                return None, f"**Parse error**: {e}"
+
+        btn_dsl.click(render_dsl, inputs=dsl_input, outputs=[audio_dsl, dsl_info])
 
     gr.Markdown(
         "---\n"
