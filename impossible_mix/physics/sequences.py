@@ -366,3 +366,175 @@ def lava_step_into_water(duration_s: float = 8.0, seed: int = 42,
                           path_roughness=0, duration_s=0.6, seed=seed + i)
         seq.add_at(t, synth_drip_event(d, sr), gain=0.7 - i * 0.1)
     return seq.render()
+
+
+# ====================================================================
+# Recetas cinematicas con el catalogo ampliado (rubber, ice, mud, plasma, wax)
+# ====================================================================
+
+def plasma_meteor_strike(duration_s: float = 9.0, seed: int = 42,
+                          sr: int = SAMPLE_RATE) -> np.ndarray:
+    """Meteoro de plasma: whoosh + impacto plasma sobre ceramica con cascada de ice_shards.
+
+    Estructura narrativa:
+    - 0.0-0.6s: whoosh descendente (compose_impossible plasma+liquid pour)
+    - 0.6s:    impacto plasma sobre ceramica (rebote con multiples bouncing)
+    - 0.9s:    cascada de ice_shards desperdigada (granular fragmentos volando)
+    - 2.0-7.0: cola modal larga de plasma decay
+    """
+    from impossible_mix.physics.granular import GranularParams, synth_granular_flow
+    from impossible_mix.physics.droplet_presets import get_preset
+    seq = Sequence(duration_s=duration_s, sr=sr)
+    # 1) Whoosh: plasma_drop falling onto a hard surface; preset modificado
+    p_drop = get_preset("plasma_drop", duration_s=0.5, seed=seed)
+    p_drop.bounce_chain_length = 4
+    p_drop.bounce_decay = 0.55
+    p_drop.surface_profile = "ceramic"
+    seq.add_at(0.05, synth_drip_event(p_drop, sr), gain=0.95)
+    # 2) Impacto plasma masivo en ceramica
+    impact_wav = compose_impossible(
+        base_material="plasma", base_interaction="impact",
+        overlay_material="ceramic" if "ceramic" in (None, None) else None,
+        overlay_weight=0.0,
+        modifiers=dict(rigidity=0.8, resonance=0.95, granularity=0.4),
+        duration_s=4.5, seed=seed + 1,
+    )
+    seq.add_at(0.55, impact_wav, gain=1.0)
+    # 3) Cascada de ice_shards en cluster intenso
+    gp = GranularParams(grain_profile="ice_shards", surface_profile="ice",
+                        density_hz=130, density_jitter=0.6, cluster_factor=0.7,
+                        energy_mean=0.7, duration_s=2.0, seed=seed + 2)
+    seq.add_at(0.85, synth_granular_flow(gp, sr), gain=0.7)
+    return seq.render()
+
+
+def wax_droplets_into_silk(duration_s: float = 8.0, seed: int = 42,
+                            sr: int = SAMPLE_RATE) -> np.ndarray:
+    """Velada gotica: gotas de cera derretida cayendo sobre tela.
+
+    Cinco drips de wax sobre fabric con timing irregular, decay corto
+    (la cera solidifica), y un splash final mas amortiguado.
+    """
+    from impossible_mix.physics.droplet_presets import get_preset
+    seq = Sequence(duration_s=duration_s, sr=sr)
+    drop_times = [0.4, 1.6, 2.9, 4.5, 5.4]
+    for i, t in enumerate(drop_times):
+        wax = get_preset("wax_drop", duration_s=0.6, seed=seed + i)
+        wax.surface_profile = "fabric" if i < 3 else "leather"
+        seq.add_at(t, synth_drip_event(wax, sr), gain=0.85 - 0.05 * i,
+                   pan=0.5 * np.cos(i * 1.3) if hasattr(np, "cos") else 0)
+    # Splash final amortiguado
+    seq.add_at(6.3, evt_splash(intensity=0.5, n_bubbles=18, seed=seed + 9),
+               gain=0.55, pan=0.3)
+    return seq.render()
+
+
+def rubber_through_glass(duration_s: float = 7.0, seed: int = 42,
+                          sr: int = SAMPLE_RATE) -> np.ndarray:
+    """Bola de goma rebotando hasta atravesar cristal (impossible chain).
+
+    - 0.0-3.5s: rubber rolling pattern (rebotes amortiguados)
+    - 3.7s:    impacto ice+glass que rompe (granular crushed_glass)
+    - 4.0s:    eco modal de glass
+    """
+    from impossible_mix.physics.granular import GranularParams, synth_granular_flow
+    seq = Sequence(duration_s=duration_s, sr=sr)
+    # 1) Rubber rolling/bouncing
+    rubber_roll = compose(CompositionSpec(
+        material="rubber", interaction="roll",
+        rigidity=0.3, resonance=0.4, continuity=0.5,
+        duration_s=3.5, seed=seed,
+    ), sr)
+    seq.add_at(0.05, rubber_roll, gain=0.9)
+    # 2) Impacto de ruptura: glass impact + cascada crushed_glass
+    glass_break = compose(CompositionSpec(
+        material="glass", interaction="impact",
+        rigidity=0.95, resonance=0.85,
+        duration_s=2.5, seed=seed + 1,
+    ), sr)
+    seq.add_at(3.65, glass_break, gain=0.95)
+    # 3) Cascada de cristales rotos
+    gp = GranularParams(grain_profile="crushed_glass", surface_profile="glass",
+                        density_hz=100, density_jitter=0.55, cluster_factor=0.6,
+                        energy_mean=0.75, duration_s=2.2, seed=seed + 2)
+    seq.add_at(3.85, synth_granular_flow(gp, sr), gain=0.7)
+    return seq.render()
+
+
+def mud_avalanche(duration_s: float = 9.0, seed: int = 42,
+                   sr: int = SAMPLE_RATE) -> np.ndarray:
+    """Avalancha de barro: build-up granular bajo + splash multiple + drips finales.
+
+    - 0.0-2.5s: granular slow-build (pebble + coarse_gravel densidad creciente)
+    - 2.5-4.5s: gran splash de mud + segundo splash
+    - 5.0-8.0: gotas viscosas residuales cayendo
+    """
+    from impossible_mix.physics.granular import GranularParams, synth_granular_flow
+    from impossible_mix.physics.droplet_presets import get_preset
+    seq = Sequence(duration_s=duration_s, sr=sr)
+    # 1) Granular build-up (cluster bajo + densidad)
+    gp1 = GranularParams(grain_profile="coarse_gravel", surface_profile="mud",
+                          density_hz=55, density_jitter=0.7, cluster_factor=0.7,
+                          energy_mean=0.6, duration_s=2.8, seed=seed)
+    seq.add_at(0.1, synth_granular_flow(gp1, sr), gain=0.85)
+    # 2) Splash dual (overlay mud+splash en dos tiempos)
+    splash1 = compose_impossible(
+        base_material="liquid", base_interaction="splash",
+        overlay_material="gravel", overlay_interaction="pour",
+        overlay_weight=0.4,
+        modifiers=dict(wetness=0.95, granularity=0.6, rigidity=0.15),
+        duration_s=2.0, seed=seed + 1,
+    )
+    seq.add_at(2.5, splash1, gain=1.0, pan=-0.3)
+    splash2 = compose_impossible(
+        base_material="liquid", base_interaction="splash",
+        overlay_material="gravel", overlay_interaction="pour",
+        overlay_weight=0.55,
+        modifiers=dict(wetness=0.95, granularity=0.8),
+        duration_s=1.8, seed=seed + 2,
+    )
+    seq.add_at(3.4, splash2, gain=0.85, pan=0.4)
+    # 3) Gotas residuales de mud_drop
+    for i, t in enumerate([5.0, 5.8, 6.7, 7.6]):
+        mp = get_preset("mud_drop", duration_s=0.7, seed=seed + 5 + i)
+        seq.add_at(t, synth_drip_event(mp, sr), gain=0.6 - 0.1 * i,
+                   pan=0.2 * (-1 if i % 2 else 1))
+    return seq.render()
+
+
+def ice_drop_in_lava(duration_s: float = 8.0, seed: int = 42,
+                      sr: int = SAMPLE_RATE) -> np.ndarray:
+    """Imposible inverso: una gota de hielo cae dentro de lava.
+
+    - 0.0s:    drip de gota fria sobre superficie de ice (ping cristalino)
+    - 0.4s:    contacto con plasma_drop (steam-like noise + impact plasma)
+    - 1.0-7s:  rolling droplet de lava preset (la lava sigue)
+    - 6.0s:    crackle final de ice_shards (la gota se evapora)
+    """
+    from impossible_mix.physics.granular import GranularParams, synth_granular_flow
+    from impossible_mix.physics.droplet_presets import get_preset
+    seq = Sequence(duration_s=duration_s, sr=sr)
+    # 1) Drip de ice (frio cayendo)
+    ice_drip = DropletParams(droplet_radius_mm=1.6, viscosity=0.0,
+                              surface_profile="ice",
+                              roll_velocity_hz=1, path_roughness=0,
+                              bounce_chain_length=2,
+                              duration_s=0.5, seed=seed)
+    seq.add_at(0.0, synth_drip_event(ice_drip, sr), gain=0.95, pan=-0.2)
+    # 2) Contacto con lava (plasma impact + lava rolling)
+    plasma_hit = compose(CompositionSpec(
+        material="plasma", interaction="impact",
+        rigidity=0.7, resonance=0.85, granularity=0.3,
+        duration_s=3.0, seed=seed + 1,
+    ), sr)
+    seq.add_at(0.4, plasma_hit, gain=0.85)
+    # 3) Lava rodando
+    lava = get_preset("lava", duration_s=5.0, seed=seed + 2)
+    lava.drying_factor = 0.3  # la lava se enfria progresivamente
+    seq.add_at(1.0, synth_rolling_droplet(lava, sr), gain=0.7)
+    # 4) Crackle final de ice_shards (gota evaporada)
+    gp = GranularParams(grain_profile="ice_shards", surface_profile="metal",
+                        density_hz=45, density_jitter=0.8, cluster_factor=0.8,
+                        energy_mean=0.55, duration_s=1.5, seed=seed + 3)
+    seq.add_at(6.0, synth_granular_flow(gp, sr), gain=0.6, pan=0.3)
+    return seq.render()

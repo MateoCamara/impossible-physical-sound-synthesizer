@@ -31,6 +31,8 @@ from impossible_mix.physics.exotic import (
 )
 from impossible_mix.physics.sequences import (
     droplet_story, mercury_drama, lava_step_into_water, parse_dsl,
+    plasma_meteor_strike, wax_droplets_into_silk, rubber_through_glass,
+    mud_avalanche, ice_drop_in_lava,
 )
 from impossible_mix.physics.spatial import place_source
 from impossible_mix.physics.reverb import generate_ir, apply_reverb, PRESETS as IR_PRESETS
@@ -297,9 +299,19 @@ with gr.Blocks(title="How does a rolling droplet sound?") as app:
             "response (small room ... cathedral). The combination produces "
             "stereo, immersive impossible-sound clips ready for film/games."
         )
+        _CINEMATIC_FNS = {
+            "droplet_story": droplet_story,
+            "mercury_drama": mercury_drama,
+            "lava_step_into_water": lava_step_into_water,
+            "plasma_meteor_strike": plasma_meteor_strike,
+            "wax_droplets_into_silk": wax_droplets_into_silk,
+            "rubber_through_glass": rubber_through_glass,
+            "mud_avalanche": mud_avalanche,
+            "ice_drop_in_lava": ice_drop_in_lava,
+        }
         with gr.Row():
             story = gr.Dropdown(
-                ["droplet_story", "mercury_drama", "lava_step_into_water"],
+                list(_CINEMATIC_FNS.keys()),
                 value="droplet_story", label="Cinematic sequence"
             )
             duration_c = gr.Slider(5.0, 12.0, value=8.0, step=0.5, label="Duration (s)")
@@ -316,17 +328,25 @@ with gr.Blocks(title="How does a rolling droplet sound?") as app:
         gr.Markdown(
             "**Examples**: *droplet_story* + *cathedral* + distance 4m → as if a droplet fell in a chapel. "
             "*mercury_drama* + *cave* + pan −0.5 → metallic chase in a tunnel. "
-            "*lava_step_into_water* + *exterior* → outdoor field recording feel."
+            "*plasma_meteor_strike* + *exterior* → otherworldly meteor in the open. "
+            "*ice_drop_in_lava* + *cave* → impossible thermal contrast. "
+            "*mud_avalanche* + *medium_hall* → epic geological event."
         )
 
         def render_cinematic(story_name, duration, seed, distance, pan, with_delay_flag, ir_name, mix):
-            if story_name == "droplet_story":
-                wav = droplet_story(duration_s=duration, seed=int(seed))
-            elif story_name == "mercury_drama":
-                wav = mercury_drama(duration_s=duration, seed=int(seed))
+            fn = _CINEMATIC_FNS.get(story_name, droplet_story)
+            # Some recipes have their own intrinsic timing and may ignore duration.
+            try:
+                wav = fn(duration_s=duration, seed=int(seed))
+            except TypeError:
+                wav = fn(seed=int(seed))
+            # If the sequence already returned stereo (per-event pan), reduce to mono
+            # for place_source's air-absorption/distance pipeline, then re-pan.
+            if wav.ndim == 2:
+                wav_mono = wav.mean(axis=-1).astype(np.float32)
             else:
-                wav = lava_step_into_water(duration_s=duration, seed=int(seed))
-            stereo = place_source(wav, SAMPLE_RATE, distance_m=distance, pan=pan,
+                wav_mono = wav
+            stereo = place_source(wav_mono, SAMPLE_RATE, distance_m=distance, pan=pan,
                                    with_delay=with_delay_flag)
             ir = generate_ir(ir_name, sr=SAMPLE_RATE, seed=int(seed))
             wet_stereo = apply_reverb(stereo, ir, mix=mix)

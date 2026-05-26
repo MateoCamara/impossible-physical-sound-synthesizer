@@ -189,6 +189,8 @@ GENERATORS: dict[tuple[str, str], Callable[[CompositionSpec, int], np.ndarray]] 
     ("wood", "scrape"):   _scrape,
     ("fabric", "drag"):   _scrape,        # drag tratado como scrape mas suave
     ("rock", "drag"):     _scrape,
+    ("glass", "impact"):  _solid_impact,
+    ("glass", "scrape"):  _scrape,
     # liquidos
     ("liquid", "drip"):   _drip,
     ("liquid", "splash"): _splash,

@@ -370,6 +370,61 @@ wav = synth_splash(
 )
 ```
 
+## Recipe 23: plasma meteor strike
+
+Whoosh from a `plasma_drop` falling onto ceramic, instantaneous plasma
+impact, followed by a cascade of `ice_shards` debris.
+
+```python
+from impossible_mix.physics.sequences import plasma_meteor_strike
+wav = plasma_meteor_strike(duration_s=9.0, seed=42)
+```
+
+## Recipe 24: wax droplets into silk
+
+Five molten `wax_drop` events falling onto a `fabric` (then `leather`)
+surface, with positional panning, followed by a damped splash. Gothic
+candle on a banquet table.
+
+```python
+from impossible_mix.physics.sequences import wax_droplets_into_silk
+wav = wax_droplets_into_silk(duration_s=8.0, seed=42)  # returns stereo
+```
+
+## Recipe 25: rubber ball through glass (impossible)
+
+A `rubber` ball rolls peacefully for 3.5 s, then the scene shatters: a
+glass impact and a granular cascade of `crushed_glass`. The contrast is
+physically impossible (rubber doesn't break glass like that) and that
+is exactly the point.
+
+```python
+from impossible_mix.physics.sequences import rubber_through_glass
+wav = rubber_through_glass(duration_s=7.0, seed=42)
+```
+
+## Recipe 26: mud avalanche
+
+Slow granular build-up over `mud` surface, two stereo-panned splashes of
+liquid+gravel overlay, and four residual `mud_drop` droplets falling at
+the end.
+
+```python
+from impossible_mix.physics.sequences import mud_avalanche
+wav = mud_avalanche(duration_s=9.0, seed=42)  # returns stereo
+```
+
+## Recipe 27: ice drop in lava (impossible)
+
+The thermal-contrast impossible: a cold drop of ice falls onto a `plasma`
+impact, then the lava preset rolls with `drying_factor=0.3` (it cools),
+ending with `ice_shards` crackle (the cold drop is evaporated).
+
+```python
+from impossible_mix.physics.sequences import ice_drop_in_lava
+wav = ice_drop_in_lava(duration_s=8.0, seed=42)  # returns stereo
+```
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:
