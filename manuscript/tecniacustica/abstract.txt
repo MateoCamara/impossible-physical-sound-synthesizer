@@ -1,0 +1,51 @@
+TÍTULO
+¿Cómo suena una gota que rueda? Un marco paramétrico físicamente
+informado para la síntesis de sonidos imposibles.
+
+PACS
+43.60.Lq · 43.58.Ta · 43.66.Lj
+
+PALABRAS CLAVE
+síntesis de sonido, Foley, física-DSP, sonidos imposibles, DDSP,
+inversión de parámetros
+
+RESUMEN
+
+El diseño sonoro audiovisual requiere a menudo combinaciones materia–
+interacción que no ocurren en la naturaleza: una gota líquida que
+rueda, un impacto rocoso húmedo, grava raspando bajo agua. Los
+enfoques generativos basados en codificadores neuronales preentrenados
+permiten manipular el espacio latente y producen variación medible en
+métricas espectrales, pero raramente se traducen en cambios que el
+oyente identifique semánticamente como «más líquido» o «más rocoso»:
+la dirección latente carece de anclaje perceptual.
+
+Proponemos un marco paramétrico físicamente informado organizado en
+capas modulares — síntesis modal, fricción de cuerpo y superficie,
+granular estocástico, eventos de gota con dinámica de Minnaert —
+combinadas por un compositor genérico con especificaciones (material,
+interacción, modificadores). Cada parámetro tiene significado físico
+directo (radio de gota, viscosidad, dureza de superficie, velocidad de
+rodadura, rugosidad), garantizando que un control «más X» produzca
+una transformación acústica coherente.
+
+Como caso paradigmático presentamos la gota rodante, sin referente
+natural directo, construida como tren cuasi-periódico de eventos drip
+con acoplamiento modal a la superficie y variabilidad inter-evento.
+Sobre 75 mediciones, 9 de 15 pares (escena, knob) producen variación
+monotónica significativa (|ρ_Spearman| > 0,7); los pares no
+monotónicos corresponden a propiedades no aplicables al material. Un
+test perceptual piloto contrasta monotonía cuantitativa y perceptual
+frente a un baseline neural. Una contraparte diferenciable del motor
+permite recuperar parámetros físicos por descenso de gradiente desde
+grabaciones, con error inferior al 1 % en gotas e impactos modales.
+
+— Conteo: ≈ 220 palabras —
+
+NOTAS PARA EL ENVÍO ONLINE
+- Todo este texto va al campo "Resumen" del formulario de envío.
+- PACS y Keywords van en sus campos respectivos.
+- Doble ciego: nada de "nuestro trabajo previo", nombres propios o
+  enlaces al repositorio. Verificar con grep antes de enviar.
+- Sesión sugerida: A09-1 (ML/IA en Acústica), A16-1 (Procesamiento y
+  Aprendizaje para Señales Acústicas) o A24-1 (Acústica Virtual).
