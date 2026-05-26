@@ -201,6 +201,20 @@ GENERATORS: dict[tuple[str, str], Callable[[CompositionSpec, int], np.ndarray]] 
     ("gravel", "scrape"): _granular_step,
     ("gravel", "pour"):   _granular_step,
     ("earth", "step"):    _granular_step,
+    # --- Catalogo ampliado: solidos nuevos ---
+    ("rubber", "impact"): _solid_impact,
+    ("rubber", "roll"):   _solid_roll,
+    ("rubber", "scrape"): _scrape,
+    ("bone",   "impact"): _solid_impact,
+    ("bone",   "scrape"): _scrape,
+    ("ice",    "impact"): _solid_impact,
+    ("ice",    "scrape"): _scrape,
+    ("ice",    "roll"):   _solid_roll,
+    ("chitin", "impact"): _solid_impact,
+    ("chitin", "scrape"): _scrape,
+    # plasma (impossible): tratado como modal con coupling implicito por inharmonicidad alta
+    ("plasma", "impact"): _solid_impact,
+    ("plasma", "roll"):   _solid_roll,
 }
 
 

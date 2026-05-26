@@ -310,6 +310,66 @@ audibly close to the Python without any DSP code beyond what the browser
 provides natively. Future steps: granular and reverb (Web Audio has
 `ConvolverNode` for free).
 
+## Recipe 19: bouncing rubber ball on metal plate
+
+Rubber's low fundamental and short decay tame the brightness of a metal
+surface — the ball is heard, the plate is felt.
+
+```python
+from impossible_mix.physics.composer import compose_impossible
+wav = compose_impossible(
+    base_material="rubber", base_interaction="roll",
+    overlay_material="metal", overlay_interaction="impact",
+    overlay_weight=0.30,
+    modifiers=dict(rigidity=0.45, resonance=0.5, continuity=0.6),
+    duration_s=4.0, seed=42,
+)
+```
+
+## Recipe 20: ice cracking shards
+
+Stochastic granular flow with the `ice_shards` profile, scattered over a
+hard surface. Higher `density_hz` packs more cracks in the same window.
+
+```python
+from impossible_mix.physics.granular import GranularParams, synth_granular_flow
+p = GranularParams(grain_profile="ice_shards", surface_profile="ice",
+                    density_hz=70, density_jitter=0.5, cluster_factor=0.6,
+                    energy_mean=0.7, duration_s=4.0, seed=42)
+wav = synth_granular_flow(p, sr=44100)
+```
+
+## Recipe 21: plasma drop on a metal plate (impossible)
+
+Uses the new `plasma_drop` droplet preset (high path roughness, metallic
+surface contact). The drop rolls erratically and leaves a multi-modal
+ringing on the surface.
+
+```python
+from impossible_mix.physics.droplet_presets import get_preset
+from impossible_mix.physics.droplet import synth_rolling_droplet
+p = get_preset("plasma_drop", duration_s=5.0, seed=42)
+# Override surface to metal for a bright ring
+p.surface_profile = "metal"
+wav = synth_rolling_droplet(p, sr=44100)
+```
+
+## Recipe 22: squelchy mud splash
+
+Splash whose drops use the `mud_drop` preset (very viscous, soft surface
+hardness). The resulting splash is dense, low-pitched, and short — the
+classic Foley "footstep in deep mud".
+
+```python
+from impossible_mix.physics.liquid import SplashParams, synth_splash
+wav = synth_splash(
+    SplashParams(intensity=0.8, n_bubbles=35,
+                  bubble_size_mean_mm=4.0, viscosity=0.85,
+                  spread_ms=70, duration_s=3.0, seed=42),
+    sr=44100,
+)
+```
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:

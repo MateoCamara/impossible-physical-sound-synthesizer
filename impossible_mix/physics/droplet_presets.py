@@ -58,6 +58,27 @@ PRESETS: dict[str, dict] = {
         roll_velocity_hz=35, path_roughness=0.8,
         desc="Many tiny droplets approaching rain texture",
     ),
+    # --- Catalogo ampliado: cuatro presets nuevos ---
+    "gel": dict(
+        droplet_radius_mm=2.8, viscosity=0.6, surface_hardness=0.4,
+        roll_velocity_hz=8, path_roughness=0.2,
+        desc="Hair gel / loose jelly: moderately viscous, soft surface",
+    ),
+    "plasma_drop": dict(
+        droplet_radius_mm=3.5, viscosity=0.5, surface_hardness=0.95,
+        roll_velocity_hz=22, path_roughness=0.85,
+        desc="Plasma drop (impossible): glowing metallic-surface contact, erratic rolling",
+    ),
+    "mud_drop": dict(
+        droplet_radius_mm=4.0, viscosity=0.85, surface_hardness=0.15,
+        roll_velocity_hz=3, path_roughness=0.50,
+        desc="Squelchy mud: very viscous, lands on a soft surface, slow",
+    ),
+    "wax_drop": dict(
+        droplet_radius_mm=2.4, viscosity=0.7, surface_hardness=0.30,
+        roll_velocity_hz=5, path_roughness=0.15,
+        desc="Molten candle wax: viscous, decays quickly as it solidifies",
+    ),
 }
 
 

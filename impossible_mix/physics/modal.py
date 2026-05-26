@@ -57,6 +57,23 @@ PROFILES: dict[str, MaterialModalProfile] = {
     "fabric": MaterialModalProfile("fabric", n_modes=3, fundamental_hz=200,
                                    spacing=2.5, damping_ms=15,
                                    spectrum_shape="tilted_low", inharmonicity=0.5),
+    # --- Nuevos materiales (catalogo ampliado) ---
+    "rubber": MaterialModalProfile("rubber", n_modes=4, fundamental_hz=160,
+                                    spacing=2.2, damping_ms=30,
+                                    spectrum_shape="tilted_low", inharmonicity=0.4),
+    "bone":   MaterialModalProfile("bone",   n_modes=5, fundamental_hz=520,
+                                    spacing=1.9, damping_ms=120,
+                                    spectrum_shape="tilted_low", inharmonicity=0.25),
+    "ice":    MaterialModalProfile("ice",    n_modes=7, fundamental_hz=1500,
+                                    spacing=1.92, damping_ms=900,
+                                    spectrum_shape="flat", inharmonicity=0.10),
+    "chitin": MaterialModalProfile("chitin", n_modes=6, fundamental_hz=950,
+                                    spacing=2.1, damping_ms=180,
+                                    spectrum_shape="tilted_low", inharmonicity=0.30),
+    # Impossible material: very inharmonic + bright tilt
+    "plasma": MaterialModalProfile("plasma", n_modes=12, fundamental_hz=400,
+                                    spacing=2.1, damping_ms=400,
+                                    spectrum_shape="tilted_high", inharmonicity=0.95),
 }
 
 

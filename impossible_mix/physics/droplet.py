@@ -61,15 +61,36 @@ SURFACE_PROFILES: dict[str, SurfaceProfile] = {
     "water":    SurfaceProfile("water",    modes_hz=(420, 900),
                                mode_gains=(0.7, 0.3), t60_ms=25,
                                click_color_hz=(400, 2500), inharmonicity=0.2),
+    # --- Nuevos perfiles (catalogo ampliado) ---
+    "rubber":   SurfaceProfile("rubber",   modes_hz=(110, 250),
+                               mode_gains=(0.7, 0.3), t60_ms=12,
+                               click_color_hz=(200, 1500), inharmonicity=0.15),
+    "leather":  SurfaceProfile("leather",  modes_hz=(240, 480, 900),
+                               mode_gains=(0.5, 0.3, 0.2), t60_ms=25,
+                               click_color_hz=(400, 2200), inharmonicity=0.20),
+    "mud":      SurfaceProfile("mud",      modes_hz=(150, 320),
+                               mode_gains=(0.6, 0.4), t60_ms=20,
+                               click_color_hz=(200, 1500), inharmonicity=0.55),
+    "ice":      SurfaceProfile("ice",      modes_hz=(2000, 4400, 7800),
+                               mode_gains=(0.4, 0.35, 0.25), t60_ms=400,
+                               click_color_hz=(3000, 10000), inharmonicity=0.04),
+    "plastic":  SurfaceProfile("plastic",  modes_hz=(520, 1100, 2400),
+                               mode_gains=(0.45, 0.35, 0.20), t60_ms=60,
+                               click_color_hz=(1500, 7000), inharmonicity=0.10),
+    "cork":     SurfaceProfile("cork",     modes_hz=(380, 780),
+                               mode_gains=(0.6, 0.4), t60_ms=35,
+                               click_color_hz=(800, 3500), inharmonicity=0.45),
 }
 
 
 def surface_from_hardness(hardness: float) -> SurfaceProfile:
-    """Mapea hardness 0..1 a un perfil de superficie razonable.
-    0=fabric, 0.2=wood, 0.4=ceramic, 0.6=stone, 0.8=glass, 1.0=metal.
+    """Mapea hardness 0..1 a un perfil de superficie razonable, ordenado
+    de mas blando (rubber) a mas duro (metal). Posiciones intermedias se
+    interpolan al perfil mas cercano.
     """
     h = float(np.clip(hardness, 0, 1))
-    order = ["fabric", "wood", "ceramic", "stone", "glass", "metal"]
+    order = ["rubber", "fabric", "cork", "leather", "mud", "wood",
+             "ceramic", "plastic", "stone", "ice", "glass", "metal"]
     idx = min(int(h * (len(order) - 1) + 0.5), len(order) - 1)
     return SURFACE_PROFILES[order[idx]]
 

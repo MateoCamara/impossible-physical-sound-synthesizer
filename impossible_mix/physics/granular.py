@@ -51,6 +51,10 @@ GRAIN_PROFILES: dict[str, GrainProfile] = {
     "broken_ceramic": GrainProfile("broken_ceramic", base_freq_hz=2000, spread_octaves=0.5, damping_ms=80, inharmonicity=0.15, n_modes=4),
     "basalt":         GrainProfile("basalt",         base_freq_hz=420,  spread_octaves=0.5, damping_ms=30, inharmonicity=0.55, n_modes=3),
     "ice":            GrainProfile("ice",            base_freq_hz=2400, spread_octaves=0.9, damping_ms=180, inharmonicity=0.08, n_modes=3),
+    # --- Nuevos perfiles granulares ---
+    "ice_shards":     GrainProfile("ice_shards",     base_freq_hz=3200, spread_octaves=1.0, damping_ms=80,  inharmonicity=0.15, n_modes=3),
+    "snow_crunch":    GrainProfile("snow_crunch",    base_freq_hz=2200, spread_octaves=1.5, damping_ms=3,   inharmonicity=0.85, n_modes=2),
+    "ash":            GrainProfile("ash",            base_freq_hz=4500, spread_octaves=1.3, damping_ms=2,   inharmonicity=0.90, n_modes=2),
 }
 
 
