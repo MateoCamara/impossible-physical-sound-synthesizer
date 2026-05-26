@@ -589,6 +589,74 @@ section in the September paper: a continuum from quirurgical recovery
 (drip, modal) to honestly-ill-posed (granular), each with documented
 mechanisms behind the difference.
 
+## Recipe 31: recover an impulse response by deconvolution (DDSP-style)
+
+Convolution is natively differentiable, but doing it with `F.conv1d`
+on a long IR (~35k samples) takes about 5 s of backward per iteration.
+The differentiable port uses **FFT convolution** instead — same maths,
+O(N log N), about 70x faster (~70 ms/iter).
+
+```python
+import torch
+from impossible_mix.physics.diff import (
+    DripParamsT, synth_drip_event_diff,
+    IRParamsT, synth_reverb_diff, fit_reverb_ir,
+)
+sr = 44100
+# Known dry source
+dp = DripParamsT.physical_init(radius_mm=2.0, requires_grad=False)
+with torch.no_grad():
+    dry = synth_drip_event_diff(dp, sr, int(0.6 * sr))
+# Unknown room: only the wet target is given to the fitter
+ir_target = IRParamsT.from_exp_decay(int(0.8 * sr), sr=sr, t60_s=0.8,
+                                       seed=42, requires_grad=False)
+with torch.no_grad():
+    wet_target = synth_reverb_diff(dry, ir_target, mix=1.0)
+
+result = fit_reverb_ir(dry, wet_target, sr,
+                        ir_length_samples=int(0.8 * sr),
+                        n_iters=150, lr=3e-3,
+                        init_t60_s=0.4, sparsity_weight=1e-4)
+# result.ir_params.ir_samples is the recovered IR
+```
+
+The STFT loss does not enforce phase, so the recovered IR matches the
+target in magnitude but not in phase - fine for resynthesis, not for
+literal deconvolution. CLI: `scripts/29_inverse_reverb_fitting.py`.
+
+## Recipe 32: profile a scrape with DDSP friction
+
+Five learnable scalars (`surface_hardness`, `velocity_mean`,
+`body_freq_hz`, `body_t60_s`, `gain`) over a fixed noise + velocity-LFO
+schedule. FFT-based FIR bandpass filtering keeps the iteration time
+around 200 ms.
+
+```python
+import torch
+from impossible_mix.physics.diff import (
+    FrictionParamsT, synth_scrape_diff, fit_friction,
+)
+sr = 44100; n = sr * 2
+
+tgt = FrictionParamsT.physical_init(
+    surface_hardness=0.8, velocity_mean=0.7, body_freq_hz=2000.0,
+    body_t60_s=0.04, gain=0.5, requires_grad=False, seed=42,
+)
+with torch.no_grad():
+    target = synth_scrape_diff(tgt, sr, n)
+
+result = fit_friction(target, sr, n_iters=120, lr=5e-2, seed=42)
+# Recovered: hardness ~= 0.79 (err 1.3%), body_freq ~= 2196 Hz (9.8%),
+#            velocity_mean ~= 0.64 (8.6%).
+```
+
+**Honest caveat**: `body_t60_s` tends to collapse to its lower bound -
+the STFT loss is weakly sensitive to very short modal decays and the
+gradient pulls in that direction with no penalty. Use the recovered
+spectral parameters (hardness, body_freq, velocity_mean) and treat
+`body_t60_s` as informative only as a rough decay-class indicator.
+CLI: `scripts/30_inverse_friction_fitting.py`.
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:

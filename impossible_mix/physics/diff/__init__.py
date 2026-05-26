@@ -29,12 +29,19 @@ from impossible_mix.physics.diff.granular import (
     GranularFlowParamsT,
     synth_granular_flow_diff,
 )
+from impossible_mix.physics.diff.reverb import IRParamsT, synth_reverb_diff
+from impossible_mix.physics.diff.friction import (
+    FrictionParamsT,
+    synth_scrape_diff,
+)
 from impossible_mix.physics.diff.fitting import (
     fit_drip_event,
     fit_drip_event_multistart,
+    fit_friction,
     fit_granular_flow,
     fit_modal_impact,
     fit_modal_impact_multistart,
+    fit_reverb_ir,
 )
 
 __all__ = [
@@ -50,4 +57,10 @@ __all__ = [
     "GranularFlowParamsT",
     "synth_granular_flow_diff",
     "fit_granular_flow",
+    "IRParamsT",
+    "synth_reverb_diff",
+    "fit_reverb_ir",
+    "FrictionParamsT",
+    "synth_scrape_diff",
+    "fit_friction",
 ]

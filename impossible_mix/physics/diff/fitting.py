@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import torch
 
 from impossible_mix.physics.diff.droplet import DripParamsT, synth_drip_event_diff
+from impossible_mix.physics.diff.friction import FrictionParamsT, synth_scrape_diff
 from impossible_mix.physics.diff.losses import multi_resolution_stft_loss
 from impossible_mix.physics.diff.granular import (
     GranularFlowParamsT,
@@ -19,6 +20,7 @@ from impossible_mix.physics.diff.granular import (
     synth_granular_flow_diff,
 )
 from impossible_mix.physics.diff.modal import ModalParamsT, synth_modal_impact_diff
+from impossible_mix.physics.diff.reverb import IRParamsT, synth_reverb_diff
 
 
 @dataclass
@@ -414,3 +416,140 @@ def fit_drip_event_multistart(
         if best is None or res.final_loss < best.final_loss:
             best = res
     return best  # type: ignore[return-value]
+
+
+# ====================================================================
+# Reverb IR fitting
+# ====================================================================
+
+@dataclass
+class ReverbFitResult:
+    ir_params: IRParamsT
+    final_pred: torch.Tensor
+    loss_history: list[float]
+    final_loss: float
+
+
+def fit_reverb_ir(
+    dry: torch.Tensor,
+    wet_target: torch.Tensor,
+    sr: int,
+    ir_length_samples: int = 22050,
+    initial: IRParamsT | None = None,
+    n_iters: int = 200,
+    lr: float = 1e-3,
+    log_every: int = 30,
+    verbose: bool = True,
+    mix: float = 1.0,
+    init_t60_s: float = 1.0,
+    init_seed: int = 0,
+    sparsity_weight: float = 0.0,
+) -> ReverbFitResult:
+    """Recupera la IR de un espacio dado un dry y un wet target.
+
+    dry, wet_target: tensors 1-D float32 de la misma longitud.
+    ir_length_samples: longitud de la IR a aprender (default ~0.5 s a 44.1 kHz).
+    sparsity_weight: peso del termino L1 sobre la IR para regularizar
+                      hacia respuestas concentradas (0 = sin regularizacion).
+    mix: 0.0 = solo dry; 1.0 = solo wet (default).
+    """
+    if initial is None:
+        initial = IRParamsT.from_exp_decay(
+            ir_length_samples, sr=sr, t60_s=init_t60_s, seed=init_seed,
+            device=dry.device, requires_grad=True,
+        )
+    p = initial
+    optim = torch.optim.Adam(p.trainable(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=n_iters,
+                                                            eta_min=lr / 10)
+    history: list[float] = []
+
+    for it in range(n_iters):
+        optim.zero_grad()
+        pred = synth_reverb_diff(dry, p, mix=mix)
+        loss = multi_resolution_stft_loss(pred, wet_target)
+        if sparsity_weight > 0:
+            loss = loss + sparsity_weight * p.ir_samples.abs().mean()
+        loss.backward()
+        optim.step()
+        scheduler.step()
+        p.clamp_()
+        history.append(float(loss.detach()))
+        if verbose and (it % log_every == 0 or it == n_iters - 1):
+            ir_rms = float(p.ir_samples.detach().pow(2).mean().sqrt())
+            ir_peak = float(p.ir_samples.detach().abs().max())
+            print(f"  iter {it:4d}  loss={history[-1]:.4f}  "
+                   f"IR rms={ir_rms:.4f} peak={ir_peak:.4f}")
+
+    with torch.no_grad():
+        final_pred = synth_reverb_diff(dry, p, mix=mix)
+        final_loss = float(multi_resolution_stft_loss(final_pred, wet_target))
+    return ReverbFitResult(ir_params=p, final_pred=final_pred,
+                            loss_history=history, final_loss=final_loss)
+
+
+# ====================================================================
+# Friction (scrape) fitting
+# ====================================================================
+
+@dataclass
+class FrictionFitResult:
+    params: FrictionParamsT
+    final_pred: torch.Tensor
+    loss_history: list[float]
+    final_loss: float
+
+
+def fit_friction(
+    target_wav: torch.Tensor,
+    sr: int,
+    initial: FrictionParamsT | None = None,
+    seed: int = 0,
+    n_iters: int = 200,
+    lr: float = 3e-2,
+    log_every: int = 30,
+    verbose: bool = True,
+) -> FrictionFitResult:
+    """Recupera FrictionParamsT desde un audio target de scrape/drag.
+
+    El "schedule" (ruido y envolvente de velocidad lenta) es fijado por
+    `seed`. Aprendibles: surface_hardness, velocity_mean, body_freq_hz,
+    body_t60_s, gain.
+    """
+    n_samples = target_wav.shape[0]
+    if initial is None:
+        # Init razonable basado en centroide del target para body_freq
+        centroid = _spectral_centroid(target_wav, sr)
+        body_init = float(min(8000.0, max(200.0, centroid * 0.5)))
+        initial = FrictionParamsT.physical_init(
+            surface_hardness=0.5, velocity_mean=0.6,
+            body_freq_hz=body_init, body_t60_s=0.05,
+            gain=0.5, device=target_wav.device,
+            requires_grad=True, seed=seed,
+        )
+    p = initial
+    optim = torch.optim.Adam(p.trainable(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=n_iters,
+                                                            eta_min=lr / 10)
+    history: list[float] = []
+
+    for it in range(n_iters):
+        optim.zero_grad()
+        pred = synth_scrape_diff(p, sr, n_samples)
+        loss = multi_resolution_stft_loss(pred, target_wav)
+        loss.backward()
+        optim.step()
+        scheduler.step()
+        p.clamp_()
+        history.append(float(loss.detach()))
+        if verbose and (it % log_every == 0 or it == n_iters - 1):
+            print(f"  iter {it:4d}  loss={history[-1]:.4f}  "
+                   f"hardness={float(p.surface_hardness.detach()):.2f}  "
+                   f"body_f={float(p.body_freq_hz.detach()):.0f}Hz  "
+                   f"body_t60={float(p.body_t60_s.detach()):.3f}s")
+
+    with torch.no_grad():
+        final_pred = synth_scrape_diff(p, sr, n_samples)
+        final_loss = float(multi_resolution_stft_loss(final_pred, target_wav))
+    return FrictionFitResult(params=p, final_pred=final_pred,
+                              loss_history=history, final_loss=final_loss)
