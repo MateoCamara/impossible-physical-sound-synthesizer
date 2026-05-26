@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>How does a rolling droplet sound? — WebAudio demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 880px; margin: 24px auto;
+         padding: 0 16px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 1.5em; color: #1565c0; margin-bottom: 4px; }
+  h2 { font-size: 1.1em; margin-top: 28px; color: #444; }
+  .subtitle { color: #555; font-style: italic; margin-top: 0; }
+  .panel { background: white; border: 1px solid #ddd; border-radius: 10px;
+           padding: 20px 24px; margin: 18px 0;
+           box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .tabs { display: flex; gap: 8px; margin: 16px 0 8px; }
+  .tab-btn { background: white; border: 1px solid #ccc; padding: 8px 16px;
+             border-radius: 6px; cursor: pointer; font-size: 0.95em; }
+  .tab-btn.active { background: #1565c0; color: white; border-color: #1565c0; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .row { display: flex; align-items: center; gap: 14px; margin: 10px 0; }
+  .row label { min-width: 150px; font-weight: 600; }
+  .row input[type=range] { flex: 1; }
+  .row .value { min-width: 70px; text-align: right; font-family: monospace;
+                color: #1565c0; font-weight: 600; }
+  select, input[type=number] { padding: 4px 6px; font-size: 0.95em; }
+  button.render { background: #2e6fd2; color: white; border: 0; padding: 10px 24px;
+                  font-size: 1em; border-radius: 6px; cursor: pointer;
+                  margin-top: 8px; }
+  button.render:hover { background: #1c54a8; }
+  .note { background: #fff3cd; border-left: 4px solid #ffc107;
+          padding: 10px 14px; margin: 14px 0; font-size: 0.9em; }
+  code { background: #eef5ff; padding: 1px 5px; border-radius: 3px; }
+  footer { color: #666; font-size: 0.85em; text-align: center; margin: 30px 0; }
+</style>
+</head>
+<body>
+
+<h1>How does a rolling droplet sound?</h1>
+<p class="subtitle">Pure Web Audio demo — modal &amp; drip primitives ported
+from the Python physics engine. No backend.</p>
+
+<div class="note">
+  Click a slider, then <strong>Render</strong>. The first click also unlocks
+  the audio context (browser policy). Use headphones.
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="modal">Modal impact</button>
+  <button class="tab-btn" data-tab="drip">Drip event</button>
+</div>
+
+<!-- ========= MODAL ========= -->
+<div id="panel-modal" class="tab-panel active panel">
+  <h2>Modal impact — banked biquads excited by a noise burst</h2>
+  <p class="subtitle">Pick a material profile, shape the exciter, and listen.
+  Equivalent to the Python <code>synth_modal_impact</code>.</p>
+
+  <div class="row">
+    <label>Material</label>
+    <select id="modal-profile">
+      <option value="metal">metal</option>
+      <option value="rock">rock</option>
+      <option value="wood">wood</option>
+      <option value="glass" selected>glass</option>
+      <option value="earth">earth</option>
+      <option value="fabric">fabric</option>
+    </select>
+    <label>Excitation</label>
+    <select id="modal-excitation">
+      <option value="felt" selected>felt</option>
+      <option value="wood">wood</option>
+      <option value="steel">steel</option>
+      <option value="impulse">impulse</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="modal-duration" type="range" min="0.3" max="6" step="0.1" value="2.0" />
+    <span class="value" id="modal-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Impact strength</label>
+    <input id="modal-strength" type="range" min="0.1" max="1.5" step="0.05" value="0.9" />
+    <span class="value" id="modal-strength-val"></span>
+  </div>
+  <div class="row">
+    <label>Sharpness</label>
+    <input id="modal-sharpness" type="range" min="0.3" max="3.0" step="0.05" value="1.0" />
+    <span class="value" id="modal-sharpness-val"></span>
+  </div>
+  <div class="row">
+    <label>Velocity</label>
+    <input id="modal-velocity" type="range" min="0.3" max="2.0" step="0.05" value="1.0" />
+    <span class="value" id="modal-velocity-val"></span>
+  </div>
+  <div class="row">
+    <label>Damping anisotropy</label>
+    <input id="modal-anisotropy" type="range" min="0" max="1" step="0.05" value="0.5" />
+    <span class="value" id="modal-anisotropy-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="modal-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="modal-render" class="render">Render modal impact</button>
+</div>
+
+<!-- ========= DRIP ========= -->
+<div id="panel-drip" class="tab-panel panel">
+  <h2>Drip event — Minnaert chirp + surface tail + bubble pop</h2>
+  <p class="subtitle">Equivalent to Python <code>synth_drip_event</code>.
+  Each surface profile gives a different "ping".</p>
+
+  <div class="row">
+    <label>Surface</label>
+    <select id="drip-surface">
+      <option value="fabric">fabric</option>
+      <option value="wood">wood</option>
+      <option value="ceramic" selected>ceramic</option>
+      <option value="glass">glass</option>
+      <option value="metal">metal</option>
+      <option value="stone">stone</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Droplet radius</label>
+    <input id="drip-radius" type="range" min="0.3" max="6.0" step="0.1" value="2.0" />
+    <span class="value" id="drip-radius-val"></span>
+  </div>
+  <div class="row">
+    <label>Viscosity</label>
+    <input id="drip-viscosity" type="range" min="0" max="1" step="0.05" value="0.0" />
+    <span class="value" id="drip-viscosity-val"></span>
+  </div>
+  <div class="row">
+    <label>Velocity factor</label>
+    <input id="drip-velocity" type="range" min="0.3" max="2.0" step="0.05" value="1.0" />
+    <span class="value" id="drip-velocity-val"></span>
+  </div>
+  <div class="row">
+    <label>Capillary ringing</label>
+    <input id="drip-capillary" type="range" min="0" max="1" step="0.05" value="0.5" />
+    <span class="value" id="drip-capillary-val"></span>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="drip-duration" type="range" min="0.2" max="2.0" step="0.05" value="0.6" />
+    <span class="value" id="drip-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="drip-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="drip-render" class="render">Render drip event</button>
+</div>
+
+<footer>
+  Procedural synthesis, pure DSP, no neural networks. Source: this folder.
+</footer>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

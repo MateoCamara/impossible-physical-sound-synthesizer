@@ -283,6 +283,33 @@ note (each octave doubles the radius) and whose `velocity_factor` is set
 by the MIDI velocity. The cache keeps latency under ~10 ms by re-using
 pre-rendered wavs per `(note, velocity bin)`.
 
+## Recipe 18: WebAudio demo — modal & drip in the browser
+
+The `web/` folder ships a zero-dependency port of `synth_modal_impact`
+and `synth_drip_event` to the Web Audio API. Two tabs, sliders, no
+backend. Deploy by dragging the folder to Netlify Drop or by:
+
+```bash
+cd web && python3 -m http.server 8080
+# open http://localhost:8080
+```
+
+Parity table (JS ↔ Python):
+
+| Python | JS |
+|---|---|
+| `synth_modal_impact` | `renderModalImpact` (modal.js) |
+| `synth_drip_event` | `renderDripEvent` (drip.js) |
+| `MODAL_PROFILES` | `MODAL_PROFILES` (verbatim) |
+| `SURFACE_PROFILES` | subset of 6 surfaces |
+
+The JS port uses `BiquadFilterNode` (Q derived from t60 by
+$Q \approx \pi \cdot f \cdot t_{60}$) and `OscillatorNode` chirps with
+`exponentialRampToValueAtTime` for the Minnaert sweep — the result is
+audibly close to the Python without any DSP code beyond what the browser
+provides natively. Future steps: granular and reverb (Web Audio has
+`ConvolverNode` for free).
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:
