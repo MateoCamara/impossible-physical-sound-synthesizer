@@ -34,8 +34,8 @@ B_liquid_rock_impact,granularity,dyn_db,0.0,1.0,False
 B_liquid_rock_impact,granularity,centroid_hz,0.0,1.0,False
 B_liquid_rock_impact,granularity,flatness,0.0,1.0,False
 B_liquid_rock_impact,granularity,log_spec_dist_ref,0.0,1.0,False
-B_liquid_rock_impact,rigidity,rms_db,-0.393,0.3833,False
-B_liquid_rock_impact,rigidity,dyn_db,-0.5,0.2532,False
+B_liquid_rock_impact,rigidity,rms_db,-0.143,0.7599,False
+B_liquid_rock_impact,rigidity,dyn_db,-0.571,0.1802,False
 B_liquid_rock_impact,rigidity,centroid_hz,1.0,0.0,True
 B_liquid_rock_impact,rigidity,flatness,1.0,0.0,True
 B_liquid_rock_impact,rigidity,log_spec_dist_ref,0.0,1.0,False
@@ -43,9 +43,9 @@ B_liquid_rock_impact,resonance,rms_db,1.0,0.0,True
 B_liquid_rock_impact,resonance,dyn_db,1.0,0.0,True
 B_liquid_rock_impact,resonance,centroid_hz,-1.0,0.0,True
 B_liquid_rock_impact,resonance,flatness,-1.0,0.0,True
-B_liquid_rock_impact,resonance,log_spec_dist_ref,0.214,0.6445,False
-B_liquid_rock_impact,continuity,rms_db,-0.571,0.1802,False
-B_liquid_rock_impact,continuity,dyn_db,0.286,0.5345,False
+B_liquid_rock_impact,resonance,log_spec_dist_ref,-0.393,0.3833,False
+B_liquid_rock_impact,continuity,rms_db,-0.464,0.2939,False
+B_liquid_rock_impact,continuity,dyn_db,0.321,0.4821,False
 B_liquid_rock_impact,continuity,centroid_hz,-0.679,0.0938,False
 B_liquid_rock_impact,continuity,flatness,-0.679,0.0938,False
 B_liquid_rock_impact,continuity,log_spec_dist_ref,0.0,1.0,False

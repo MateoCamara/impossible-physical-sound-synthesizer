@@ -33,6 +33,8 @@ class Event:
     start_s: float
     wav: np.ndarray
     gain: float = 1.0
+    pan: float = 0.0          # -1 = L, 0 = center, +1 = R
+    distance_m: float = 0.0   # 0 = sin procesado espacial; >0 aplica air_absorption + atten
 
 
 @dataclass
@@ -41,20 +43,47 @@ class Sequence:
     sr: int = SAMPLE_RATE
     events: list[Event] = field(default_factory=list)
 
-    def add_at(self, t_s: float, wav: np.ndarray, gain: float = 1.0) -> "Sequence":
-        self.events.append(Event(start_s=t_s, wav=wav.astype(np.float32), gain=gain))
+    def add_at(self, t_s: float, wav: np.ndarray, gain: float = 1.0,
+               pan: float = 0.0, distance_m: float = 0.0) -> "Sequence":
+        self.events.append(Event(start_s=t_s, wav=wav.astype(np.float32),
+                                  gain=gain, pan=pan, distance_m=distance_m))
         return self
 
-    def render(self, headroom_db: float = -3.0) -> np.ndarray:
+    def render(self, headroom_db: float = -3.0, stereo: bool | None = None) -> np.ndarray:
+        """Render. Si stereo=True o si algun evento tiene pan!=0/distance>0,
+        devuelve (T, 2). Si no, mono (T,) como antes (backwards compat).
+        """
+        if stereo is None:
+            stereo = any(abs(e.pan) > 1e-6 or e.distance_m > 0.0 for e in self.events)
         n_total = int(self.duration_s * self.sr)
-        out = np.zeros(n_total, dtype=np.float32)
+        if not stereo:
+            out = np.zeros(n_total, dtype=np.float32)
+            for e in self.events:
+                start = int(e.start_s * self.sr)
+                if start >= n_total:
+                    continue
+                end = min(n_total, start + len(e.wav))
+                out[start:end] += e.gain * e.wav[: end - start]
+            target = 10 ** (headroom_db / 20)
+            peak = float(np.max(np.abs(out)) + 1e-9)
+            if peak > target:
+                out = out * (target / peak)
+            return out.astype(np.float32)
+
+        # Stereo render con paneo + distancia per-event
+        from impossible_mix.physics.spatial import place_source, equal_power_pan
+        out = np.zeros((n_total, 2), dtype=np.float32)
         for e in self.events:
             start = int(e.start_s * self.sr)
             if start >= n_total:
                 continue
-            end = min(n_total, start + len(e.wav))
-            out[start:end] += e.gain * e.wav[: end - start]
-        # Headroom
+            # Si distance > 0, aplicamos pipeline espacial completo (sale (T,2))
+            if e.distance_m > 0:
+                stereo_evt = place_source(e.wav, self.sr, distance_m=e.distance_m, pan=e.pan)
+            else:
+                stereo_evt = equal_power_pan(e.wav, e.pan)
+            end = min(n_total, start + len(stereo_evt))
+            out[start:end] += e.gain * stereo_evt[: end - start]
         target = 10 ** (headroom_db / 20)
         peak = float(np.max(np.abs(out)) + 1e-9)
         if peak > target:

@@ -91,9 +91,12 @@ class DropletParams:
 
     # NUEVOS parametros fisicos (4-5):
     bounce_amount: float = 0.35         # cantidad de rebote post-impacto (0=sin, 1=fuerte)
+    bounce_chain_length: int = 1        # numero de rebotes encadenados (1=solo el primero)
+    bounce_decay: float = 0.55          # factor de decay por rebote (energia*0.55 cada vez)
     velocity_to_brightness: float = 1.0 # cuanto sube el brillo con velocidad (multiplicador)
     inter_event_variability: float = 0.6  # 0=todos iguales; 1=muy variables
     capillary_ringing: float = 0.5      # contribucion del ringing capilar 0..1
+    drying_factor: float = 0.0          # 0=sin drying, 1=la escena se seca al final del clip
 
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
@@ -225,23 +228,33 @@ def synth_drip_event(p: DropletParams, sr: int,
         surf_response += mg * mode_resp
     out += surf_overall_gain * surf_response
 
-    # ---- 5. Bounce/rebound: un mini-impacto secundario amortiguado ----
-    if p.bounce_amount > 0.05:
-        # Tiempo de rebote depende del radio y viscosidad (gota grande tarda mas)
-        bounce_delay_ms = (20 + 12 * p.droplet_radius_mm) * (1 + 0.5 * p.viscosity)
-        bounce_offset_n = int(bounce_delay_ms / 1000.0 * sr)
-        # Generar un drip secundario mini con menos energia y velocity reducida
-        if bounce_offset_n < total_n - chirp_n // 2:
-            # No usamos recursividad infinita: hacemos un mini chirp simple
-            mini_n = chirp_n // 2
-            mini_t = np.linspace(0, chirp_dur_ms / 2 / 1000.0, mini_n, endpoint=False)
-            mini_f = f_start * (f_end / f_start) ** (mini_t / (chirp_dur_ms / 2 / 1000.0))
+    # ---- 5. Bouncing CHAIN: rebotes encadenados con decay geometrico ----
+    if p.bounce_amount > 0.05 and p.bounce_chain_length >= 1:
+        # Tiempo del primer rebote depende del radio y viscosidad (gota grande tarda mas)
+        bounce_delay_ms_base = (20 + 12 * p.droplet_radius_mm) * (1 + 0.5 * p.viscosity)
+        cumulative_offset_n = 0
+        current_amp = p.bounce_amount * 0.4
+        for k in range(p.bounce_chain_length):
+            # Cada rebote sucesivo es mas corto en tiempo (decay) y mas debil
+            shrink = (p.bounce_decay ** 0.5) ** k  # delay shrinks slower than amp
+            delay_n = int(bounce_delay_ms_base / 1000.0 * sr * shrink)
+            cumulative_offset_n += delay_n
+            if cumulative_offset_n >= total_n - 50:
+                break
+            # Mini chirp con decay creciente
+            mini_n = max(20, chirp_n // (2 + k))
+            mini_t = np.linspace(0, chirp_dur_ms / (2 + k) / 1000.0, mini_n, endpoint=False)
+            if mini_t[-1] > 0:
+                mini_f = f_start * (f_end / f_start) ** (mini_t / mini_t[-1])
+            else:
+                mini_f = np.full(mini_n, f_start)
             mini_phase = 2 * np.pi * np.cumsum(mini_f) / sr
             mini_chirp = np.sin(mini_phase).astype(np.float32)
-            mini_env = np.exp(-np.linspace(0, 5, mini_n))
-            mini = mini_chirp * mini_env * p.bounce_amount * 0.4
-            end = min(total_n, bounce_offset_n + mini_n)
-            out[bounce_offset_n:end] += mini[: end - bounce_offset_n].astype(np.float32)
+            mini_env = np.exp(-np.linspace(0, 5 + k, mini_n))
+            mini = (mini_chirp * mini_env * current_amp).astype(np.float32)
+            end = min(total_n, cumulative_offset_n + mini_n)
+            out[cumulative_offset_n:end] += mini[: end - cumulative_offset_n]
+            current_amp *= p.bounce_decay
 
     # ---- 6. Bubble pop final (opcional: pop seco al colapsar la burbuja) ----
     # Solo si baja viscosidad: con viscosidad alta no hay pop
@@ -323,6 +336,17 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
         rms = np.sqrt(np.convolve(out * out, np.ones(win) / win, mode="same"))
         rms_norm = rms / (rms.max() + 1e-9)
         out = out + bed * rms_norm * 0.4 * (1 - p.viscosity)
+
+    # Drying tail: la escena se va secando hacia el final.
+    # Aplicamos una envolvente que atenua la energia liquida progresivamente.
+    if p.drying_factor > 0.05:
+        # La envolvente arranca en 1 y termina en (1 - drying_factor).
+        # Aplicada exponencialmente en la segunda mitad del clip.
+        half = n_total // 2
+        dry_env = np.ones(n_total, dtype=np.float32)
+        ramp = np.linspace(0, 1, n_total - half).astype(np.float32)
+        dry_env[half:] = 1.0 - p.drying_factor * (1 - np.exp(-3 * ramp))
+        out = out * dry_env
 
     peak = float(np.max(np.abs(out)) + 1e-9)
     if peak > 0.95:

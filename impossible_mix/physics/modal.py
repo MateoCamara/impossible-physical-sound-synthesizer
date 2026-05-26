@@ -96,6 +96,53 @@ def _modal_resonator(sr: int, freq_hz: float, t60_s: float) -> tuple[np.ndarray,
     return b, a
 
 
+# Excitation shapes: el "exciter" se forma con esta funcion en lugar del
+# pulso corto + ruido. Cambia drasticamente el ataque sin tocar el banco modal.
+def _make_exciter(n: int, sr: int, shape: str, strength: float, sharpness: float,
+                   rng: np.random.Generator) -> np.ndarray:
+    """Genera el excitador de longitud n con la forma especificada."""
+    if shape == "felt":
+        # Mallet acolchado: ataque suave (raised cosine), banda media
+        m_n = max(8, int(0.005 / max(sharpness, 0.1) * sr))
+        env = 0.5 * (1 - np.cos(2 * np.pi * np.arange(m_n) / m_n))
+        signal_raw = rng.standard_normal(m_n).astype(np.float32) * 0.4 + 0.6
+        exc_block = (env * signal_raw * strength).astype(np.float32)
+    elif shape == "wood":
+        # Mallet duro: ataque corto, banda amplia
+        m_n = max(2, int(0.0008 / max(sharpness, 0.1) * sr))
+        signal_raw = rng.standard_normal(m_n).astype(np.float32) * 0.3 + 0.7
+        env = np.exp(-np.linspace(0, 4, m_n))
+        exc_block = (env * signal_raw * strength).astype(np.float32)
+    elif shape == "steel":
+        # Steel pick: instantaneo y brillante (peak con cola muy corta)
+        m_n = max(2, int(0.0003 / max(sharpness, 0.1) * sr))
+        signal_raw = rng.standard_normal(m_n).astype(np.float32) * 0.2 + 0.8
+        env = np.exp(-np.linspace(0, 6, m_n))
+        exc_block = (env * signal_raw * strength).astype(np.float32)
+    elif shape == "brush":
+        # Brush/scrape: excitacion sostenida con noise modulado
+        m_n = max(50, int(0.04 * sr))
+        signal_raw = rng.standard_normal(m_n).astype(np.float32) * 0.6
+        # Modulacion AM lenta para simular pasada de cerdas
+        am = 0.5 + 0.5 * np.sin(2 * np.pi * np.linspace(0, 8, m_n))
+        exc_block = (signal_raw * am * strength * 0.6).astype(np.float32)
+    elif shape == "impulse":
+        # Impulso unitario puro (Dirac)
+        m_n = 2
+        exc_block = np.array([strength, 0], dtype=np.float32)
+    else:
+        # Default: similar al original (pulso + noise)
+        m_n = max(2, int(0.0005 * sr / max(sharpness, 0.1)))
+        exc_block = (strength * (0.7 + 0.3 * rng.standard_normal(m_n))).astype(np.float32)
+    exc = np.zeros(n, dtype=np.float32)
+    end = min(n, m_n)
+    exc[:end] = exc_block[:end]
+    return exc
+
+
+EXCITATION_SHAPES = ("default", "felt", "wood", "steel", "brush", "impulse")
+
+
 def synth_modal_impact(
     profile: MaterialModalProfile,
     sr: int,
@@ -104,26 +151,37 @@ def synth_modal_impact(
     impact_strength: float = 1.0,
     sharpness: float = 1.0,
     coupling: float = 0.0,
+    excitation_shape: str = "default",
+    velocity: float = 1.0,
+    damping_anisotropy: float = 0.5,
 ) -> np.ndarray:
-    """Genera un golpe modal: un impulso filtrado por banco de resonadores.
+    """Genera un golpe modal mejorado.
 
-    sharpness >1 acentua transitorio (impulso mas corto/duro).
-    coupling 0..1: modos que se modulan entre si (cross-modulation por
-    ringing nonlineal). 0 = modos independientes (clasico aditivo);
-    1 = fuerte coupling (sonido mas organico, modos batientes).
+    sharpness > 1 acentua transitorio (impulso mas corto/duro).
+    coupling 0..1: cross-modulation entre modos consecutivos.
+    excitation_shape: 'default'|'felt'|'wood'|'steel'|'brush'|'impulse' —
+        controla la forma del exciter sin tocar las resonancias.
+    velocity: 0.5..2.0 — afecta amplitud del exciter, brillo y un toque
+        de pitch shift (real: el material vibra mas tenso al ser golpeado fuerte).
+    damping_anisotropy: 0..1 — cuanto mas, los modos altos decaen mas rapido
+        que la fundamental (real en metales y placas). 0 = todos los modos
+        decaen igual.
     """
     n = int(duration_s * sr)
     out = np.zeros(n, dtype=np.float32)
-    # Excitacion: pulso corto + ruido coloreado al ataque
-    exc_n = max(2, int(0.0005 * sr / max(sharpness, 0.1)))
-    exc = np.zeros(n, dtype=np.float32)
-    start = max(0, int(impact_time_s * sr))
     rng = np.random.default_rng(profile.seed)
-    # Mezcla: 70% impulso unitario + 30% ruido blanco corto
-    end = min(n, start + exc_n)
-    exc[start:end] = impact_strength * (0.7 + 0.3 * rng.standard_normal(end - start))
 
-    freqs = modal_frequencies(profile)
+    # Construir excitador con la forma pedida
+    eff_strength = impact_strength * float(np.clip(velocity, 0.3, 2.0))
+    exc_local = _make_exciter(n, sr, excitation_shape, eff_strength, sharpness, rng)
+    start = max(0, int(impact_time_s * sr))
+    exc = np.zeros(n, dtype=np.float32)
+    end_idx = min(n, start + len(exc_local))
+    exc[start:end_idx] = exc_local[: end_idx - start]
+
+    # Pitch-velocity coupling: las freqs suben ligeramente con velocity
+    velocity_pitch_factor = 1.0 + 0.04 * (velocity - 1.0)  # ~4% por unidad de velocity
+    freqs = modal_frequencies(profile) * velocity_pitch_factor
     gains = _gain_curve(profile.n_modes, profile.spectrum_shape)
     gains = gains / (gains.sum() + 1e-9)
 
@@ -134,7 +192,10 @@ def synth_modal_impact(
             mode_responses.append(np.zeros(n, dtype=np.float32))
             continue
         rel = fh / profile.fundamental_hz
-        t60 = profile.damping_ms / 1000.0 / max(rel ** 0.3, 1.0)
+        # Damping anisotropico: modos altos decaen mas rapido.
+        # exponente base 0.3 -> con anisotropy=1 sube a 0.9 (efecto fuerte)
+        aniso_exp = 0.3 + 0.6 * damping_anisotropy
+        t60 = profile.damping_ms / 1000.0 / max(rel ** aniso_exp, 1.0)
         b, a = _modal_resonator(sr, fh, t60)
         y = signal.lfilter(b, a, exc).astype(np.float32)
         mode_responses.append(g * y)

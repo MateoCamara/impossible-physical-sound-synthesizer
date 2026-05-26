@@ -1,0 +1,189 @@
+# A cookbook of impossible-sound recipes
+
+This document is a hands-on companion to the paper. Each recipe pairs a
+description with a parameter set that reproduces the sound on the
+proposed engine. Run any code block as-is from the repository root.
+
+The framework exposes the following primitive layers and exotic generators:
+
+| Primitive | Module | Key parameters |
+|---|---|---|
+| Modal impact | `physics.modal` | profile, excitation_shape, velocity, damping_anisotropy, coupling |
+| Modal roll  | `physics.modal` | profile, rate_hz, jitter |
+| Friction (scrape/drag) | `physics.friction` | surface_profile, roughness, stick_slip, velocity_mean, pressure |
+| Granular flow | `physics.granular` | grain_profile, density_hz, cluster_factor, surface_coupling |
+| Drip event | `physics.droplet` | droplet_radius_mm, viscosity, surface_profile, bounce_chain_length, capillary_ringing |
+| Rolling droplet | `physics.droplet` | + roll_velocity_hz, path_roughness, drying_factor |
+| Splash | `physics.liquid` | intensity, bubble_size_mean_mm, viscosity, spread_ms |
+| Pour | `physics.liquid` | flow_rate, bubble_size_mean_mm, viscosity |
+| Rain | `physics.exotic` | intensity, drop_size_mm, wind_strength, gust_rate_hz |
+| Fire | `physics.exotic` | intensity, crackle_density |
+| Thunder | `physics.exotic` | distance, intensity |
+| Glass break | `physics.exotic` | n_shards |
+| Ocean wave | `physics.exotic` | breaking_intensity |
+
+Material catalogs:
+
+| Surface profiles | Grain profiles | Modal profiles |
+|---|---|---|
+| fabric, wood, ceramic, glass, metal, stone, water | pebble, fine_gravel, coarse_gravel, sand, crushed_glass, broken_ceramic, basalt, ice | metal, rock, wood, glass, earth, fabric |
+
+Excitation shapes: `default | felt | wood | steel | brush | impulse`
+
+---
+
+## Recipe 1: a single drop on ceramic
+
+```python
+from impossible_mix.physics.droplet import DropletParams, synth_drip_event
+p = DropletParams(droplet_radius_mm=2.0, viscosity=0.0,
+                   surface_profile="ceramic",
+                   bounce_chain_length=3, bounce_decay=0.55,
+                   capillary_ringing=0.6,
+                   duration_s=0.5, seed=42)
+wav = synth_drip_event(p, sr=44100)
+```
+
+## Recipe 2: rolling droplet, drying surface
+
+A droplet rolling on glass that progressively dries: the liquid texture
+fades over the second half of the clip while the rolling pattern remains.
+
+```python
+from impossible_mix.physics.droplet import DropletParams, synth_rolling_droplet
+p = DropletParams(droplet_radius_mm=2.2, viscosity=0.1,
+                   surface_profile="glass", roll_velocity_hz=18,
+                   path_roughness=0.4, drying_factor=0.8,
+                   duration_s=6.0, seed=42)
+wav = synth_rolling_droplet(p)
+```
+
+## Recipe 3: mercury rolling on metal (impossible)
+
+Small dense droplet that bounces irregularly on a metallic plate.
+
+```python
+from impossible_mix.physics.droplet_presets import get_preset
+from impossible_mix.physics.droplet import synth_rolling_droplet
+p = get_preset("mercury", duration_s=5.0)
+wav = synth_rolling_droplet(p)
+```
+
+## Recipe 4: bell strike with felt mallet
+
+A glass-like bell, struck with a soft mallet, with strong inter-modal
+coupling for organic beating.
+
+```python
+from impossible_mix.physics.modal import PROFILES, synth_modal_impact
+wav = synth_modal_impact(PROFILES["glass"], sr=44100,
+                          duration_s=3.0, impact_strength=0.9,
+                          excitation_shape="felt", coupling=0.6,
+                          damping_anisotropy=0.7, velocity=1.2)
+```
+
+## Recipe 5: heavy rain in a windy night
+
+Dense drip cloud whose density rises and falls with wind gusts. The
+underlying bed gains a wind whoosh.
+
+```python
+from impossible_mix.physics.exotic import synth_rain
+wav = synth_rain(duration_s=8.0, intensity=0.8, drop_size_mm=1.2,
+                  wind_strength=0.7, gust_rate_hz=0.4)
+```
+
+## Recipe 6: gravel scrape under water (impossible)
+
+Coarse gravel on a stone surface, overlaid with a liquid pour to create
+a wet scraping texture.
+
+```python
+from impossible_mix.physics.composer import compose_impossible
+wav = compose_impossible(
+    base_material="gravel", base_interaction="scrape",
+    overlay_material="liquid", overlay_interaction="pour",
+    overlay_weight=0.4,
+    modifiers=dict(wetness=0.7, granularity=0.9),
+    duration_s=5.0, seed=42,
+)
+```
+
+## Recipe 7: a story — droplet falls, rolls, splashes, in a cathedral
+
+Cinematic event sequence + spatial placement + cathedral reverb.
+
+```python
+from impossible_mix.physics.sequences import droplet_story
+from impossible_mix.physics.spatial import place_source
+from impossible_mix.physics.reverb import generate_ir, apply_reverb
+sr = 44100
+story = droplet_story(duration_s=8.0, seed=42)
+stereo = place_source(story, sr, distance_m=4.0, pan=0.1)
+ir = generate_ir("cathedral", sr=sr, seed=42)
+wet = apply_reverb(stereo, ir, mix=0.45)
+```
+
+## Recipe 8: a droplet traversing the stereo field
+
+Per-event panning + distance: a sequence of events placed independently
+in space.
+
+```python
+from impossible_mix.physics.sequences import Sequence, evt_drip, evt_rolling, evt_splash
+seq = Sequence(duration_s=8.0)
+seq.add_at(0.3, evt_drip(radius_mm=2.0), gain=0.9, pan=-0.7, distance_m=1.5)
+seq.add_at(1.0, evt_rolling(duration_s=4.0, surface_hardness=0.5),
+           gain=0.8, pan=-0.3, distance_m=1.0)
+seq.add_at(5.0, evt_splash(intensity=0.6), gain=0.7, pan=0.4, distance_m=2.0)
+stereo = seq.render()  # (T, 2) float32
+```
+
+## Recipe 9: lava drop on flesh (impossible)
+
+A viscous droplet (lava preset) hitting a soft surface (modelled as
+fabric). Combines a slow chirp with a soft modal tail.
+
+```python
+from impossible_mix.physics.droplet import DropletParams, synth_drip_event
+p = DropletParams(droplet_radius_mm=4.0, viscosity=0.9,
+                   surface_profile="fabric",
+                   roll_velocity_hz=2, path_roughness=0.1,
+                   bounce_chain_length=2, bounce_decay=0.4,
+                   capillary_ringing=0.1, duration_s=1.5, seed=42)
+wav = synth_drip_event(p, sr=44100)
+```
+
+## Recipe 10: fire crackling on a winter night
+
+Wood burning, with modal crackles (fibre fractures) over a warm bed.
+The chimney atmosphere is added by an additional room reverb (`small_room`).
+
+```python
+from impossible_mix.physics.exotic import synth_fire
+from impossible_mix.physics.reverb import generate_ir, apply_reverb
+sr = 44100
+fire = synth_fire(duration_s=10.0, intensity=0.65, crackle_density=0.7)
+ir = generate_ir("small_room", sr=sr)
+wav = apply_reverb(fire, ir, mix=0.25)
+```
+
+---
+
+## How to extend the cookbook
+
+Most recipes follow the same skeleton:
+
+1. Pick a primitive (drip, modal, granular, friction, splash, pour).
+2. Choose a surface or grain profile that matches the *material* on which
+   the event happens.
+3. Tune the high-level knobs (wetness, granularity, rigidity, resonance,
+   continuity) on the controller, or call the primitive directly.
+4. Optionally compose with an overlay (`compose_impossible`).
+5. Optionally route through `place_source` and `apply_reverb` for stereo
+   placement and ambience.
+
+A future extension will provide a **differentiable** path through the same
+operations (a DDSP-style implementation in PyTorch), enabling gradient-based
+parameter inference from real recordings while preserving the interpretable
+knobs documented here.

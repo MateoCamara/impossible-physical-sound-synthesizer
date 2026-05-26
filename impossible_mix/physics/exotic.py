@@ -22,30 +22,70 @@ from impossible_mix.physics.modal import (
 
 
 def synth_rain(duration_s: float = 5.0, intensity: float = 0.6,
-               drop_size_mm: float = 1.2, sr: int = 44_100, seed: int = 0) -> np.ndarray:
-    """Nube densa de drips minusculos = lluvia."""
+               drop_size_mm: float = 1.2, wind_strength: float = 0.0,
+               gust_rate_hz: float = 0.3, sr: int = 44_100, seed: int = 0) -> np.ndarray:
+    """Lluvia con viento + rafagas opcionales.
+
+    wind_strength 0..1: modula la densidad de drips con un LFO lento.
+    gust_rate_hz: frecuencia media de rafagas (eventos donde density sube).
+    """
     n = int(duration_s * sr)
     out = np.zeros(n, dtype=np.float32)
     rng = np.random.default_rng(seed)
-    rate = 40 + 200 * intensity
-    period = sr / rate
-    t = 0
+    base_rate = 40 + 200 * intensity
+
+    # Construir envolvente de density modulada por viento y rafagas
+    # (samples-rate baja por eficiencia)
+    sub_n = max(64, int(duration_s * 20))  # 20 Hz de resolucion
+    t_sub = np.linspace(0, duration_s, sub_n)
+    # LFO lento (~ wind_strength * 0.5 Hz)
+    wind_lfo = 1 + wind_strength * 0.6 * np.sin(2 * np.pi * 0.4 * t_sub +
+                                                  2 * np.pi * rng.random())
+    # Rafagas: eventos gaussianos centrados en momentos aleatorios
+    if wind_strength > 0.05:
+        n_gusts = max(1, int(gust_rate_hz * duration_s))
+        for _ in range(n_gusts):
+            center = rng.uniform(0.3, duration_s - 0.3)
+            width = rng.uniform(0.4, 1.5)
+            amp = wind_strength * rng.uniform(0.5, 1.2)
+            wind_lfo += amp * np.exp(-((t_sub - center) / width) ** 2)
+    density_env = np.clip(wind_lfo, 0.3, 3.0)
+
+    # Generar drips siguiendo density variable
+    t = 0.0
     while t < n:
+        # Density local
+        sub_idx = int((t / n) * sub_n)
+        density = float(density_env[min(sub_idx, sub_n - 1)])
+        period = sr / (base_rate * density)
         radius = drop_size_mm * (1 + 0.5 * rng.uniform(-0.5, 0.8))
         radius = max(0.3, radius)
+        # Variabilidad de velocity per drop (lluvia con viento tiene drops mas duros)
+        vel = float(np.clip(rng.normal(1.0 + 0.3 * wind_strength, 0.25), 0.5, 1.8))
         d = DropletParams(droplet_radius_mm=radius, viscosity=0.0,
                           surface_hardness=0.0, roll_velocity_hz=1, path_roughness=0,
                           duration_s=0.12, seed=seed + int(t))
-        evt = synth_drip_event(d, sr)
-        amp = rng.uniform(0.2, 0.7) * (0.4 + intensity)
+        evt = synth_drip_event(d, sr, velocity_factor=vel)
+        amp = rng.uniform(0.2, 0.7) * (0.4 + intensity) * vel
         start = int(t)
         end = min(n, start + len(evt))
         out[start:end] += amp * evt[: end - start]
         t += period * (1 + 0.7 * rng.uniform(-0.8, 0.8))
-    # Background hiss bandpass alto
+
+    # Background hiss bandpass alto, modulado tambien por wind
     noise = rng.standard_normal(n).astype(np.float32) * 0.05 * intensity
     sos = signal.butter(2, [500, 5000], btype="band", fs=sr, output="sos")
     bed = signal.sosfiltfilt(sos, noise).astype(np.float32)
+    if wind_strength > 0.05:
+        # Resamplear density_env a sr para modular bed
+        bed_mod = np.interp(np.linspace(0, 1, n), np.linspace(0, 1, sub_n), density_env)
+        bed = bed * bed_mod.astype(np.float32) * 0.7
+        # Add wind whoosh (low band noise modulado por density_env)
+        whoosh = rng.standard_normal(n).astype(np.float32) * 0.08 * wind_strength
+        sos_w = signal.butter(2, [100, 1200], btype="band", fs=sr, output="sos")
+        whoosh = signal.sosfiltfilt(sos_w, whoosh).astype(np.float32)
+        whoosh = whoosh * bed_mod.astype(np.float32) * wind_strength * 0.6
+        bed = bed + whoosh
     out = out + bed
     peak = float(np.max(np.abs(out)) + 1e-9)
     return (out / peak * 0.95).astype(np.float32) if peak > 0.95 else out
@@ -53,28 +93,59 @@ def synth_rain(duration_s: float = 5.0, intensity: float = 0.6,
 
 def synth_fire(duration_s: float = 5.0, intensity: float = 0.7,
                crackle_density: float = 0.5, sr: int = 44_100, seed: int = 0) -> np.ndarray:
-    """Fuego: bed caotico bandpass + crackles aleatorios (pops cortos)."""
+    """Fuego mejorado: bed caotico bandpass + crackles que son
+    micro-impactos MODALES de madera (no solo ruido), simulando
+    fibras de madera explotando.
+
+    Mejoras:
+    - Crackles ahora son mini modal events con perfil 'wood' o
+      crushed_glass cuando la madera revienta.
+    - El bed se modula por la envolvente de los pops (la combustion
+      respira con los crackles).
+    - Doble AM con frecuencias dispares simula respiracion irregular.
+    """
     n = int(duration_s * sr)
     rng = np.random.default_rng(seed)
-    # Bed: ruido marrón modulado
+    # Bed: ruido marrón modulado por dos AM
     bed = rng.standard_normal(n).astype(np.float32) * 0.15
     sos = signal.butter(4, [80, 1500], btype="band", fs=sr, output="sos")
     bed = signal.sosfiltfilt(sos, bed).astype(np.float32)
-    # Slow amplitude modulation (oscilacion de llama)
-    am_freq = 1.5 + rng.random() * 2
-    am = 0.6 + 0.4 * np.sin(2 * np.pi * am_freq * np.arange(n) / sr)
+    t_n = np.arange(n) / sr
+    am_freq1 = 1.5 + rng.random() * 2
+    am_freq2 = 0.4 + 0.6 * rng.random()
+    am = (0.5 + 0.3 * np.sin(2 * np.pi * am_freq1 * t_n)
+              + 0.2 * np.sin(2 * np.pi * am_freq2 * t_n + 1.0))
     bed = bed * am.astype(np.float32) * intensity
-    # Crackles: pops aleatorios cortos
+
+    # Crackles: micro-impactos modales de madera o cristal cuando seco
     out = bed.copy()
     pop_rate = 4 + 25 * crackle_density
     n_pops = int(duration_s * pop_rate)
+    # Mini perfil modal para los pops (mas rapido que synth_modal_impact)
     for _ in range(n_pops):
-        idx = int(rng.uniform(0, n - 100))
-        pop_len = rng.integers(50, 200)
-        pop = rng.standard_normal(pop_len).astype(np.float32) * 0.6
-        envelope = np.exp(-np.linspace(0, 5, pop_len))
-        pop *= envelope
-        out[idx:idx + pop_len] += pop * rng.uniform(0.3, 1.0) * intensity
+        idx = int(rng.uniform(0, n - 200))
+        # Cada pop: pulso corto + dos resonancias (madera con micro-fractura)
+        pop_n = int(rng.uniform(0.005, 0.025) * sr)
+        impulse = np.zeros(pop_n, dtype=np.float32)
+        impulse[:max(2, pop_n // 20)] = rng.standard_normal(max(2, pop_n // 20)).astype(np.float32) * 0.7
+        # Dos modos: alto (fractura aguda) y medio (cuerpo de la fibra)
+        fc1 = rng.uniform(2500, 5500)
+        fc2 = rng.uniform(700, 1800)
+        t60 = rng.uniform(0.003, 0.012)
+        r1 = float(np.exp(-6.91 / max(t60 * sr, 1e-3)))
+        r2 = float(np.exp(-6.91 / max(t60 * 1.4 * sr, 1e-3)))
+        a1 = np.array([1.0, -2 * r1 * np.cos(2 * np.pi * fc1 / sr), r1 * r1])
+        a2 = np.array([1.0, -2 * r2 * np.cos(2 * np.pi * fc2 / sr), r2 * r2])
+        b = np.array([1.0, 0.0, -1.0])
+        y1 = signal.lfilter(b, a1, impulse).astype(np.float32)
+        y2 = signal.lfilter(b, a2, impulse).astype(np.float32)
+        pop = 0.6 * y1 + 0.4 * y2
+        peak_p = float(np.max(np.abs(pop)) + 1e-9)
+        if peak_p > 0:
+            pop = pop * (rng.uniform(0.3, 1.0) / peak_p) * intensity
+        end = min(n, idx + len(pop))
+        out[idx:end] += pop[: end - idx]
+
     peak = float(np.max(np.abs(out)) + 1e-9)
     return (out / peak * 0.95).astype(np.float32) if peak > 0.95 else out
 
