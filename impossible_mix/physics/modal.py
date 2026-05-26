@@ -103,10 +103,14 @@ def synth_modal_impact(
     impact_time_s: float = 0.05,
     impact_strength: float = 1.0,
     sharpness: float = 1.0,
+    coupling: float = 0.0,
 ) -> np.ndarray:
     """Genera un golpe modal: un impulso filtrado por banco de resonadores.
 
     sharpness >1 acentua transitorio (impulso mas corto/duro).
+    coupling 0..1: modos que se modulan entre si (cross-modulation por
+    ringing nonlineal). 0 = modos independientes (clasico aditivo);
+    1 = fuerte coupling (sonido mas organico, modos batientes).
     """
     n = int(duration_s * sr)
     out = np.zeros(n, dtype=np.float32)
@@ -122,15 +126,37 @@ def synth_modal_impact(
     freqs = modal_frequencies(profile)
     gains = _gain_curve(profile.n_modes, profile.spectrum_shape)
     gains = gains / (gains.sum() + 1e-9)
+
+    # Renderizar cada modo por separado (luego aplicar coupling si pedido)
+    mode_responses: list[np.ndarray] = []
     for fh, g in zip(freqs, gains):
         if fh <= 0 or fh >= sr / 2:
+            mode_responses.append(np.zeros(n, dtype=np.float32))
             continue
-        # Damping aleatorio por modo (mas damping en modos altos)
         rel = fh / profile.fundamental_hz
         t60 = profile.damping_ms / 1000.0 / max(rel ** 0.3, 1.0)
         b, a = _modal_resonator(sr, fh, t60)
-        y = signal.lfilter(b, a, exc)
-        out += g * y.astype(np.float32)
+        y = signal.lfilter(b, a, exc).astype(np.float32)
+        mode_responses.append(g * y)
+
+    if coupling > 0.01 and len(mode_responses) > 1:
+        # Cross-modulation entre modos consecutivos: ring modulation suave
+        # m_k_coupled = m_k * (1 + coupling * m_{k+1})
+        coupled = []
+        for k, m in enumerate(mode_responses):
+            if k < len(mode_responses) - 1:
+                # Normalizar modulator a -1..1 antes de modular
+                modulator = mode_responses[k + 1]
+                peak_m = float(np.max(np.abs(modulator)) + 1e-9)
+                modulator_n = modulator / peak_m if peak_m > 0 else modulator
+                coupled.append(m * (1 + coupling * modulator_n))
+            else:
+                coupled.append(m)
+        for c in coupled:
+            out += c
+    else:
+        for m in mode_responses:
+            out += m
 
     # Normalizacion suave
     peak = float(np.max(np.abs(out)) + 1e-9)

@@ -1,5 +1,5 @@
 method,n,pct_good,dyn_db_mean,rms_db_mean,centroid_hz_mean,max_abs_rho_in_sweep
-PHYSICS (24 variantes),24,100.0,47.44,-23.3,4853.0,see F3
+PHYSICS (24 variantes),24,100.0,42.0,-25.1,2552.0,see F3
 "NEURAL A (latent dir, 162)",162,100.0,45.78,-28.57,4002.0,n/a
 "NEURAL B (grad edit, 24)",24,100.0,59.15,-32.76,2987.0,n/a
 BASELINE_SUM (12),6,100.0,11.16,-17.28,451.0,
