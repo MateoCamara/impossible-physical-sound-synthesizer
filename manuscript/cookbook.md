@@ -694,6 +694,46 @@ cd web && python3 -m http.server 8080
 Drop the folder into Netlify Drop and you have a public, static, no-
 backend demo of the engine ready to share.
 
+## Recipe 34: rolling droplet + friction in the browser (WebAudio phase 3)
+
+The browser demo now covers **the same five core primitives as the
+Python engine**: modal, drip, granular, rolling droplet, friction
+(plus convolution reverb). All without a backend.
+
+```
+web/
+├── modal.js            biquad bank
+├── drip.js             OscillatorNode chirp + surface tail
+├── granular.js         manual AudioBuffer mixing of 200+ grains
+├── rolling_droplet.js  inline drip train (no per-drip OfflineCtx)
+├── friction.js         noise -> bandpass -> body resonator
+├── reverb.js           ConvolverNode + synthetic IR presets
+├── main.js             wiring, 5 tabs, global reverb
+└── index.html
+```
+
+The rolling-droplet renderer is the most subtle piece: instead of
+spawning one `OfflineAudioContext` per drip (which would be too slow
+at 14 contacts per second), it inlines the drip math (Minnaert chirp +
+exponential decay + per-mode damped sinusoid for the surface) and
+writes each contact straight into the channel data of the shared
+output buffer. The surface modal tail is computed analytically as a
+geometric decay over each sample (`amp *= decay_surf`), avoiding any
+recursive filter. Result: 3 s of rolling droplet (~40 contacts)
+renders well under 100 ms.
+
+Friction uses an `OfflineAudioContext` because it benefits from native
+`BiquadFilterNode`s (bandpass for the surface excitation, peaking for
+the body), but its noise buffer is generated manually so each render
+is reproducible by seed.
+
+```bash
+cd web && python3 -m http.server 8080
+# open http://localhost:8080
+# Try: Rolling droplet (ceramic, radius=2mm, velocity=20/s, roughness=0.4)
+#      + reverb cathedral mix=0.5
+```
+
 ## How to extend the cookbook
 
 Most recipes follow the same skeleton:

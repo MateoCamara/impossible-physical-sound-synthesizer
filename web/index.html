@@ -52,6 +52,8 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
   <button class="tab-btn active" data-tab="modal">Modal impact</button>
   <button class="tab-btn" data-tab="drip">Drip event</button>
   <button class="tab-btn" data-tab="granular">Granular flow</button>
+  <button class="tab-btn" data-tab="roll">Rolling droplet</button>
+  <button class="tab-btn" data-tab="friction">Friction (scrape)</button>
 </div>
 
 <!-- ========= MODAL ========= -->
@@ -211,6 +213,110 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
     <input id="gran-seed" type="number" value="42" min="0" max="9999" />
   </div>
   <button id="gran-render" class="render">Render granular flow</button>
+</div>
+
+<!-- ========= ROLLING DROPLET ========= -->
+<div id="panel-roll" class="tab-panel panel">
+  <h2>Rolling droplet — quasi-periodic train of drip events</h2>
+  <p class="subtitle">The starring case of the paper. Each contact is one
+  inline drip event (Minnaert chirp + surface modal tail) summed directly
+  into the output buffer with timing jitter. Equivalent to Python
+  <code>synth_rolling_droplet</code>.</p>
+  <div class="row">
+    <label>Surface</label>
+    <select id="roll-surface">
+      <option value="fabric">fabric</option>
+      <option value="wood">wood</option>
+      <option value="ceramic" selected>ceramic</option>
+      <option value="glass">glass</option>
+      <option value="metal">metal</option>
+      <option value="stone">stone</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Droplet radius</label>
+    <input id="roll-radius" type="range" min="0.3" max="6.0" step="0.1" value="2.0" />
+    <span class="value" id="roll-radius-val"></span>
+  </div>
+  <div class="row">
+    <label>Viscosity</label>
+    <input id="roll-viscosity" type="range" min="0" max="1" step="0.05" value="0.0" />
+    <span class="value" id="roll-viscosity-val"></span>
+  </div>
+  <div class="row">
+    <label>Roll velocity</label>
+    <input id="roll-velocity-hz" type="range" min="2" max="40" step="0.5" value="14.0" />
+    <span class="value" id="roll-velocity-hz-val"></span>
+  </div>
+  <div class="row">
+    <label>Path roughness</label>
+    <input id="roll-roughness" type="range" min="0" max="1" step="0.05" value="0.35" />
+    <span class="value" id="roll-roughness-val"></span>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="roll-duration" type="range" min="1.0" max="8.0" step="0.1" value="3.0" />
+    <span class="value" id="roll-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="roll-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="roll-render" class="render">Render rolling droplet</button>
+</div>
+
+<!-- ========= FRICTION ========= -->
+<div id="panel-friction" class="tab-panel panel">
+  <h2>Friction — scrape, drag, sliding contact</h2>
+  <p class="subtitle">Noise modulated by a slow random velocity envelope,
+  bandpass-filtered with a centre that scales with surface hardness, then
+  routed through a body resonator peaking filter. Equivalent to a
+  simplified Python <code>synth_scrape</code> (no stick-slip in JS).</p>
+  <div class="row">
+    <label>Surface hardness</label>
+    <input id="fric-hardness" type="range" min="0" max="1" step="0.05" value="0.5" />
+    <span class="value" id="fric-hardness-val"></span>
+  </div>
+  <div class="row">
+    <label>Velocity mean</label>
+    <input id="fric-velocity" type="range" min="0.05" max="1.5" step="0.05" value="0.6" />
+    <span class="value" id="fric-velocity-val"></span>
+  </div>
+  <div class="row">
+    <label>Velocity jitter</label>
+    <input id="fric-jitter" type="range" min="0" max="1" step="0.05" value="0.4" />
+    <span class="value" id="fric-jitter-val"></span>
+  </div>
+  <div class="row">
+    <label>Roughness</label>
+    <input id="fric-roughness" type="range" min="0" max="1" step="0.05" value="0.3" />
+    <span class="value" id="fric-roughness-val"></span>
+  </div>
+  <div class="row">
+    <label>Pressure</label>
+    <input id="fric-pressure" type="range" min="0" max="1.0" step="0.05" value="0.6" />
+    <span class="value" id="fric-pressure-val"></span>
+  </div>
+  <div class="row">
+    <label>Body freq</label>
+    <input id="fric-body-freq" type="range" min="100" max="6000" step="10" value="1200" />
+    <span class="value" id="fric-body-freq-val"></span>
+  </div>
+  <div class="row">
+    <label>Body Q</label>
+    <input id="fric-body-q" type="range" min="0.5" max="10" step="0.1" value="4.0" />
+    <span class="value" id="fric-body-q-val"></span>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="fric-duration" type="range" min="0.5" max="6.0" step="0.1" value="3.0" />
+    <span class="value" id="fric-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="fric-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="fric-render" class="render">Render scrape</button>
 </div>
 
 <!-- ========= GLOBAL REVERB ========= -->

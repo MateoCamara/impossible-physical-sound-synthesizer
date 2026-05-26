@@ -1,6 +1,8 @@
 import { MODAL_PROFILES, renderModalImpact } from "./modal.js";
 import { renderDripEvent } from "./drip.js";
 import { GRAIN_PROFILES, renderGranularFlow } from "./granular.js";
+import { renderRollingDroplet } from "./rolling_droplet.js";
+import { renderScrape } from "./friction.js";
 import { IR_PRESETS, generateIR, applyReverb } from "./reverb.js";
 
 // Single shared AudioContext (created on first user gesture)
@@ -117,6 +119,65 @@ document.getElementById("gran-render").addEventListener("click", async () => {
     playBuffer(buf);
   } catch (e) {
     alert("Granular render failed: " + e);
+  }
+});
+
+// ------- Rolling droplet tab -------
+bindSlider("roll-radius", "roll-radius-val", (v) => `${v.toFixed(2)} mm`);
+bindSlider("roll-viscosity", "roll-viscosity-val", (v) => v.toFixed(2));
+bindSlider("roll-velocity-hz", "roll-velocity-hz-val", (v) => `${v.toFixed(1)} /s`);
+bindSlider("roll-roughness", "roll-roughness-val", (v) => v.toFixed(2));
+bindSlider("roll-duration", "roll-duration-val", (v) => `${v.toFixed(1)} s`);
+
+document.getElementById("roll-render").addEventListener("click", async () => {
+  const c = ensureCtx();
+  const opts = {
+    radius_mm: parseFloat(document.getElementById("roll-radius").value),
+    viscosity: parseFloat(document.getElementById("roll-viscosity").value),
+    surface_profile: document.getElementById("roll-surface").value,
+    roll_velocity_hz: parseFloat(document.getElementById("roll-velocity-hz").value),
+    path_roughness: parseFloat(document.getElementById("roll-roughness").value),
+    duration_s: parseFloat(document.getElementById("roll-duration").value),
+    seed: parseInt(document.getElementById("roll-seed").value, 10) || 0,
+  };
+  try {
+    let buf = renderRollingDroplet(c, opts);
+    buf = await maybeReverb(buf);
+    playBuffer(buf);
+  } catch (e) {
+    alert("Rolling droplet render failed: " + e);
+  }
+});
+
+// ------- Friction tab -------
+bindSlider("fric-hardness", "fric-hardness-val", (v) => v.toFixed(2));
+bindSlider("fric-velocity", "fric-velocity-val", (v) => v.toFixed(2));
+bindSlider("fric-jitter", "fric-jitter-val", (v) => v.toFixed(2));
+bindSlider("fric-roughness", "fric-roughness-val", (v) => v.toFixed(2));
+bindSlider("fric-pressure", "fric-pressure-val", (v) => v.toFixed(2));
+bindSlider("fric-body-freq", "fric-body-freq-val", (v) => `${v.toFixed(0)} Hz`);
+bindSlider("fric-body-q", "fric-body-q-val", (v) => v.toFixed(2));
+bindSlider("fric-duration", "fric-duration-val", (v) => `${v.toFixed(1)} s`);
+
+document.getElementById("fric-render").addEventListener("click", async () => {
+  const c = ensureCtx();
+  const opts = {
+    surface_hardness: parseFloat(document.getElementById("fric-hardness").value),
+    velocity_mean: parseFloat(document.getElementById("fric-velocity").value),
+    velocity_jitter: parseFloat(document.getElementById("fric-jitter").value),
+    roughness: parseFloat(document.getElementById("fric-roughness").value),
+    pressure: parseFloat(document.getElementById("fric-pressure").value),
+    body_freq_hz: parseFloat(document.getElementById("fric-body-freq").value),
+    body_q: parseFloat(document.getElementById("fric-body-q").value),
+    duration_s: parseFloat(document.getElementById("fric-duration").value),
+    seed: parseInt(document.getElementById("fric-seed").value, 10) || 0,
+  };
+  try {
+    let buf = await renderScrape(c, opts);
+    buf = await maybeReverb(buf);
+    playBuffer(buf);
+  } catch (e) {
+    alert("Friction render failed: " + e);
   }
 });
 
