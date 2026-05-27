@@ -118,6 +118,8 @@ class DropletParams:
     inter_event_variability: float = 0.6  # 0=todos iguales; 1=muy variables
     capillary_ringing: float = 0.5      # contribucion del ringing capilar 0..1
     drying_factor: float = 0.0          # 0=sin drying, 1=la escena se seca al final del clip
+    continuous_layer_mix: float = 0.4   # 0=solo drips discretos ('tacataca'), 1=mucho rumor continuo ('rrrrr')
+    body_resonance_strength: float = 0.6  # intensidad del eco modal del surface en la capa continua
 
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
@@ -298,6 +300,76 @@ def synth_drip_event(p: DropletParams, sr: int,
 
 
 # ====================================================================
+# Capa continua de rumor (anti 'tacatacataca')
+# ====================================================================
+def _continuous_roll_layer(
+    p: DropletParams,
+    surface: SurfaceProfile,
+    sr: int,
+    n_total: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Capa continua de rumor de rodadura.
+
+    Convierte la percepción de 'tacatacataca' (eventos drip discretos
+    aislados) a 'rrrrrr con ticks' (rodadura fluida con golpes superpuestos).
+    Replica el pipeline de friction.synth_scrape:
+      1) Envolvente de velocidad lenta (LFO modulado por path_roughness +
+         densidad de contacto derivada de roll_velocity_hz).
+      2) Ruido bandpass coloreado por surface.click_color_hz.
+      3) Banco modal del surface excitado por el ruido modulado, para que
+         las dos capas suenen del mismo material.
+
+    El llamador típicamente modula la salida por el RMS local del tren
+    de drips para que el rumor crezca durante clusters de contactos.
+    """
+    if n_total < 100:
+        return np.zeros(n_total, dtype=np.float32)
+
+    # 1) Envolvente: nivel base ∝ roll_velocity_hz + LFO ~5 Hz
+    base_level = 0.4 + 0.6 * min(p.roll_velocity_hz / 25.0, 1.0)
+    lfo_raw = rng.standard_normal(n_total).astype(np.float32)
+    lfo_cutoff = max(0.5, 2.0 + 6.0 * p.path_roughness)
+    sos_lpf = signal.butter(2, lfo_cutoff, btype="low", fs=sr, output="sos")
+    lfo = signal.sosfiltfilt(sos_lpf, lfo_raw).astype(np.float32)
+    lfo = (lfo - lfo.mean()) / (lfo.std() + 1e-9)
+    env = np.clip(base_level + 0.3 * p.path_roughness * lfo, 0.0, 1.3)
+
+    # 2) Ruido bandpass coloreado por el surface
+    noise = rng.standard_normal(n_total).astype(np.float32)
+    cl_lo, cl_hi = surface.click_color_hz
+    cl_hi_safe = min(cl_hi, sr / 2 - 200)
+    sos_band = signal.butter(4, [cl_lo, cl_hi_safe], btype="band",
+                              fs=sr, output="sos")
+    bright_noise = signal.sosfiltfilt(sos_band, noise).astype(np.float32)
+    excited = bright_noise * env
+
+    # 3) Banco modal del surface excitado por el ruido modulado
+    body = np.zeros(n_total, dtype=np.float32)
+    for fc, mg in zip(surface.modes_hz, surface.mode_gains):
+        if fc <= 0 or fc >= sr / 2 - 100:
+            continue
+        fc_j = fc * (1 + surface.inharmonicity * rng.uniform(-1, 1))
+        q = 4.0 + 6.0 * (1 - surface.inharmonicity)
+        bw = fc_j / max(q, 0.5)
+        f_lo = max(50, fc_j - bw / 2)
+        f_hi = min(sr / 2 - 100, fc_j + bw / 2)
+        if f_lo >= f_hi:
+            continue
+        try:
+            sos_mode = signal.butter(2, [f_lo, f_hi], btype="band",
+                                      fs=sr, output="sos")
+            body += mg * signal.sosfiltfilt(sos_mode, excited).astype(np.float32)
+        except ValueError:
+            continue
+
+    # Viscosidad atenúa (una gota de miel rodando es casi muda)
+    viscosity_atten = 1.0 - 0.5 * p.viscosity
+    layer = (0.45 * excited + p.body_resonance_strength * body) * viscosity_atten
+    return layer.astype(np.float32)
+
+
+# ====================================================================
 # Rolling droplet: usa variabilidad inter-event + velocity per contact
 # ====================================================================
 def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
@@ -344,19 +416,22 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
         out[start:end] += amp * evt[: end - start]
         t_sample += offset
 
-    # Background bed condicional al wetness y la velocidad media
-    if p.viscosity < 0.5:
-        bed = rng.standard_normal(n_total).astype(np.float32) * 0.015
-        # Color del bed: mas alto si superficie mas dura
-        bed_lo = 200 + 300 * p.surface_hardness
-        bed_hi = 1200 + 2000 * p.surface_hardness
-        bed_hi = min(bed_hi, sr / 2 - 100)
-        sos = signal.butter(4, [bed_lo, bed_hi], btype="band", fs=sr, output="sos")
-        bed = signal.sosfiltfilt(sos, bed).astype(np.float32)
+    # Capa continua de rumor de rodadura (sustituye al bed estático antiguo):
+    # convierte 'tacatacataca' en 'rrrrrr con ticks de gotas'.
+    # El floor de la envolvente escala con roll_velocity_hz: a velocidad
+    # alta la bolita está siempre en contacto (floor alto, percepción más
+    # continua "rrrrrr"); a velocidad baja hay más percusión discreta
+    # entre cada golpe (floor bajo, percepción más "drips puntuales").
+    if p.continuous_layer_mix > 0.01:
+        surface = _get_surface(p)
+        continuous = _continuous_roll_layer(p, surface, sr, n_total, rng)
         win = max(1, int(0.04 * sr))
         rms = np.sqrt(np.convolve(out * out, np.ones(win) / win, mode="same"))
-        rms_norm = rms / (rms.max() + 1e-9)
-        out = out + bed * rms_norm * 0.4 * (1 - p.viscosity)
+        rms_max = float(rms.max() + 1e-9)
+        rms_norm = rms / rms_max
+        envelope_floor = 0.3 + 0.5 * min(p.roll_velocity_hz / 25.0, 1.0)
+        rms_envelope = envelope_floor + (1.0 - envelope_floor) * rms_norm
+        out = out + continuous * rms_envelope * p.continuous_layer_mix
 
     # Drying tail: la escena se va secando hacia el final.
     # Aplicamos una envolvente que atenua la energia liquida progresivamente.

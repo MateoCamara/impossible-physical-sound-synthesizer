@@ -127,6 +127,8 @@ bindSlider("roll-radius", "roll-radius-val", (v) => `${v.toFixed(2)} mm`);
 bindSlider("roll-viscosity", "roll-viscosity-val", (v) => v.toFixed(2));
 bindSlider("roll-velocity-hz", "roll-velocity-hz-val", (v) => `${v.toFixed(1)} /s`);
 bindSlider("roll-roughness", "roll-roughness-val", (v) => v.toFixed(2));
+bindSlider("roll-continuous", "roll-continuous-val", (v) => v.toFixed(2));
+bindSlider("roll-body-res", "roll-body-res-val", (v) => v.toFixed(2));
 bindSlider("roll-duration", "roll-duration-val", (v) => `${v.toFixed(1)} s`);
 
 document.getElementById("roll-render").addEventListener("click", async () => {
@@ -137,11 +139,13 @@ document.getElementById("roll-render").addEventListener("click", async () => {
     surface_profile: document.getElementById("roll-surface").value,
     roll_velocity_hz: parseFloat(document.getElementById("roll-velocity-hz").value),
     path_roughness: parseFloat(document.getElementById("roll-roughness").value),
+    continuous_layer_mix: parseFloat(document.getElementById("roll-continuous").value),
+    body_resonance_strength: parseFloat(document.getElementById("roll-body-res").value),
     duration_s: parseFloat(document.getElementById("roll-duration").value),
     seed: parseInt(document.getElementById("roll-seed").value, 10) || 0,
   };
   try {
-    let buf = renderRollingDroplet(c, opts);
+    let buf = await renderRollingDroplet(c, opts);
     buf = await maybeReverb(buf);
     playBuffer(buf);
   } catch (e) {

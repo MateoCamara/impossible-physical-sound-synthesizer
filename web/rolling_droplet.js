@@ -7,12 +7,12 @@
 // modal tail), but inlined for efficiency with 50-300 contacts per clip.
 
 const SURFACE_PROFILES = {
-  fabric:  { modes: [180, 320],                    gains: [0.7, 0.3],            t60_ms: 8 },
-  wood:    { modes: [280, 720, 1450, 2400],        gains: [0.4, 0.3, 0.2, 0.1],  t60_ms: 80 },
-  ceramic: { modes: [1100, 2400, 4800, 7200],      gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 350 },
-  glass:   { modes: [1800, 4200, 7100, 9800],      gains: [0.3, 0.3, 0.25, 0.15], t60_ms: 600 },
-  metal:   { modes: [900, 2200, 5100, 8800],       gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 900 },
-  stone:   { modes: [380, 880, 1800],              gains: [0.5, 0.3, 0.2],       t60_ms: 60 },
+  fabric:  { modes: [180, 320],                    gains: [0.7, 0.3],            t60_ms: 8,   click_color: [500, 2500] },
+  wood:    { modes: [280, 720, 1450, 2400],        gains: [0.4, 0.3, 0.2, 0.1],  t60_ms: 80,  click_color: [800, 5000] },
+  ceramic: { modes: [1100, 2400, 4800, 7200],      gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 350, click_color: [2000, 9000] },
+  glass:   { modes: [1800, 4200, 7100, 9800],      gains: [0.3, 0.3, 0.25, 0.15], t60_ms: 600, click_color: [3000, 10000] },
+  metal:   { modes: [900, 2200, 5100, 8800],       gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 900, click_color: [3500, 11000] },
+  stone:   { modes: [380, 880, 1800],              gains: [0.5, 0.3, 0.2],       t60_ms: 60,  click_color: [1000, 5000] },
 };
 
 function rand(seed) {
@@ -110,24 +110,112 @@ function writeDripInline(dst, sampleStart, sr, opts) {
 }
 
 /**
+ * Continuous rolling rumble layer (anti 'tacatacataca').
+ *
+ * Mirrors impossible_mix.physics.droplet._continuous_roll_layer: bandpass-
+ * filtered noise excited through the surface modal bank, modulated by a
+ * slow velocity envelope derived from path_roughness + roll_velocity_hz.
+ * Implemented with an OfflineAudioContext + BiquadFilter chain so it
+ * doesn't need inline IIR code in JS.
+ *
+ * @param {number} sr
+ * @param {number} duration_s
+ * @param {object} opts
+ *   surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
+ *   body_resonance_strength
+ * @returns {Promise<AudioBuffer>}
+ */
+async function renderContinuousRollLayer(sr, duration_s, opts) {
+  const {
+    surface_profile = "ceramic",
+    viscosity = 0.0,
+    roll_velocity_hz = 14.0,
+    path_roughness = 0.35,
+    seed = 0,
+    body_resonance_strength = 0.6,
+  } = opts;
+  const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
+  const n = Math.max(64, Math.floor(duration_s * sr));
+  const rng = rand(seed + 12345);
+
+  const offline = new OfflineAudioContext(1, n, sr);
+
+  // 1) Pre-bake noise * velocity envelope (one-pole LPF on noise for the LFO)
+  const noiseBuf = offline.createBuffer(1, n, sr);
+  const data = noiseBuf.getChannelData(0);
+  const baseLevel = 0.4 + 0.6 * Math.min(roll_velocity_hz / 25.0, 1.0);
+  const lfoCutoff = Math.max(0.5, 2.0 + 6.0 * path_roughness);
+  const a = Math.exp(-2 * Math.PI * lfoCutoff / sr);
+  let lfoState = 0;
+  for (let i = 0; i < n; i++) {
+    const x = rng() * 2 - 1;
+    lfoState = a * lfoState + (1 - a) * x;
+    const env = Math.max(0, Math.min(1.3, baseLevel + 0.3 * path_roughness * lfoState));
+    data[i] = (rng() * 2 - 1) * env;
+  }
+
+  // 2) Click-color bandpass: material's broadband character
+  const src = offline.createBufferSource();
+  src.buffer = noiseBuf;
+  const [clLo, clHiRaw] = surf.click_color;
+  const clHi = Math.min(clHiRaw, sr / 2 - 200);
+  const clCenter = Math.sqrt(clLo * clHi);
+  const clQ = Math.max(0.4, clCenter / Math.max(1, clHi - clLo));
+  const bp = offline.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = clCenter;
+  bp.Q.value = clQ;
+
+  // 3) Body modal bank: series of peaking filters per mode (boosts each
+  // resonance without zeroing out the others — they share the chain)
+  let node = bp;
+  for (let m = 0; m < surf.modes.length; m++) {
+    const fc = surf.modes[m];
+    if (fc <= 0 || fc >= sr / 2 - 100) continue;
+    const peak = offline.createBiquadFilter();
+    peak.type = "peaking";
+    peak.frequency.value = fc;
+    peak.Q.value = 6.0;
+    peak.gain.value = (6.0 + 8.0 * surf.gains[m]) * body_resonance_strength;
+    node.connect(peak);
+    node = peak;
+  }
+
+  // 4) Output gain (viscosity attenuates, like in Python)
+  const outGain = offline.createGain();
+  outGain.gain.value = 0.45 * (1.0 - 0.5 * viscosity);
+  node.connect(outGain).connect(offline.destination);
+  src.connect(bp);
+  src.start();
+  return await offline.startRendering();
+}
+
+
+/**
  * Render a rolling droplet (quasi-periodic train of drips) into a new
- * AudioBuffer.
+ * AudioBuffer. Combines a discrete drip-event train with a continuous
+ * rumble layer that fills in the silences between contacts so the
+ * percept is "rrrrr with ticks" rather than "tacatacataca".
  *
  * @param {BaseAudioContext} ctx
  * @param {object} opts
  *   radius_mm, viscosity, surface_profile
  *   roll_velocity_hz: contacts per second
  *   path_roughness: 0=metronome, 1=heavy jitter
+ *   continuous_layer_mix: 0=only discrete drips, 1=heavy rumble
+ *   body_resonance_strength: how loud the modal body response is in the rumble
  *   duration_s, seed
- * @returns {AudioBuffer}
+ * @returns {Promise<AudioBuffer>}
  */
-export function renderRollingDroplet(ctx, opts) {
+export async function renderRollingDroplet(ctx, opts) {
   const {
     radius_mm = 2.0,
     viscosity = 0.0,
     surface_profile = "ceramic",
     roll_velocity_hz = 14.0,
     path_roughness = 0.35,
+    continuous_layer_mix = 0.4,
+    body_resonance_strength = 0.6,
     duration_s = 5.0,
     seed = 0,
   } = opts;
@@ -138,6 +226,7 @@ export function renderRollingDroplet(ctx, opts) {
   const rng = rand(seed);
   const periodSamples = sr / Math.max(roll_velocity_hz, 0.1);
 
+  // 1) Discrete drip-event train (inline)
   let t = 0;
   let count = 0;
   while (t < nTotal) {
@@ -155,7 +244,37 @@ export function renderRollingDroplet(ctx, opts) {
     if (count > 600) break;  // safety cap
   }
 
-  // Peak-normalise
+  // 2) Continuous rolling-rumble layer, modulated by RMS of drip train
+  if (continuous_layer_mix > 0.01) {
+    const layerBuf = await renderContinuousRollLayer(sr, duration_s, {
+      surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
+      body_resonance_strength,
+    });
+    const layer = layerBuf.getChannelData(0);
+
+    // Sliding-window RMS of drip-train data (40 ms)
+    const winN = Math.max(1, Math.floor(0.04 * sr));
+    let sumSq = 0;
+    for (let i = 0; i < Math.min(winN, nTotal); i++) sumSq += data[i] * data[i];
+    const env = new Float32Array(nTotal);
+    let maxRms = 0;
+    for (let i = 0; i < nTotal; i++) {
+      env[i] = Math.sqrt(Math.max(0, sumSq) / winN);
+      if (env[i] > maxRms) maxRms = env[i];
+      sumSq -= data[i] * data[i];
+      if (i + winN < nTotal) sumSq += data[i + winN] * data[i + winN];
+    }
+    const floorVal = 0.3 + 0.5 * Math.min(roll_velocity_hz / 25.0, 1.0);
+    const maxRmsInv = 1.0 / (maxRms + 1e-9);
+    const layerLen = Math.min(layer.length, nTotal);
+    for (let i = 0; i < layerLen; i++) {
+      const rmsNorm = env[i] * maxRmsInv;
+      const envelope = floorVal + (1.0 - floorVal) * rmsNorm;
+      data[i] += layer[i] * envelope * continuous_layer_mix;
+    }
+  }
+
+  // 3) Peak-normalise
   let peak = 0;
   for (let i = 0; i < nTotal; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
   if (peak > 0.95) {
