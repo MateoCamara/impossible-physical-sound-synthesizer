@@ -13,6 +13,13 @@ const SURFACE_PROFILES = {
   glass:   { modes: [1800, 4200, 7100, 9800],      gains: [0.3, 0.3, 0.25, 0.15], t60_ms: 600, click_color: [3000, 10000] },
   metal:   { modes: [900, 2200, 5100, 8800],       gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 900, click_color: [3500, 11000] },
   stone:   { modes: [380, 880, 1800],              gains: [0.5, 0.3, 0.2],       t60_ms: 60,  click_color: [1000, 5000] },
+  water:   { modes: [420, 900],                    gains: [0.7, 0.3],            t60_ms: 25,  click_color: [400, 2500] },
+  rubber:  { modes: [110, 250],                    gains: [0.7, 0.3],            t60_ms: 12,  click_color: [200, 1500] },
+  leather: { modes: [240, 480, 900],               gains: [0.5, 0.3, 0.2],       t60_ms: 25,  click_color: [400, 2200] },
+  mud:     { modes: [150, 320],                    gains: [0.6, 0.4],            t60_ms: 20,  click_color: [200, 1500] },
+  ice:     { modes: [2000, 4400, 7800],            gains: [0.4, 0.35, 0.25],     t60_ms: 400, click_color: [3000, 10000] },
+  plastic: { modes: [520, 1100, 2400],             gains: [0.45, 0.35, 0.20],    t60_ms: 60,  click_color: [1500, 7000] },
+  cork:    { modes: [380, 780],                    gains: [0.6, 0.4],            t60_ms: 35,  click_color: [800, 3500] },
 };
 
 function rand(seed) {
@@ -25,7 +32,7 @@ function rand(seed) {
   };
 }
 
-function minnaertHz(radius_mm) {
+export function minnaertHz(radius_mm) {
   return 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
 }
 
@@ -40,15 +47,20 @@ function minnaertHz(radius_mm) {
  * @param {number} sampleStart
  * @param {number} sr
  * @param {object} opts
- *   radius_mm, viscosity, surface_profile, velocity_factor, seed
+ *   radius_mm, viscosity, surface_profile, velocity_factor, seed,
+ *   capillary_ringing, bounce_amount, bounce_chain_length, bounce_decay
  */
-function writeDripInline(dst, sampleStart, sr, opts) {
+export function writeDripInline(dst, sampleStart, sr, opts) {
   const {
     radius_mm = 2.0,
     viscosity = 0.0,
     surface_profile = "ceramic",
     velocity_factor = 1.0,
     seed = 0,
+    capillary_ringing = 0.5,
+    bounce_amount = 0.35,
+    bounce_chain_length = 1,
+    bounce_decay = 0.55,
   } = opts;
   const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
   const rng = rand(seed);
@@ -60,25 +72,23 @@ function writeDripInline(dst, sampleStart, sr, opts) {
                       (0.7 + 0.6 / Math.max(velocity_factor, 0.3));
   const chirpDurS = chirpDurMs / 1000;
   const decayMs = (50 + 30 * radius_mm) * (1 - 0.6 * viscosity);
-  const totalS = chirpDurS + decayMs / 1000;
-  const totalN = Math.max(8, Math.floor(totalS * sr));
+  const chirpN = Math.max(8, Math.floor(chirpDurS * sr));
+  const decayN = Math.floor(decayMs / 1000 * sr);
+  const totalN = chirpN + decayN + Math.floor(0.08 * sr);
   if (sampleStart >= dst.length) return;
 
   // 1) Chirp: exponential frequency ramp + envelope
   const attackN = Math.max(2, Math.floor(0.001 * sr));
-  const chirpN = Math.max(8, Math.floor(chirpDurS * sr));
   let phase = 0;
   const ratio = Math.max(1.001, fEnd / Math.max(fStart, 1));
   const log_ratio = Math.log(ratio);
   for (let i = 0; i < totalN; i++) {
     const dst_idx = sampleStart + i;
     if (dst_idx >= dst.length) break;
-    // Frequency at sample i (exponential ramp clamped after chirpN)
     const t = i / sr;
     const t_norm = Math.min(1.0, t / Math.max(chirpDurS, 1e-4));
     const f = fStart * Math.exp(log_ratio * t_norm);
     phase += 2 * Math.PI * f / sr;
-    // Envelope: short attack then exponential decay
     let env;
     if (i < attackN) {
       env = Math.pow(i / attackN, 0.7);
@@ -88,16 +98,27 @@ function writeDripInline(dst, sampleStart, sr, opts) {
     dst[dst_idx] += 0.7 * velocity_factor * env * Math.sin(phase);
   }
 
-  // 2) Surface modal tail: damped sinusoids per mode
+  // 2) Capillary ringing: short oscillation of the liquid film at ~2.2x Minnaert
+  if (capillary_ringing > 0.05) {
+    const fCap = fEnd * 2.2;
+    const capN = Math.max(8, Math.floor(0.012 * sr));
+    const clickN = Math.max(2, Math.floor(0.0015 * sr));
+    for (let i = 0; i < capN; i++) {
+      const dst_idx = sampleStart + clickN + i;
+      if (dst_idx >= dst.length) break;
+      const capEnv = Math.exp(-6 * i / capN);
+      dst[dst_idx] += 0.25 * capillary_ringing * velocity_factor *
+                      capEnv * Math.sin(2 * Math.PI * fCap * i / sr);
+    }
+  }
+
+  // 3) Surface modal tail: damped sinusoids per mode
   const tau_surf = (surf.t60_ms / 1000) / 6.907755;
-  const decay_surf = Math.exp(-1 / (tau_surf * sr));  // per-sample multiplier
+  const decay_surf = Math.exp(-1 / (tau_surf * sr));
   for (let m = 0; m < surf.modes.length; m++) {
     const fc = surf.modes[m];
     if (fc <= 0 || fc >= sr / 2 - 100) continue;
     const g = surf.gains[m] * 0.4 * velocity_factor * (0.3 + 0.7 * 0.5);
-    // We compute the impulse response analytically: noise burst at t=0
-    // feeds a single-mode resonator. For inline efficiency we generate
-    // a damped sinusoid directly.
     const omega = 2 * Math.PI * fc / sr;
     let amp = g;
     for (let i = 0; i < totalN; i++) {
@@ -105,6 +126,46 @@ function writeDripInline(dst, sampleStart, sr, opts) {
       if (dst_idx >= dst.length) break;
       dst[dst_idx] += amp * Math.sin(omega * i);
       amp *= decay_surf;
+    }
+  }
+
+  // 4) Bounce chain: geometric-decay mini-chirps after the main contact
+  if (bounce_amount > 0.05 && bounce_chain_length >= 1) {
+    const bounceDelayBase = (20 + 12 * radius_mm) * (1 + 0.5 * viscosity) / 1000;
+    let cumOffset = 0;
+    let bAmp = bounce_amount * 0.4;
+    for (let k = 0; k < bounce_chain_length; k++) {
+      const shrink = Math.pow(Math.sqrt(bounce_decay), k);
+      const delayN = Math.floor(bounceDelayBase * sr * shrink);
+      cumOffset += delayN;
+      if (sampleStart + cumOffset >= dst.length - 50) break;
+      const miniN = Math.max(20, Math.floor(chirpN / (2 + k)));
+      let miniPhase = 0;
+      for (let i = 0; i < miniN; i++) {
+        const dst_idx = sampleStart + cumOffset + i;
+        if (dst_idx >= dst.length) break;
+        const tNorm = i / Math.max(miniN - 1, 1);
+        const miniF = fStart * Math.exp(log_ratio * tNorm);
+        miniPhase += 2 * Math.PI * miniF / sr;
+        const miniEnv = Math.exp(-(5 + k) * i / miniN);
+        dst[dst_idx] += bAmp * miniEnv * Math.sin(miniPhase);
+      }
+      bAmp *= bounce_decay;
+    }
+  }
+
+  // 5) Bubble pop: short bandpass noise burst (low viscosity only)
+  if (viscosity < 0.4 && capillary_ringing > 0.1) {
+    const popIdx = sampleStart + chirpN + Math.floor(decayN * 0.4);
+    const popLen = 40;
+    if (popIdx < dst.length - popLen) {
+      for (let i = 0; i < popLen; i++) {
+        const dst_idx = popIdx + i;
+        if (dst_idx >= dst.length) break;
+        const noise = rng() * 2 - 1;
+        const popEnv = Math.exp(-8 * i / popLen);
+        dst[dst_idx] += noise * 0.15 * (1 - viscosity) * velocity_factor * popEnv;
+      }
     }
   }
 }
@@ -204,6 +265,11 @@ async function renderContinuousRollLayer(sr, duration_s, opts) {
  *   path_roughness: 0=metronome, 1=heavy jitter
  *   continuous_layer_mix: 0=only discrete drips, 1=heavy rumble
  *   body_resonance_strength: how loud the modal body response is in the rumble
+ *   capillary_ringing: 0..1 capillary film oscillation contribution
+ *   bounce_amount: 0..1 post-impact rebound strength
+ *   bounce_chain_length: 1..4 number of chained bounces
+ *   bounce_decay: 0..1 energy factor per bounce
+ *   drying_factor: 0..1 progressive energy attenuation in second half
  *   duration_s, seed
  * @returns {Promise<AudioBuffer>}
  */
@@ -216,6 +282,12 @@ export async function renderRollingDroplet(ctx, opts) {
     path_roughness = 0.35,
     continuous_layer_mix = 0.4,
     body_resonance_strength = 0.6,
+    capillary_ringing = 0.5,
+    bounce_amount = 0.35,
+    bounce_chain_length = 1,
+    bounce_decay = 0.55,
+    inter_event_variability = 0.6,
+    drying_factor = 0.0,
     duration_s = 5.0,
     seed = 0,
   } = opts;
@@ -226,22 +298,33 @@ export async function renderRollingDroplet(ctx, opts) {
   const rng = rand(seed);
   const periodSamples = sr / Math.max(roll_velocity_hz, 0.1);
 
-  // 1) Discrete drip-event train (inline)
+  // 1) Discrete drip-event train with inter-event variability
+  //    High variability: each drip gets a unique seed so timbre varies;
+  //    low variability: seeds cycle through a small pool (similar drips).
+  //    Velocity spread scales with path_roughness + variability.
+  const nVariants = 1 + Math.round(inter_event_variability * 5);
   let t = 0;
   let count = 0;
   while (t < nTotal) {
     const start = Math.floor(t);
     if (start >= nTotal) break;
+    const velSpread = 0.25 + 0.4 * path_roughness * (0.5 + 0.5 * inter_event_variability);
     const velocity = Math.max(0.4, Math.min(1.8,
-      1.0 + (rng() * 2 - 1) * (0.25 + 0.4 * path_roughness)));
+      1.0 + (rng() * 2 - 1) * velSpread));
+    const useFreshSeed = inter_event_variability > 0.1 &&
+                         Math.abs(velocity - 1.0) > 0.25;
+    const evtSeed = useFreshSeed
+      ? seed + start
+      : seed + 100 + (count % nVariants);
     writeDripInline(data, start, sr, {
       radius_mm, viscosity, surface_profile,
-      velocity_factor: velocity, seed: seed + count * 7,
+      velocity_factor: velocity, seed: evtSeed,
+      capillary_ringing, bounce_amount, bounce_chain_length, bounce_decay,
     });
     const offset = periodSamples * (1 + path_roughness * (rng() * 2 - 1) * 0.7);
     t += Math.max(periodSamples * 0.1, offset);
     count++;
-    if (count > 600) break;  // safety cap
+    if (count > 600) break;
   }
 
   // 2) Continuous rolling-rumble layer, modulated by RMS of drip train
@@ -274,7 +357,17 @@ export async function renderRollingDroplet(ctx, opts) {
     }
   }
 
-  // 3) Peak-normalise
+  // 3) Drying tail: progressive energy attenuation in second half
+  if (drying_factor > 0.05) {
+    const half = Math.floor(nTotal / 2);
+    for (let i = half; i < nTotal; i++) {
+      const ramp = (i - half) / (nTotal - half);
+      const dryEnv = 1.0 - drying_factor * (1 - Math.exp(-3 * ramp));
+      data[i] *= dryEnv;
+    }
+  }
+
+  // 4) Peak-normalise
   let peak = 0;
   for (let i = 0; i < nTotal; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
   if (peak > 0.95) {

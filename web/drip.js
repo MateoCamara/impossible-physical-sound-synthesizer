@@ -3,18 +3,19 @@
 // simplified subset of impossible_mix.physics.droplet.synth_drip_event.
 
 const SURFACE_PROFILES = {
-  fabric: { modes: [180, 320],
-            gains: [0.7, 0.3], t60_ms: 8,  click_lo: 500,  click_hi: 2500 },
-  wood:   { modes: [280, 720, 1450, 2400],
-            gains: [0.4, 0.3, 0.2, 0.1], t60_ms: 80, click_lo: 800, click_hi: 5000 },
-  ceramic:{ modes: [1100, 2400, 4800, 7200],
-            gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 350, click_lo: 2000, click_hi: 9000 },
-  glass:  { modes: [1800, 4200, 7100, 9800],
-            gains: [0.3, 0.3, 0.25, 0.15], t60_ms: 600, click_lo: 3000, click_hi: 10000 },
-  metal:  { modes: [900, 2200, 5100, 8800],
-            gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 900, click_lo: 3500, click_hi: 11000 },
-  stone:  { modes: [380, 880, 1800],
-            gains: [0.5, 0.3, 0.2], t60_ms: 60, click_lo: 1000, click_hi: 5000 },
+  fabric:  { modes: [180, 320],               gains: [0.7, 0.3],            t60_ms: 8,   click_lo: 500,  click_hi: 2500 },
+  wood:    { modes: [280, 720, 1450, 2400],   gains: [0.4, 0.3, 0.2, 0.1], t60_ms: 80,  click_lo: 800,  click_hi: 5000 },
+  ceramic: { modes: [1100, 2400, 4800, 7200], gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 350, click_lo: 2000, click_hi: 9000 },
+  glass:   { modes: [1800, 4200, 7100, 9800], gains: [0.3, 0.3, 0.25, 0.15], t60_ms: 600, click_lo: 3000, click_hi: 10000 },
+  metal:   { modes: [900, 2200, 5100, 8800],  gains: [0.35, 0.3, 0.2, 0.15], t60_ms: 900, click_lo: 3500, click_hi: 11000 },
+  stone:   { modes: [380, 880, 1800],         gains: [0.5, 0.3, 0.2],       t60_ms: 60,  click_lo: 1000, click_hi: 5000 },
+  water:   { modes: [420, 900],               gains: [0.7, 0.3],            t60_ms: 25,  click_lo: 400,  click_hi: 2500 },
+  rubber:  { modes: [110, 250],               gains: [0.7, 0.3],            t60_ms: 12,  click_lo: 200,  click_hi: 1500 },
+  leather: { modes: [240, 480, 900],          gains: [0.5, 0.3, 0.2],       t60_ms: 25,  click_lo: 400,  click_hi: 2200 },
+  mud:     { modes: [150, 320],               gains: [0.6, 0.4],            t60_ms: 20,  click_lo: 200,  click_hi: 1500 },
+  ice:     { modes: [2000, 4400, 7800],       gains: [0.4, 0.35, 0.25],     t60_ms: 400, click_lo: 3000, click_hi: 10000 },
+  plastic: { modes: [520, 1100, 2400],        gains: [0.45, 0.35, 0.20],    t60_ms: 60,  click_lo: 1500, click_hi: 7000 },
+  cork:    { modes: [380, 780],               gains: [0.6, 0.4],            t60_ms: 35,  click_lo: 800,  click_hi: 3500 },
 };
 
 function rand(seed) {

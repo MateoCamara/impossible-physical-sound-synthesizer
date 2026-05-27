@@ -54,6 +54,8 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
   <button class="tab-btn" data-tab="granular">Granular flow</button>
   <button class="tab-btn" data-tab="roll">Rolling droplet</button>
   <button class="tab-btn" data-tab="friction">Friction (scrape)</button>
+  <button class="tab-btn" data-tab="splash">Splash</button>
+  <button class="tab-btn" data-tab="pour">Pour</button>
 </div>
 
 <!-- ========= MODAL ========= -->
@@ -70,6 +72,11 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
       <option value="glass" selected>glass</option>
       <option value="earth">earth</option>
       <option value="fabric">fabric</option>
+      <option value="rubber">rubber</option>
+      <option value="bone">bone</option>
+      <option value="ice">ice</option>
+      <option value="chitin">chitin</option>
+      <option value="plasma">plasma</option>
     </select>
     <label>Excitation</label>
     <select id="modal-excitation">
@@ -124,6 +131,13 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
       <option value="glass">glass</option>
       <option value="metal">metal</option>
       <option value="stone">stone</option>
+      <option value="water">water</option>
+      <option value="rubber">rubber</option>
+      <option value="leather">leather</option>
+      <option value="mud">mud</option>
+      <option value="ice">ice</option>
+      <option value="plastic">plastic</option>
+      <option value="cork">cork</option>
     </select>
   </div>
   <div class="row">
@@ -176,6 +190,8 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
       <option value="ice_shards">ice_shards</option>
       <option value="snow_crunch">snow_crunch</option>
       <option value="ash">ash</option>
+      <option value="broken_ceramic">broken_ceramic</option>
+      <option value="basalt">basalt</option>
     </select>
   </div>
   <div class="row">
@@ -231,6 +247,13 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
       <option value="glass">glass</option>
       <option value="metal">metal</option>
       <option value="stone">stone</option>
+      <option value="water">water</option>
+      <option value="rubber">rubber</option>
+      <option value="leather">leather</option>
+      <option value="mud">mud</option>
+      <option value="ice">ice</option>
+      <option value="plastic">plastic</option>
+      <option value="cork">cork</option>
     </select>
   </div>
   <div class="row">
@@ -252,6 +275,36 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
     <label>Path roughness</label>
     <input id="roll-roughness" type="range" min="0" max="1" step="0.05" value="0.35" />
     <span class="value" id="roll-roughness-val"></span>
+  </div>
+  <div class="row">
+    <label>Inter-event variability</label>
+    <input id="roll-variability" type="range" min="0" max="1" step="0.05" value="0.6" />
+    <span class="value" id="roll-variability-val"></span>
+  </div>
+  <div class="row">
+    <label>Capillary ringing</label>
+    <input id="roll-capillary" type="range" min="0" max="1" step="0.05" value="0.5" />
+    <span class="value" id="roll-capillary-val"></span>
+  </div>
+  <div class="row">
+    <label>Bounce amount</label>
+    <input id="roll-bounce" type="range" min="0" max="1" step="0.05" value="0.35" />
+    <span class="value" id="roll-bounce-val"></span>
+  </div>
+  <div class="row">
+    <label>Bounce chain length</label>
+    <input id="roll-bounce-chain" type="range" min="0" max="4" step="1" value="1" />
+    <span class="value" id="roll-bounce-chain-val"></span>
+  </div>
+  <div class="row">
+    <label>Bounce decay</label>
+    <input id="roll-bounce-decay" type="range" min="0.1" max="0.9" step="0.05" value="0.55" />
+    <span class="value" id="roll-bounce-decay-val"></span>
+  </div>
+  <div class="row">
+    <label>Drying factor</label>
+    <input id="roll-drying" type="range" min="0" max="1" step="0.05" value="0.0" />
+    <span class="value" id="roll-drying-val"></span>
   </div>
   <div class="row">
     <label>Continuous rumble (0=tacataca, 1=rrrrr)</label>
@@ -278,10 +331,29 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
 <!-- ========= FRICTION ========= -->
 <div id="panel-friction" class="tab-panel panel">
   <h2>Friction — scrape, drag, sliding contact</h2>
-  <p class="subtitle">Noise modulated by a slow random velocity envelope,
-  bandpass-filtered with a centre that scales with surface hardness, then
-  routed through a body resonator peaking filter. Equivalent to a
-  simplified Python <code>synth_scrape</code> (no stick-slip in JS).</p>
+  <p class="subtitle">Noise modulated by a velocity envelope with stick-slip
+  dynamics, bandpass-filtered by the surface material, then routed through
+  a multi-mode body resonator bank. Micro-impacts added at high roughness.
+  Equivalent to Python <code>synth_scrape</code>.</p>
+  <div class="row">
+    <label>Surface</label>
+    <select id="fric-surface">
+      <option value="">auto (from hardness)</option>
+      <option value="fabric">fabric</option>
+      <option value="wood">wood</option>
+      <option value="ceramic" selected>ceramic</option>
+      <option value="glass">glass</option>
+      <option value="metal">metal</option>
+      <option value="stone">stone</option>
+      <option value="water">water</option>
+      <option value="rubber">rubber</option>
+      <option value="leather">leather</option>
+      <option value="mud">mud</option>
+      <option value="ice">ice</option>
+      <option value="plastic">plastic</option>
+      <option value="cork">cork</option>
+    </select>
+  </div>
   <div class="row">
     <label>Surface hardness</label>
     <input id="fric-hardness" type="range" min="0" max="1" step="0.05" value="0.5" />
@@ -298,6 +370,16 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
     <span class="value" id="fric-jitter-val"></span>
   </div>
   <div class="row">
+    <label>Stick-slip</label>
+    <input id="fric-stick-slip" type="range" min="0" max="1" step="0.05" value="0.3" />
+    <span class="value" id="fric-stick-slip-val"></span>
+  </div>
+  <div class="row">
+    <label>Stick-slip rate</label>
+    <input id="fric-slip-rate" type="range" min="5" max="80" step="1" value="30" />
+    <span class="value" id="fric-slip-rate-val"></span>
+  </div>
+  <div class="row">
     <label>Roughness</label>
     <input id="fric-roughness" type="range" min="0" max="1" step="0.05" value="0.3" />
     <span class="value" id="fric-roughness-val"></span>
@@ -306,16 +388,6 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
     <label>Pressure</label>
     <input id="fric-pressure" type="range" min="0" max="1.0" step="0.05" value="0.6" />
     <span class="value" id="fric-pressure-val"></span>
-  </div>
-  <div class="row">
-    <label>Body freq</label>
-    <input id="fric-body-freq" type="range" min="100" max="6000" step="10" value="1200" />
-    <span class="value" id="fric-body-freq-val"></span>
-  </div>
-  <div class="row">
-    <label>Body Q</label>
-    <input id="fric-body-q" type="range" min="0.5" max="10" step="0.1" value="4.0" />
-    <span class="value" id="fric-body-q-val"></span>
   </div>
   <div class="row">
     <label>Duration</label>
@@ -327,6 +399,87 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
     <input id="fric-seed" type="number" value="42" min="0" max="9999" />
   </div>
   <button id="fric-render" class="render">Render scrape</button>
+</div>
+
+<!-- ========= SPLASH ========= -->
+<div id="panel-splash" class="tab-panel panel">
+  <h2>Splash — liquid impact burst</h2>
+  <p class="subtitle">A whoosh pre-impact followed by a cascade of bubbles
+  (microbubbles first, larger bubbles later) with subsurface agitation.
+  Equivalent to Python <code>synth_splash</code>.</p>
+  <div class="row">
+    <label>Intensity</label>
+    <input id="splash-intensity" type="range" min="0.1" max="1.0" step="0.05" value="0.7" />
+    <span class="value" id="splash-intensity-val"></span>
+  </div>
+  <div class="row">
+    <label>Bubble size (mm)</label>
+    <input id="splash-bubble-size" type="range" min="0.5" max="6.0" step="0.1" value="3.0" />
+    <span class="value" id="splash-bubble-size-val"></span>
+  </div>
+  <div class="row">
+    <label>Size variation</label>
+    <input id="splash-size-var" type="range" min="0" max="1" step="0.05" value="0.6" />
+    <span class="value" id="splash-size-var-val"></span>
+  </div>
+  <div class="row">
+    <label>Number of bubbles</label>
+    <input id="splash-n-bubbles" type="range" min="5" max="80" step="1" value="30" />
+    <span class="value" id="splash-n-bubbles-val"></span>
+  </div>
+  <div class="row">
+    <label>Spread (ms)</label>
+    <input id="splash-spread" type="range" min="20" max="300" step="5" value="80" />
+    <span class="value" id="splash-spread-val"></span>
+  </div>
+  <div class="row">
+    <label>Viscosity</label>
+    <input id="splash-viscosity" type="range" min="0" max="1" step="0.05" value="0.1" />
+    <span class="value" id="splash-viscosity-val"></span>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="splash-duration" type="range" min="0.5" max="5.0" step="0.1" value="2.0" />
+    <span class="value" id="splash-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="splash-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="splash-render" class="render">Render splash</button>
+</div>
+
+<!-- ========= POUR ========= -->
+<div id="panel-pour" class="tab-panel panel">
+  <h2>Pour — continuous liquid stream</h2>
+  <p class="subtitle">A dense train of drip events (30–230 Hz) with a
+  turbulence noise bed. Like rolling droplet but much denser and wetter.
+  Equivalent to Python <code>synth_pour</code>.</p>
+  <div class="row">
+    <label>Flow rate</label>
+    <input id="pour-flow" type="range" min="0.1" max="1.0" step="0.05" value="0.6" />
+    <span class="value" id="pour-flow-val"></span>
+  </div>
+  <div class="row">
+    <label>Drop size (mm)</label>
+    <input id="pour-drop-size" type="range" min="0.3" max="4.0" step="0.1" value="1.5" />
+    <span class="value" id="pour-drop-size-val"></span>
+  </div>
+  <div class="row">
+    <label>Viscosity</label>
+    <input id="pour-viscosity" type="range" min="0" max="1" step="0.05" value="0.1" />
+    <span class="value" id="pour-viscosity-val"></span>
+  </div>
+  <div class="row">
+    <label>Duration</label>
+    <input id="pour-duration" type="range" min="0.5" max="6.0" step="0.1" value="3.0" />
+    <span class="value" id="pour-duration-val"></span>
+  </div>
+  <div class="row">
+    <label>Seed</label>
+    <input id="pour-seed" type="number" value="42" min="0" max="9999" />
+  </div>
+  <button id="pour-render" class="render">Render pour</button>
 </div>
 
 <!-- ========= GLOBAL REVERB ========= -->

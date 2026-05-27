@@ -3,6 +3,7 @@ import { renderDripEvent } from "./drip.js";
 import { GRAIN_PROFILES, renderGranularFlow } from "./granular.js";
 import { renderRollingDroplet } from "./rolling_droplet.js";
 import { renderScrape } from "./friction.js";
+import { renderSplash, renderPour } from "./liquid.js";
 import { IR_PRESETS, generateIR, applyReverb } from "./reverb.js";
 
 // Single shared AudioContext (created on first user gesture)
@@ -127,6 +128,12 @@ bindSlider("roll-radius", "roll-radius-val", (v) => `${v.toFixed(2)} mm`);
 bindSlider("roll-viscosity", "roll-viscosity-val", (v) => v.toFixed(2));
 bindSlider("roll-velocity-hz", "roll-velocity-hz-val", (v) => `${v.toFixed(1)} /s`);
 bindSlider("roll-roughness", "roll-roughness-val", (v) => v.toFixed(2));
+bindSlider("roll-variability", "roll-variability-val", (v) => v.toFixed(2));
+bindSlider("roll-capillary", "roll-capillary-val", (v) => v.toFixed(2));
+bindSlider("roll-bounce", "roll-bounce-val", (v) => v.toFixed(2));
+bindSlider("roll-bounce-chain", "roll-bounce-chain-val", (v) => v.toFixed(0));
+bindSlider("roll-bounce-decay", "roll-bounce-decay-val", (v) => v.toFixed(2));
+bindSlider("roll-drying", "roll-drying-val", (v) => v.toFixed(2));
 bindSlider("roll-continuous", "roll-continuous-val", (v) => v.toFixed(2));
 bindSlider("roll-body-res", "roll-body-res-val", (v) => v.toFixed(2));
 bindSlider("roll-duration", "roll-duration-val", (v) => `${v.toFixed(1)} s`);
@@ -139,6 +146,12 @@ document.getElementById("roll-render").addEventListener("click", async () => {
     surface_profile: document.getElementById("roll-surface").value,
     roll_velocity_hz: parseFloat(document.getElementById("roll-velocity-hz").value),
     path_roughness: parseFloat(document.getElementById("roll-roughness").value),
+    inter_event_variability: parseFloat(document.getElementById("roll-variability").value),
+    capillary_ringing: parseFloat(document.getElementById("roll-capillary").value),
+    bounce_amount: parseFloat(document.getElementById("roll-bounce").value),
+    bounce_chain_length: parseInt(document.getElementById("roll-bounce-chain").value, 10),
+    bounce_decay: parseFloat(document.getElementById("roll-bounce-decay").value),
+    drying_factor: parseFloat(document.getElementById("roll-drying").value),
     continuous_layer_mix: parseFloat(document.getElementById("roll-continuous").value),
     body_resonance_strength: parseFloat(document.getElementById("roll-body-res").value),
     duration_s: parseFloat(document.getElementById("roll-duration").value),
@@ -157,22 +170,24 @@ document.getElementById("roll-render").addEventListener("click", async () => {
 bindSlider("fric-hardness", "fric-hardness-val", (v) => v.toFixed(2));
 bindSlider("fric-velocity", "fric-velocity-val", (v) => v.toFixed(2));
 bindSlider("fric-jitter", "fric-jitter-val", (v) => v.toFixed(2));
+bindSlider("fric-stick-slip", "fric-stick-slip-val", (v) => v.toFixed(2));
+bindSlider("fric-slip-rate", "fric-slip-rate-val", (v) => `${v.toFixed(0)} /s`);
 bindSlider("fric-roughness", "fric-roughness-val", (v) => v.toFixed(2));
 bindSlider("fric-pressure", "fric-pressure-val", (v) => v.toFixed(2));
-bindSlider("fric-body-freq", "fric-body-freq-val", (v) => `${v.toFixed(0)} Hz`);
-bindSlider("fric-body-q", "fric-body-q-val", (v) => v.toFixed(2));
 bindSlider("fric-duration", "fric-duration-val", (v) => `${v.toFixed(1)} s`);
 
 document.getElementById("fric-render").addEventListener("click", async () => {
   const c = ensureCtx();
+  const surfVal = document.getElementById("fric-surface").value;
   const opts = {
+    surface_profile: surfVal || null,
     surface_hardness: parseFloat(document.getElementById("fric-hardness").value),
     velocity_mean: parseFloat(document.getElementById("fric-velocity").value),
     velocity_jitter: parseFloat(document.getElementById("fric-jitter").value),
+    stick_slip: parseFloat(document.getElementById("fric-stick-slip").value),
+    stick_slip_rate: parseFloat(document.getElementById("fric-slip-rate").value),
     roughness: parseFloat(document.getElementById("fric-roughness").value),
     pressure: parseFloat(document.getElementById("fric-pressure").value),
-    body_freq_hz: parseFloat(document.getElementById("fric-body-freq").value),
-    body_q: parseFloat(document.getElementById("fric-body-q").value),
     duration_s: parseFloat(document.getElementById("fric-duration").value),
     seed: parseInt(document.getElementById("fric-seed").value, 10) || 0,
   };
@@ -182,6 +197,60 @@ document.getElementById("fric-render").addEventListener("click", async () => {
     playBuffer(buf);
   } catch (e) {
     alert("Friction render failed: " + e);
+  }
+});
+
+// ------- Splash tab -------
+bindSlider("splash-intensity", "splash-intensity-val", (v) => v.toFixed(2));
+bindSlider("splash-bubble-size", "splash-bubble-size-val", (v) => `${v.toFixed(1)} mm`);
+bindSlider("splash-size-var", "splash-size-var-val", (v) => v.toFixed(2));
+bindSlider("splash-n-bubbles", "splash-n-bubbles-val", (v) => v.toFixed(0));
+bindSlider("splash-spread", "splash-spread-val", (v) => `${v.toFixed(0)} ms`);
+bindSlider("splash-viscosity", "splash-viscosity-val", (v) => v.toFixed(2));
+bindSlider("splash-duration", "splash-duration-val", (v) => `${v.toFixed(1)} s`);
+
+document.getElementById("splash-render").addEventListener("click", async () => {
+  const c = ensureCtx();
+  const opts = {
+    intensity: parseFloat(document.getElementById("splash-intensity").value),
+    bubble_size_mean_mm: parseFloat(document.getElementById("splash-bubble-size").value),
+    bubble_size_var: parseFloat(document.getElementById("splash-size-var").value),
+    n_bubbles: parseInt(document.getElementById("splash-n-bubbles").value, 10),
+    spread_ms: parseFloat(document.getElementById("splash-spread").value),
+    viscosity: parseFloat(document.getElementById("splash-viscosity").value),
+    duration_s: parseFloat(document.getElementById("splash-duration").value),
+    seed: parseInt(document.getElementById("splash-seed").value, 10) || 0,
+  };
+  try {
+    let buf = renderSplash(c, opts);
+    buf = await maybeReverb(buf);
+    playBuffer(buf);
+  } catch (e) {
+    alert("Splash render failed: " + e);
+  }
+});
+
+// ------- Pour tab -------
+bindSlider("pour-flow", "pour-flow-val", (v) => v.toFixed(2));
+bindSlider("pour-drop-size", "pour-drop-size-val", (v) => `${v.toFixed(1)} mm`);
+bindSlider("pour-viscosity", "pour-viscosity-val", (v) => v.toFixed(2));
+bindSlider("pour-duration", "pour-duration-val", (v) => `${v.toFixed(1)} s`);
+
+document.getElementById("pour-render").addEventListener("click", async () => {
+  const c = ensureCtx();
+  const opts = {
+    flow_rate: parseFloat(document.getElementById("pour-flow").value),
+    bubble_size_mean_mm: parseFloat(document.getElementById("pour-drop-size").value),
+    viscosity: parseFloat(document.getElementById("pour-viscosity").value),
+    duration_s: parseFloat(document.getElementById("pour-duration").value),
+    seed: parseInt(document.getElementById("pour-seed").value, 10) || 0,
+  };
+  try {
+    let buf = renderPour(c, opts);
+    buf = await maybeReverb(buf);
+    playBuffer(buf);
+  } catch (e) {
+    alert("Pour render failed: " + e);
   }
 });
 

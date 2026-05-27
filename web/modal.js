@@ -18,6 +18,16 @@ export const MODAL_PROFILES = {
             tilt_db_oct: -3.0, inharmonicity: 0.80 },
   fabric: { fundamental_hz: 200,  spacing: 2.50, damping_ms: 15,  n_modes: 3,
             tilt_db_oct: -3.0, inharmonicity: 0.50 },
+  rubber: { fundamental_hz: 160,  spacing: 2.20, damping_ms: 30,  n_modes: 4,
+            tilt_db_oct: -3.0, inharmonicity: 0.40 },
+  bone:   { fundamental_hz: 520,  spacing: 1.90, damping_ms: 120, n_modes: 5,
+            tilt_db_oct: -3.0, inharmonicity: 0.25 },
+  ice:    { fundamental_hz: 1500, spacing: 1.92, damping_ms: 900, n_modes: 7,
+            tilt_db_oct: -1.5, inharmonicity: 0.10 },
+  chitin: { fundamental_hz: 950,  spacing: 2.10, damping_ms: 180, n_modes: 6,
+            tilt_db_oct: -3.0, inharmonicity: 0.30 },
+  plasma: { fundamental_hz: 400,  spacing: 2.10, damping_ms: 400, n_modes: 12,
+            tilt_db_oct: 1.5,  inharmonicity: 0.95 },
 };
 
 function rand(seed) {
