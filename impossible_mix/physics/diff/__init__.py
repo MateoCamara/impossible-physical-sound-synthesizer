@@ -34,6 +34,10 @@ from impossible_mix.physics.diff.friction import (
     FrictionParamsT,
     synth_scrape_diff,
 )
+from impossible_mix.physics.diff.rolling_droplet import (
+    RollingDropletParamsT,
+    synth_rolling_droplet_diff,
+)
 from impossible_mix.physics.diff.fitting import (
     fit_drip_event,
     fit_drip_event_multistart,
@@ -42,6 +46,7 @@ from impossible_mix.physics.diff.fitting import (
     fit_modal_impact,
     fit_modal_impact_multistart,
     fit_reverb_ir,
+    fit_rolling_droplet,
 )
 
 __all__ = [
@@ -63,4 +68,7 @@ __all__ = [
     "FrictionParamsT",
     "synth_scrape_diff",
     "fit_friction",
+    "RollingDropletParamsT",
+    "synth_rolling_droplet_diff",
+    "fit_rolling_droplet",
 ]

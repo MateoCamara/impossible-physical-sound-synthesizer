@@ -21,6 +21,9 @@ from impossible_mix.physics.diff.granular import (
 )
 from impossible_mix.physics.diff.modal import ModalParamsT, synth_modal_impact_diff
 from impossible_mix.physics.diff.reverb import IRParamsT, synth_reverb_diff
+from impossible_mix.physics.diff.rolling_droplet import (
+    RollingDropletParamsT, synth_rolling_droplet_diff,
+)
 
 
 @dataclass
@@ -553,3 +556,98 @@ def fit_friction(
         final_loss = float(multi_resolution_stft_loss(final_pred, target_wav))
     return FrictionFitResult(params=p, final_pred=final_pred,
                               loss_history=history, final_loss=final_loss)
+
+
+# ====================================================================
+# Rolling droplet — full physics, full inverse fitting
+# ====================================================================
+@dataclass
+class RollingDropletFitResult:
+    params: RollingDropletParamsT
+    final_pred: torch.Tensor
+    loss_history: list[float]
+    final_loss: float
+
+
+def fit_rolling_droplet(
+    target_wav: torch.Tensor,
+    sr: int,
+    initial: RollingDropletParamsT | None = None,
+    seed: int = 0,
+    n_iters: int = 400,
+    lr: float = 1e-2,
+    log_every: int = 25,
+    verbose: bool = True,
+    freeze_surface: bool = False,
+    freeze_random_buffers: bool = True,
+) -> RollingDropletFitResult:
+    """Recupera los parametros fisicos de un rolling droplet desde un audio.
+
+    target_wav: tensor 1-D float32 (mono).
+    initial:    RollingDropletParamsT con requires_grad=True. Si None, se
+                inicializa con defaults razonables (ceramic, r=2.5mm,
+                contact angle 110°, σ=0.072).
+    seed:       fija el "schedule" estocastico (microbubble radii,
+                stick-slip positions, LFOs) cuando initial=None.
+    freeze_surface: si True, los modos/t60/gains de la superficie no
+                se entrenan. Util si el material es conocido y solo
+                queremos recuperar gota + wetting + mixes.
+    freeze_random_buffers: si True (default), las amplitudes de stick-slip
+                se mantienen fijas. La textura especifica de los eventos
+                queda intacta, solo se ajusta su intensidad global.
+
+    Returns: RollingDropletFitResult.
+    """
+    n_samples = target_wav.shape[0]
+    duration_s = n_samples / sr
+    if initial is None:
+        initial = RollingDropletParamsT.physical_init(
+            radius_mm=2.5, viscosity=0.1, roll_velocity_hz=14.0,
+            path_roughness=0.35, contact_angle_deg=110.0,
+            surface_tension_n_m=0.072,
+            sr=sr, duration_s=duration_s, seed=seed,
+            device=target_wav.device, requires_grad=True,
+        )
+    p = initial
+
+    if freeze_surface:
+        with torch.no_grad():
+            for name in ("surface_modes_hz", "surface_t60s_s", "surface_gains"):
+                getattr(p, name).requires_grad_(False)
+    if freeze_random_buffers:
+        with torch.no_grad():
+            p.stick_amplitudes.requires_grad_(False)
+
+    trainable = p.trainable()
+    if not trainable:
+        raise ValueError("No trainable parameters — check freeze flags.")
+    optim = torch.optim.Adam(trainable, lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=n_iters,
+                                                            eta_min=lr / 10)
+    history: list[float] = []
+
+    for it in range(n_iters):
+        optim.zero_grad()
+        pred = synth_rolling_droplet_diff(p)
+        loss = multi_resolution_stft_loss(pred, target_wav)
+        loss.backward()
+        optim.step()
+        scheduler.step()
+        p.clamp_()
+        history.append(float(loss.detach()))
+        if verbose and (it % log_every == 0 or it == n_iters - 1):
+            print(f"  iter {it:4d}  loss={history[-1]:.4f}  "
+                   f"r={float(p.radius_mm.detach()):.2f}mm  "
+                   f"v={float(p.viscosity.detach()):.2f}  "
+                   f"θ={float(p.contact_angle_deg.detach()):.0f}°  "
+                   f"σ={float(p.surface_tension_n_m.detach()):.3f}")
+
+    with torch.no_grad():
+        final_pred = synth_rolling_droplet_diff(p)
+        final_loss = float(multi_resolution_stft_loss(final_pred, target_wav))
+    return RollingDropletFitResult(
+        params=p, final_pred=final_pred,
+        loss_history=history, final_loss=final_loss,
+    )
+
+
