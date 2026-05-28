@@ -152,3 +152,72 @@ export async function renderModalImpact(ctx, opts) {
   const rendered = await offline.startRendering();
   return rendered;
 }
+
+/**
+ * Render a modal roll: rapid train of damped modal impulses to simulate
+ * a rigid body rolling on a surface (each impulse = one micro-contact).
+ * Mirrors impossible_mix.physics.modal.synth_modal_roll.
+ *
+ * @param {AudioContext} ctx
+ * @param {object} opts
+ *   profile_name, duration_s, rate_hz, jitter, strength, seed
+ * @returns {Promise<AudioBuffer>}
+ */
+export async function renderModalRoll(ctx, opts) {
+  const {
+    profile_name = "metal",
+    duration_s = 2.0,
+    rate_hz = 20.0,
+    jitter = 0.3,
+    strength = 0.6,
+    seed = 0,
+  } = opts;
+  const profile = MODAL_PROFILES[profile_name];
+  if (!profile) throw new Error(`Unknown profile ${profile_name}`);
+  const sr = ctx.sampleRate;
+  const n = Math.floor(duration_s * sr);
+  const offline = new OfflineAudioContext(1, n, sr);
+  const rng = rand(seed);
+
+  // Build a dense noise buffer with impulses at quasi-periodic times.
+  const noiseBuf = offline.createBuffer(1, n, sr);
+  const noiseData = noiseBuf.getChannelData(0);
+  const period = sr / Math.max(rate_hz, 0.1);
+  let t = 0;
+  while (t < n) {
+    const idx = Math.floor(t);
+    if (idx >= n) break;
+    const burstLen = Math.max(2, Math.floor(0.0008 * sr));
+    const amp = strength * (0.6 + 0.4 * rng());
+    for (let i = 0; i < burstLen; i++) {
+      if (idx + i < n) noiseData[idx + i] += (rng() * 2 - 1) * amp;
+    }
+    const off = period * (1 + jitter * (rng() * 2 - 1));
+    t += Math.max(period * 0.1, off);
+  }
+  const source = offline.createBufferSource();
+  source.buffer = noiseBuf;
+
+  // Modal bandpass bank (same as renderModalImpact)
+  const freqsBase = modalFrequencies(profile, seed);
+  const gains = gainCurve(profile.n_modes, profile.tilt_db_oct);
+  const sum = offline.createGain();
+  sum.gain.value = 0.4;
+  sum.connect(offline.destination);
+  for (let k = 0; k < profile.n_modes; k++) {
+    const fh = freqsBase[k];
+    if (fh <= 0 || fh >= sr / 2 - 50) continue;
+    const t60 = profile.damping_ms / 1000;
+    const Q = Math.max(0.5, Math.PI * fh * t60);
+    const filt = offline.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.frequency.value = fh;
+    filt.Q.value = Q;
+    const modeGain = offline.createGain();
+    modeGain.gain.value = gains[k] * 15.0;
+    source.connect(filt).connect(modeGain).connect(sum);
+  }
+  source.start(0);
+  return await offline.startRendering();
+}
+
