@@ -138,6 +138,11 @@ bindSlider("roll-discrete", "roll-discrete-val", (v) => v.toFixed(2));
 bindSlider("roll-body-mix", "roll-body-mix-val", (v) => v.toFixed(2));
 bindSlider("roll-cavity-mix", "roll-cavity-mix-val", (v) => v.toFixed(2));
 bindSlider("roll-slosh-mix", "roll-slosh-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-rayleigh-mix", "roll-rayleigh-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-micro-mix", "roll-micro-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-stick-mix", "roll-stick-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-contact-angle", "roll-contact-angle-val", (v) => `${v.toFixed(0)}°`);
+bindSlider("roll-sigma", "roll-sigma-val", (v) => v.toFixed(3));
 bindSlider("roll-ring-mix", "roll-ring-mix-val", (v) => v.toFixed(2));
 bindSlider("roll-shimmer", "roll-shimmer-val", (v) => v.toFixed(2));
 bindSlider("roll-continuous", "roll-continuous-val", (v) => v.toFixed(2));
@@ -162,6 +167,11 @@ document.getElementById("roll-render").addEventListener("click", async () => {
     body_resonance_mix: parseFloat(document.getElementById("roll-body-mix").value),
     cavity_mix: parseFloat(document.getElementById("roll-cavity-mix").value),
     slosh_mix: parseFloat(document.getElementById("roll-slosh-mix").value),
+    rayleigh_mix: parseFloat(document.getElementById("roll-rayleigh-mix").value),
+    microbubble_mix: parseFloat(document.getElementById("roll-micro-mix").value),
+    stickslip_mix: parseFloat(document.getElementById("roll-stick-mix").value),
+    contact_angle_deg: parseFloat(document.getElementById("roll-contact-angle").value),
+    surface_tension_n_m: parseFloat(document.getElementById("roll-sigma").value),
     surface_ring_mix: parseFloat(document.getElementById("roll-ring-mix").value),
     shimmer_depth: parseFloat(document.getElementById("roll-shimmer").value),
     continuous_layer_mix: parseFloat(document.getElementById("roll-continuous").value),

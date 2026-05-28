@@ -144,10 +144,16 @@ class DropletParams:
     # Capas continuas "rodillo de agua" (rework perceptual):
     body_resonance_mix: float = 0.7     # Minnaert sostenido (impedance-coupled)
     cavity_mix: float = 0.4             # resonancia Helmholtz, atada al modo mas bajo
-    slosh_mix: float = 0.3              # wobble subarmonico de deformacion
+    slosh_mix: float = 0.1              # heuristico legacy (bajado, ahora rayleigh_mix es protagonista)
     shimmer_depth: float = 0.2          # AM lenta tipo capillary ripple
     surface_ring_mix: float = 0.7       # voz del material (modos continuos sostenidos)
     discrete_mix: float = 0.5           # ticks discretos con click_color material-flavored
+    # Nueva fisica:
+    microbubble_mix: float = 0.5        # cloud de N microburbujas (multi-Minnaert)
+    rayleigh_mix: float = 0.35          # modos exactos de oscilacion de forma (ω² = n(n-1)(n+2)σ/ρr³)
+    stickslip_mix: float = 0.4          # micro-impactos por asperezas en rolling
+    contact_angle_deg: float = 110      # wetting: 30=hidrofilico, 110=neutral, 170=lotus
+    surface_tension_n_m: float = 0.072  # N/m (agua=0.072, aceites~0.03)
 
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
@@ -434,10 +440,12 @@ def _body_resonance_layer(p: DropletParams, surface: SurfaceProfile,
     am = _slow_lfo(n, sr, am_hz, rng)
     fm = _slow_lfo(n, sr, am_hz * 0.6, rng)
     fm_depth = 0.03 + 0.05 * p.path_roughness
-    # Impedancia: t60_ms range [8 (fabric), 900 (metal)] -> [0.013, 1.0]
+    # Impedancia (t60) + Wetting (contact angle)
     t60_factor = min(1.0, surface.t60_ms / 600)
     impedance_gain = 0.3 + 0.7 * t60_factor
-    visc_atten = (1.0 - 0.6 * p.viscosity) * impedance_gain
+    contact_area = _contact_area_factor(p.contact_angle_deg)
+    wetting_gain = 0.4 + 0.6 * (1 - contact_area)
+    visc_atten = (1.0 - 0.6 * p.viscosity) * impedance_gain * wetting_gain
     f_inst = fM * (1 + fm_depth * fm)
     phase = 2 * np.pi * np.cumsum(f_inst) / sr
     am_env = np.clip(0.75 + 0.25 * am, 0, None)
@@ -446,16 +454,21 @@ def _body_resonance_layer(p: DropletParams, surface: SurfaceProfile,
 
 def _cavity_resonance_layer(p: DropletParams, surface: SurfaceProfile,
                              sr: int, n: int, rng: np.random.Generator) -> np.ndarray:
-    """Layer B: resonancia Helmholtz ligada al modo mas bajo de la
-    superficie (rango 120-1200 Hz, 10x mas amplio que antes)."""
+    """Layer B: resonancia Helmholtz ligada al modo mas bajo de la superficie,
+    con frecuencia y amplitud moduladas por wetting (contact angle)."""
     min_mode = min(surface.modes_hz) if surface.modes_hz else 1000
-    f_cavity = max(120.0, min(1200.0, min_mode * 0.6))
+    contact_area = _contact_area_factor(p.contact_angle_deg)
+    cavity_vol_factor = 0.3 + 0.7 * (1 - contact_area)
+    base_f_cavity = max(120.0, min(1200.0, min_mode * 0.6))
+    # Helmholtz f propto 1/sqrt(V): mayor volumen -> menor frecuencia
+    f_cavity = base_f_cavity / np.sqrt(cavity_vol_factor)
     am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
     am = _slow_lfo(n, sr, am_hz, rng)
     visc_atten = 1.0 - 0.6 * p.viscosity
+    cavity_amp_gain = 0.5 + 0.5 * (1 - contact_area)
     phase = 2 * np.pi * f_cavity * np.arange(n) / sr + np.pi / 2
     am_env = np.clip(0.75 + 0.25 * am, 0, None)
-    return (0.5 * visc_atten * am_env * np.sin(phase)).astype(np.float32)
+    return (0.5 * visc_atten * cavity_amp_gain * am_env * np.sin(phase)).astype(np.float32)
 
 
 def _surface_ringing_layer(p: DropletParams, surface: SurfaceProfile,
@@ -513,6 +526,117 @@ def _apply_shimmer(data: np.ndarray, sr: int, depth: float,
 
 
 # ====================================================================
+# Wetting / contact angle physics
+# ====================================================================
+def _contact_area_factor(angle_deg: float) -> float:
+    """Contact area A propto (1 + cos(theta))/2. A=1 spread, A=0 lotus."""
+    return (1 + np.cos(np.deg2rad(angle_deg))) / 2
+
+
+def _micro_bubble_cloud_layer(p: DropletParams, sr: int, n: int,
+                               rng: np.random.Generator) -> np.ndarray:
+    """Layer F (NEW): N=8-20 microburbujas con f_M = 3.26/r_i.
+    Distribucion log-normal de radios centrada en r_padre/3. Mas
+    microburbujas con contact angle alto (lotus entrega mas air entrainment)."""
+    contact = _contact_area_factor(p.contact_angle_deg)
+    base_n = 6 + int(14 * contact * (1 - p.viscosity))
+    n_bubbles = max(2, base_n)
+    am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
+    am = _slow_lfo(n, sr, am_hz, rng)
+    visc_atten = 1.0 - 0.6 * p.viscosity
+    base_amp = 0.5 * visc_atten / np.sqrt(n_bubbles)
+    out = np.zeros(n, dtype=np.float32)
+    for _ in range(n_bubbles):
+        r_bubble = (p.droplet_radius_mm / 3) * np.exp(0.6 * rng.standard_normal())
+        r_safe = float(np.clip(r_bubble, 0.05, p.droplet_radius_mm * 0.8))
+        f_bubble = 3.26 / (r_safe * 1e-3)
+        if f_bubble >= sr / 2 - 200:
+            continue
+        decay_n = max(200, int(0.05 * sr * (r_safe / p.droplet_radius_mm) ** 2))
+        onset = int(rng.uniform(0, n * 0.3))
+        phase_off = 2 * np.pi * rng.random()
+        amp_weight = (r_safe / (p.droplet_radius_mm / 3)) ** 1.5
+        b_amp = base_amp * amp_weight * rng.uniform(0.5, 1.0)
+        bubble_fm = _slow_lfo(n, sr, am_hz * rng.uniform(0.5, 1.5), rng)
+        idxs = np.arange(onset, n)
+        t = (idxs - onset).astype(np.float32)
+        decay = np.exp(-t / decay_n)
+        re_trigger = np.clip(0.7 + 0.3 * am[onset:], 0, None)
+        f_inst = f_bubble * (1 + 0.02 * bubble_fm[onset:])
+        phase = phase_off + 2 * np.pi * np.cumsum(f_inst) / sr
+        out[onset:] += (b_amp * decay * re_trigger * np.sin(phase)).astype(np.float32)
+    return out
+
+
+def _rayleigh_modes_layer(p: DropletParams, sr: int, n: int,
+                          rng: np.random.Generator) -> np.ndarray:
+    """Layer C (NEW): modos exactos de oscilacion de forma de una esfera liquida libre.
+
+        omega_n^2 = n(n-1)(n+2) * sigma / (rho * r^3)
+
+    Para gota de 2 mm en agua (sigma=0.072 N/m, rho=1000 kg/m^3):
+        f_2 ~ 52 Hz, f_3 ~ 95 Hz, f_4 ~ 143 Hz, f_5 ~ 196 Hz, f_6 ~ 250 Hz.
+
+    Referencia: Rayleigh (1879) 'On the capillary phenomena of jets'."""
+    r = max(0.1, p.droplet_radius_mm) * 1e-3
+    rho = 1000.0
+    sigma = p.surface_tension_n_m
+    out = np.zeros(n, dtype=np.float32)
+    base_amp = 0.4 * (0.4 + 0.6 * p.path_roughness)
+    t_idx = np.arange(n)
+    for mode in range(2, 7):
+        omega2 = mode * (mode - 1) * (mode + 2) * sigma / (rho * r ** 3)
+        if omega2 <= 0:
+            continue
+        f_mode = np.sqrt(omega2) / (2 * np.pi)
+        if f_mode >= sr / 2 - 50:
+            continue
+        mode_amp = base_amp / mode
+        trigger_hz = 2 + 8 * p.path_roughness
+        triggers = _slow_lfo(n, sr, trigger_hz, rng)
+        phase_off = 2 * np.pi * rng.random()
+        phase = phase_off + 2 * np.pi * f_mode * t_idx / sr
+        trig = 0.5 + 0.5 * triggers
+        out += (mode_amp * trig * np.sin(phase)).astype(np.float32)
+    return out
+
+
+def _rolling_stickslip_layer(p: DropletParams, surface: SurfaceProfile,
+                              sr: int, n: int,
+                              rng: np.random.Generator) -> np.ndarray:
+    """Layer G (NEW): micro-impactos por asperezas en rolling.
+    Las asperezas de la superficie son brevemente capturadas por fuerzas
+    capilares y liberadas; cada release es un click filtrado por click_color.
+
+    Referencia: Persson (2001) 'Theory of rubber friction and contact mechanics'."""
+    rate_hz = (5 + 60 * p.path_roughness) * (0.5 + p.roll_velocity_hz / 20)
+    n_events = int(rate_hz * n / sr)
+    if n_events < 1:
+        return np.zeros(n, dtype=np.float32)
+    contact = _contact_area_factor(p.contact_angle_deg)
+    stick_prob = 0.3 + 0.6 * contact
+    cl_lo, cl_hi = surface.click_color_hz
+    cl_hi_safe = min(cl_hi, sr / 2 - 200)
+    if cl_lo >= cl_hi_safe:
+        return np.zeros(n, dtype=np.float32)
+    sos = signal.butter(2, [cl_lo, cl_hi_safe], btype="band", fs=sr, output="sos")
+    visc_atten = 1.0 - 0.7 * p.viscosity
+    out = np.zeros(n, dtype=np.float32)
+    for _ in range(n_events):
+        if rng.random() > stick_prob:
+            continue
+        start = int(rng.uniform(0, n - 100))
+        burst_len = max(8, int(rng.uniform(0.0003, 0.0011) * sr))
+        amp = rng.uniform(0.15, 0.55) * p.path_roughness * visc_atten
+        noise = rng.standard_normal(burst_len).astype(np.float32)
+        filtered = signal.sosfilt(sos, noise).astype(np.float32)
+        env = np.exp(-4 * np.arange(burst_len) / burst_len).astype(np.float32)
+        end = min(n, start + burst_len)
+        out[start:end] += amp * env[: end - start] * filtered[: end - start]
+    return out
+
+
+# ====================================================================
 # Rolling droplet: continuous-contact layers + discrete ticks texture
 # ====================================================================
 def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
@@ -537,13 +661,26 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
     if p.cavity_mix > 0.01:
         cavity = _cavity_resonance_layer(p, surface, sr, n_total, rng)
         out += cavity * p.cavity_mix * voicing["cavity_mul"]
+    # Layer C (NEW): modos exactos de Rayleigh (sustituye al sloshing heuristico)
+    if p.rayleigh_mix > 0.01:
+        rayleigh = _rayleigh_modes_layer(p, sr, n_total, rng)
+        out += rayleigh * p.rayleigh_mix
+    # Legacy slosh (heuristico, default bajo)
     if p.slosh_mix > 0.01:
         slosh = _sloshing_layer(p, sr, n_total, rng)
         out += slosh * p.slosh_mix
+    # Layer F (NEW): cloud de microburbujas (multi-Minnaert)
+    if p.microbubble_mix > 0.01:
+        micro = _micro_bubble_cloud_layer(p, sr, n_total, rng)
+        out += micro * p.microbubble_mix
     # Layer E: surface ringing (la voz del material)
     if p.surface_ring_mix > 0.01:
         ring = _surface_ringing_layer(p, surface, sr, n_total, rng)
         out += ring * p.surface_ring_mix * voicing["ring_mul"]
+    # Layer G (NEW): rolling stick-slip (micro-impactos por asperezas)
+    if p.stickslip_mix > 0.01:
+        stick = _rolling_stickslip_layer(p, surface, sr, n_total, rng)
+        out += stick * p.stickslip_mix
     # Shimmer aplicado ANTES de añadir noise/ticks (solo afecta al body liquido)
     if p.shimmer_depth > 0.01:
         out = _apply_shimmer(out, sr, p.shimmer_depth, rng)
@@ -556,10 +693,22 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
 
     # === 3) Drip ticks discretos (TEXTURA con click_color material) ==
     if p.discrete_mix > 0.01:
+        # Wetting modula bounce y capillary: lotus rebota mas, hidrofilico
+        # menos; mas contacto = mas deformacion capilar.
+        contact_area = _contact_area_factor(p.contact_angle_deg)
+        wetting_bounce = 0.5 + 1.5 * (1 - contact_area)
+        capillary_factor = 0.5 + 0.7 * contact_area
+        # Copia temporal del params con bounce/capillary ajustados
+        from dataclasses import replace
+        p_ticks = replace(
+            p,
+            bounce_amount=p.bounce_amount * wetting_bounce,
+            capillary_ringing=p.capillary_ringing * capillary_factor,
+        )
         ticks = np.zeros(n_total, dtype=np.float32)
         n_variants = 1 + int(round(p.inter_event_variability * 5))
         variants = [
-            synth_drip_event(p, sr, velocity_factor=1.0, seed_override=p.seed + 100 + k)
+            synth_drip_event(p_ticks, sr, velocity_factor=1.0, seed_override=p.seed + 100 + k)
             for k in range(n_variants)
         ]
         t_sample = 0.0
@@ -573,7 +722,7 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
             ))
             amp = velocity_factor * rng.uniform(0.55, 1.0)
             if p.inter_event_variability > 0.1 and abs(velocity_factor - 1.0) > 0.25:
-                evt = synth_drip_event(p, sr, velocity_factor=velocity_factor,
+                evt = synth_drip_event(p_ticks, sr, velocity_factor=velocity_factor,
                                         seed_override=p.seed + start)
             else:
                 evt = variants[rng.integers(0, n_variants)]

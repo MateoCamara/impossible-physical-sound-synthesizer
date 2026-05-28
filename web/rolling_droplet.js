@@ -263,13 +263,31 @@ function slowLFO(n, sr, cutoffHz, rng) {
   return out;
 }
 
+// ====================================================================
+// Wetting / contact angle physics
+// ====================================================================
+// Contact angle θ (in degrees) governs how much the droplet wets the
+// surface:
+//   θ < 90°  hydrophilic (spreads, slides) → long contact, strong coupling
+//   θ ≈ 90°  neutral
+//   θ > 90°  hydrophobic (beads, bounces) → short contact, weak coupling
+//   θ ≈ 180° lotus / superhydrophobic → almost no contact
+//
+// Contact area A ∝ (1 + cos(θ))/2  — fraction of droplet touching surface.
+// At θ=0°  A=1.0 (fully spread); at θ=180° A=0.0 (lotus, no contact).
+function contactAreaFactor(angle_deg) {
+  const rad = angle_deg * Math.PI / 180;
+  return (1 + Math.cos(rad)) / 2;
+}
+
 /** Layer A: sustained Minnaert body resonance with deformation FM/AM.
- *  Amplitude couples to surface acoustic impedance via t60_ms: hard
- *  surfaces (long t60) reflect Minnaert energy back into the droplet
- *  → strong body; soft surfaces (short t60) absorb → weak body. */
+ *  Amplitude couples to surface impedance × (1 - contactArea) — at low
+ *  contact angle (hydrophilic) the droplet is squashed against the
+ *  surface and damps strongly; at high angle (lotus) the droplet barely
+ *  touches and rings freely. */
 function renderBodyResonanceLayer(sr, n, opts) {
   const { radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
-          surface_profile } = opts;
+          surface_profile, contact_angle_deg = 110 } = opts;
   const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
   const rng = rand(seed + 7001);
   const fM = 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
@@ -277,10 +295,12 @@ function renderBodyResonanceLayer(sr, n, opts) {
   const am = slowLFO(n, sr, amHz, rng);
   const fm = slowLFO(n, sr, amHz * 0.6, rng);
   const fmDepth = 0.03 + 0.05 * path_roughness;
-  // Surface impedance: t60_ms range is [8 (fabric), 900 (metal)] → [0.013, 1.0]
   const t60Factor = Math.min(1, surf.t60_ms / 600);
   const impedanceGain = 0.3 + 0.7 * t60Factor;
-  const viscAtten = (1.0 - 0.6 * viscosity) * impedanceGain;
+  // Wetting: less contact (lotus) → less damping → more body resonance
+  const contactArea = contactAreaFactor(contact_angle_deg);
+  const wettingGain = 0.4 + 0.6 * (1 - contactArea);  // [0.4 spread → 1.0 lotus]
+  const viscAtten = (1.0 - 0.6 * viscosity) * impedanceGain * wettingGain;
   const out = new Float32Array(n);
   let phase = 0;
   const baseAmp = 0.7 * viscAtten;
@@ -293,25 +313,90 @@ function renderBodyResonanceLayer(sr, n, opts) {
   return out;
 }
 
-/** Layer B: Helmholtz cavity resonance — frequency directly tied to the
- *  surface's lowest mode (×0.6), spanning 120-1200 Hz across materials.
- *  This widens the cavity frequency range 10× vs the old 200-600 Hz. */
+/** Layer B: Helmholtz cavity — wetting modulates BOTH frequency
+ *  (cavity volume scales with (1 - contactArea)) AND amplitude. */
 function renderCavityResonanceLayer(sr, n, opts) {
-  const { surface_profile, viscosity, roll_velocity_hz, seed } = opts;
+  const { surface_profile, viscosity, roll_velocity_hz, seed,
+          contact_angle_deg = 110 } = opts;
   const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
   const rng = rand(seed + 7002);
   const minMode = Math.min(...surf.modes);
-  const fCavity = Math.max(120, Math.min(1200, minMode * 0.6));
+  // Cavity volume scales with (1 - contactArea): more wetting = smaller
+  // pocket = higher frequency
+  const contactArea = contactAreaFactor(contact_angle_deg);
+  const cavityVolumeFactor = 0.3 + 0.7 * (1 - contactArea);  // [0.3 wet, 1.0 lotus]
+  // Helmholtz f ∝ 1/sqrt(V) → fCavity decreases as cavity volume grows
+  const baseFCavity = Math.max(120, Math.min(1200, minMode * 0.6));
+  const fCavity = baseFCavity / Math.sqrt(cavityVolumeFactor);
   const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
   const am = slowLFO(n, sr, amHz, rng);
   const viscAtten = 1.0 - 0.6 * viscosity;
+  // Cavity amplitude proportional to cavity volume
+  const cavityAmpGain = 0.5 + 0.5 * (1 - contactArea);  // [0.5 wet, 1.0 lotus]
   const out = new Float32Array(n);
   let phase = Math.PI / 2;
-  const baseAmp = 0.5 * viscAtten;
+  const baseAmp = 0.5 * viscAtten * cavityAmpGain;
   for (let i = 0; i < n; i++) {
     phase += 2 * Math.PI * fCavity / sr;
     const amVal = 0.75 + 0.25 * am[i];
     out[i] = baseAmp * Math.max(0, amVal) * Math.sin(phase);
+  }
+  return out;
+}
+
+/** NEW Layer F: multi-bubble microbubble cloud.
+ *  As the droplet rolls, it entrains N microbubbles of varying radii.
+ *  Each radius gives its own Minnaert tone. We model this as a sum
+ *  of N partials with log-normal radius distribution centred at
+ *  parent_r/3 (microbubbles are 30% of parent radius on average).
+ *  Higher contact_angle (lotus) → more bubbles entrained at contact;
+ *  higher viscosity → fewer, slower-decaying bubbles. */
+function renderMicroBubbleCloudLayer(sr, n, opts) {
+  const { radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
+          contact_angle_deg = 110 } = opts;
+  const rng = rand(seed + 7006);
+  // Number of microbubbles: scales with contact (more contact = more
+  // entrained), reduced by viscosity (honey doesn't froth)
+  const contactArea = contactAreaFactor(contact_angle_deg);
+  const baseN = 6 + Math.floor(14 * contactArea * (1 - viscosity));
+  const nBubbles = Math.max(2, baseN);
+  const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
+  const am = slowLFO(n, sr, amHz, rng);
+  const out = new Float32Array(n);
+  // Parent Minnaert as ceiling (smaller bubbles have higher freq)
+  const parentFM = 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
+  const viscAtten = 1.0 - 0.6 * viscosity;
+  // Total energy is spread across N bubbles → individual amplitude smaller
+  const baseAmp = 0.5 * viscAtten / Math.sqrt(nBubbles);
+  for (let b = 0; b < nBubbles; b++) {
+    // Log-normal radius: log r ~ N(log(parent_r/3), σ=0.6)
+    // r_b = parent_r/3 * exp(0.6 * N(0,1))
+    const u1 = Math.max(1e-9, rng()), u2 = rng();
+    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    const rBubble = (radius_mm / 3) * Math.exp(0.6 * z);
+    const rBubbleSafe = Math.max(0.05, Math.min(radius_mm * 0.8, rBubble));
+    const fBubble = 3.26 / (rBubbleSafe * 1e-3);
+    if (fBubble >= sr / 2 - 200) continue;
+    // Damping time for this bubble (shorter for smaller bubbles)
+    // life ~ exp(-i/decay_n), decay_n proportional to r²
+    const decayN = Math.max(200, Math.floor(0.05 * sr * (rBubbleSafe / radius_mm) ** 2));
+    // Random phase + random onset within first 30% of clip
+    const onset = Math.floor(rng() * n * 0.3);
+    let phase = 2 * Math.PI * rng();
+    // Amplitude weighted by ~r^1.5 (larger bubbles louder)
+    const ampWeight = Math.pow(rBubbleSafe / (radius_mm / 3), 1.5);
+    const bAmp = baseAmp * ampWeight * (0.5 + 0.5 * rng());
+    // Slow FM modulation specific to this bubble (uncorrelated)
+    const bubbleFm = slowLFO(n, sr, amHz * (0.5 + rng()), rng);
+    for (let i = onset; i < n; i++) {
+      const t = i - onset;
+      // Exponential decay envelope, re-triggered periodically by AM
+      const decay = Math.exp(-t / decayN);
+      const reTrigger = Math.max(0, 0.7 + 0.3 * am[i]);
+      const fInst = fBubble * (1 + 0.02 * bubbleFm[i]);
+      phase += 2 * Math.PI * fInst / sr;
+      out[i] += bAmp * decay * reTrigger * Math.sin(phase);
+    }
   }
   return out;
 }
@@ -353,23 +438,106 @@ function renderSurfaceRingingLayer(sr, n, opts) {
   return out;
 }
 
-/** Layer C: sloshing subharmonic wobble (droplet deforms as it rolls). */
-function renderSloshingLayer(sr, n, opts) {
-  const { radius_mm, path_roughness, seed } = opts;
+/** Layer C: Rayleigh shape oscillation modes of a free liquid sphere.
+ *  Replaces the old heuristic "sloshing" with the exact physical formula:
+ *
+ *      ω_n² = n(n-1)(n+2) × σ / (ρ × r³)
+ *
+ *  where n=2,3,4,... is the mode number, σ is surface tension (water:
+ *  0.072 N/m), ρ is density (water: 1000 kg/m³), r is droplet radius.
+ *
+ *  For a 2 mm water droplet:  f_2 ≈ 52 Hz, f_3 ≈ 95 Hz, f_4 ≈ 143 Hz,
+ *  f_5 ≈ 196 Hz, f_6 ≈ 250 Hz — a real subharmonic series, much lower
+ *  than the old heuristic (which sat at 650-980 Hz).
+ *
+ *  Reference: Rayleigh, Lord (1879) "On the capillary phenomena of jets".
+ *  Excitation amplitude scales with path_roughness (a rougher surface
+ *  perturbs the droplet shape more). Damping decreases with viscosity
+ *  (honey stops wobbling faster; water keeps wobbling for ~100 ms). */
+function renderRayleighModesLayer(sr, n, opts) {
+  const { radius_mm, viscosity, path_roughness, seed, surface_tension = 0.072 } = opts;
   const rng = rand(seed + 7003);
-  const fM = 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
-  // Subharmonic at 0.4-0.6× Minnaert
-  const fSlosh = fM * (0.4 + 0.2 * rng());
-  // Tremolo at 3-6 Hz
-  const tremHz = 3 + 3 * rng();
+  const r = Math.max(0.1, radius_mm) * 1e-3;     // m
+  const rho = 1000.0;                              // kg/m³ (water)
+  const sigma = surface_tension;                   // N/m
   const out = new Float32Array(n);
-  let phase = 0;
-  // Amplitude scales with path roughness (rough path → more wobble)
-  const baseAmp = 0.3 * (0.3 + 0.7 * path_roughness);
-  for (let i = 0; i < n; i++) {
-    phase += 2 * Math.PI * fSlosh / sr;
-    const trem = 0.5 + 0.5 * Math.sin(2 * Math.PI * tremHz * i / sr);
-    out[i] = baseAmp * trem * Math.sin(phase);
+  const baseAmp = 0.4 * (0.4 + 0.6 * path_roughness);
+  // Higher viscosity → faster damping (less ring time)
+  const dampRate = 5 + 20 * viscosity;             // Hz of envelope decay
+  for (let mode = 2; mode <= 6; mode++) {
+    const omega2 = mode * (mode - 1) * (mode + 2) * sigma / (rho * r * r * r);
+    if (omega2 <= 0) continue;
+    const fMode = Math.sqrt(omega2) / (2 * Math.PI);
+    if (fMode >= sr / 2 - 50) continue;
+    // Mode amplitude falls off with mode number (n=2 dominant)
+    const modeAmp = baseAmp / mode;
+    // Re-excite mode periodically (path bumps) — use a slow chaotic LFO
+    const triggerHz = 2 + 8 * path_roughness;
+    const triggers = slowLFO(n, sr, triggerHz, rng);
+    let phase = 2 * Math.PI * rng();
+    for (let i = 0; i < n; i++) {
+      phase += 2 * Math.PI * fMode / sr;
+      // AM envelope from triggers, decayed by viscosity
+      const trig = 0.5 + 0.5 * triggers[i];
+      out[i] += modeAmp * trig * Math.sin(phase);
+    }
+  }
+  return out;
+}
+
+/** NEW Layer G: rolling stick-slip.
+ *  Even pure rolling has micro-events: surface asperities are briefly
+ *  captured by capillary forces, then released. Each release is a
+ *  tiny impact filtered by the surface's click_color. Engagement rate
+ *  scales with path_roughness × roll_velocity_hz.
+ *
+ *  Reference: Persson, B.N.J. (2001) "Theory of rubber friction and
+ *  contact mechanics"; modified for liquid rolling. */
+function renderRollingStickSlipLayer(sr, n, opts) {
+  const { surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
+          contact_angle_deg = 110 } = opts;
+  const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
+  const rng = rand(seed + 7007);
+  // Rate of asperity engagement events per second
+  const rateHz = (5 + 60 * path_roughness) * (0.5 + roll_velocity_hz / 20);
+  const nEvents = Math.floor(rateHz * n / sr);
+  if (nEvents < 1) return new Float32Array(n);
+  // Contact wettability: low contact angle = more sticking = more events
+  const contactArea = contactAreaFactor(contact_angle_deg);
+  const stickProb = 0.3 + 0.6 * contactArea;
+  // Material's bandpass for the click colour
+  const [clLo, clHi] = surf.click_color;
+  const clCenter = Math.sqrt(clLo * Math.min(clHi, sr / 2 - 200));
+  const clBw = Math.max(50, Math.min(clHi, sr / 2 - 200) - clLo);
+  // Biquad bandpass coefficients (same as writeDripInline onset)
+  const omega = 2 * Math.PI * clCenter / sr;
+  const alpha = Math.sin(omega) * (clBw / clCenter) / 2;
+  const cosw = Math.cos(omega);
+  const a0 = 1 + alpha;
+  const nb0 = alpha / a0;
+  const nb2 = -alpha / a0;
+  const na1 = -2 * cosw / a0;
+  const na2 = (1 - alpha) / a0;
+  // Velocity attenuation: viscous fluids slip more smoothly
+  const viscAtten = 1.0 - 0.7 * viscosity;
+  const out = new Float32Array(n);
+  for (let e = 0; e < nEvents; e++) {
+    if (rng() > stickProb) continue;  // not every event triggers
+    const start = Math.floor(rng() * (n - 100));
+    const burstLen = Math.max(8, Math.floor((0.0003 + 0.0008 * rng()) * sr));
+    const amp = (0.15 + 0.4 * rng()) * path_roughness * viscAtten;
+    let z1 = 0, z2 = 0;
+    for (let i = 0; i < burstLen; i++) {
+      const idx = start + i;
+      if (idx >= n) break;
+      const noise = rng() * 2 - 1;
+      // Biquad direct form II transposed (bandpass)
+      const y = nb0 * noise + z1;
+      z1 = -na1 * y + z2;
+      z2 = nb2 * noise - na2 * y;
+      const env = Math.exp(-4 * i / burstLen);
+      out[idx] += amp * env * y;
+    }
   }
   return out;
 }
@@ -500,11 +668,15 @@ export async function renderRollingDroplet(ctx, opts) {
     slosh_mix = 0.3,
     shimmer_depth = 0.2,
     surface_ring_mix = 0.7,
+    // NEW physics layers
+    microbubble_mix = 0.5,        // multi-bubble microbubble cloud
+    rayleigh_mix = 0.35,           // exact Rayleigh shape oscillations
+    stickslip_mix = 0.4,           // rolling friction stick-slip texture
+    contact_angle_deg = 110,       // wetting: 30=hydrophilic, 170=lotus
+    surface_tension_n_m = 0.072,   // N/m (water = 0.072, oils ~0.03)
     // Existing noise-based rumble and surface modal body:
     continuous_layer_mix = 0.75,
     body_resonance_strength = 0.6,
-    // Discrete drip "ticks" — texture, but now boosted so material
-    // click_color colours the percept clearly.
     discrete_mix = 0.5,
     capillary_ringing = 0.5,
     bounce_amount = 0.35,
@@ -515,6 +687,13 @@ export async function renderRollingDroplet(ctx, opts) {
     duration_s = 5.0,
     seed = 0,
   } = opts;
+  // Wetting modulates bounce: lotus surface → bounces much more,
+  // hydrophilic surface → barely bounces.
+  const _contactArea = contactAreaFactor(contact_angle_deg);
+  const wettingBounce = 0.5 + 1.5 * (1 - _contactArea);  // [0.5 wet → 2.0 lotus]
+  const effective_bounce_amount = bounce_amount * wettingBounce;
+  // Wetting also affects capillary ringing (more contact = more film deform)
+  const effective_capillary_ringing = capillary_ringing * (0.5 + 0.7 * _contactArea);
   const sr = ctx.sampleRate;
   const nTotal = Math.floor(duration_s * sr);
   const buf = ctx.createBuffer(1, nTotal, sr);
@@ -530,26 +709,35 @@ export async function renderRollingDroplet(ctx, opts) {
   // ============================================================
   // 1) Continuous-contact layers (protagonists)
   // ============================================================
-  // Layer A: sustained Minnaert body resonance (impedance-coupled)
+  // Layer A: sustained Minnaert body resonance (impedance + wetting coupled)
   if (body_resonance_mix > 0.01) {
     const bodyLayer = renderBodyResonanceLayer(sr, nTotal, {
       radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
-      surface_profile,
+      surface_profile, contact_angle_deg,
     });
     const mix = body_resonance_mix * voicing.body_mul;
     for (let i = 0; i < nTotal; i++) data[i] += bodyLayer[i] * mix;
   }
 
-  // Layer B: Helmholtz cavity resonance (low-freq rumble, tied to lowest mode)
+  // Layer B: Helmholtz cavity resonance (wetting-modulated volume)
   if (cavity_mix > 0.01) {
     const cavityLayer = renderCavityResonanceLayer(sr, nTotal, {
-      surface_profile, viscosity, roll_velocity_hz, seed,
+      surface_profile, viscosity, roll_velocity_hz, seed, contact_angle_deg,
     });
     const mix = cavity_mix * voicing.cavity_mul;
     for (let i = 0; i < nTotal; i++) data[i] += cavityLayer[i] * mix;
   }
 
-  // Layer C: sloshing subharmonic
+  // Layer C: Rayleigh shape oscillation modes (physical, replaces heuristic sloshing)
+  if (rayleigh_mix > 0.01) {
+    const rayleighLayer = renderRayleighModesLayer(sr, nTotal, {
+      radius_mm, viscosity, path_roughness, seed,
+      surface_tension: surface_tension_n_m,
+    });
+    for (let i = 0; i < nTotal; i++) data[i] += rayleighLayer[i] * rayleigh_mix;
+  }
+
+  // Legacy slosh_mix: still supported for backward compat but defaults low
   if (slosh_mix > 0.01) {
     const sloshLayer = renderSloshingLayer(sr, nTotal, {
       radius_mm, path_roughness, seed,
@@ -557,9 +745,18 @@ export async function renderRollingDroplet(ctx, opts) {
     for (let i = 0; i < nTotal; i++) data[i] += sloshLayer[i] * slosh_mix;
   }
 
-  // Layer E (NEW): continuous surface ringing — the "material voice".
-  // For each surface mode, a sustained sinusoid at that frequency, with
-  // t60-derived sustain. Metal sings; fabric thuds.
+  // Layer F (NEW): microbubble cloud — N=8-20 entrained microbubbles
+  // give the body a "fizzy, alive" quality. More for lotus (more
+  // entrainment), less for honey (no froth).
+  if (microbubble_mix > 0.01) {
+    const microLayer = renderMicroBubbleCloudLayer(sr, nTotal, {
+      radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
+      contact_angle_deg,
+    });
+    for (let i = 0; i < nTotal; i++) data[i] += microLayer[i] * microbubble_mix;
+  }
+
+  // Layer E: continuous surface ringing (material voice)
   if (surface_ring_mix > 0.01) {
     const ringLayer = renderSurfaceRingingLayer(sr, nTotal, {
       surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
@@ -568,9 +765,18 @@ export async function renderRollingDroplet(ctx, opts) {
     for (let i = 0; i < nTotal; i++) data[i] += ringLayer[i] * mix;
   }
 
-  // Layer D: spectral shimmer (post-process the continuous mix BEFORE
-  // adding discrete ticks and noise rumble, so the shimmer only affects
-  // the liquid body, not the surface clicks)
+  // Layer G (NEW): rolling stick-slip — micro-impacts from asperity
+  // engagement. Adds the "scratching" texture characteristic of rolling
+  // on rough surfaces.
+  if (stickslip_mix > 0.01) {
+    const stickLayer = renderRollingStickSlipLayer(sr, nTotal, {
+      surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
+      contact_angle_deg,
+    });
+    for (let i = 0; i < nTotal; i++) data[i] += stickLayer[i] * stickslip_mix;
+  }
+
+  // Layer D: spectral shimmer (post-process the continuous mix)
   applyShimmer(data, nTotal, sr, shimmer_depth, seed);
 
   // ============================================================
@@ -613,7 +819,9 @@ export async function renderRollingDroplet(ctx, opts) {
       writeDripInline(tickBuf, start, sr, {
         radius_mm, viscosity, surface_profile,
         velocity_factor: velocity, seed: evtSeed,
-        capillary_ringing, bounce_amount, bounce_chain_length, bounce_decay,
+        capillary_ringing: effective_capillary_ringing,
+        bounce_amount: effective_bounce_amount,
+        bounce_chain_length, bounce_decay,
       });
       const offset = periodSamples * (1 + path_roughness * (rng() * 2 - 1) * 0.7);
       t += Math.max(periodSamples * 0.1, offset);

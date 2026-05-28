@@ -39,7 +39,12 @@ function makeRollingDropletSpace() {
       path_roughness: 0.35,
       body_resonance_mix: 0.7,
       cavity_mix: 0.4,
-      slosh_mix: 0.3,
+      slosh_mix: 0.1,
+      rayleigh_mix: 0.35,
+      microbubble_mix: 0.5,
+      stickslip_mix: 0.4,
+      contact_angle_deg: 110,
+      surface_tension_n_m: 0.072,
       surface_ring_mix: 0.7,
       shimmer_depth: 0.2,
       continuous_layer_mix: 0.75,
@@ -133,9 +138,41 @@ function makeImpossibleMixSpace() {
   };
 }
 
+function makeWettingVelocitySpace() {
+  return {
+    xParam: "contact_angle_deg",
+    yParam: "roll_velocity_hz",
+    xRange: [20, 175],
+    yRange: [4, 30],
+    xLabel: "Contact angle θ (spread → lotus)",
+    yLabel: "Rolling speed (Hz)",
+    gridSize: parseInt(document.getElementById("grid-size").value, 10),
+    durationS: 2.5,
+    fixedParams: {
+      radius_mm: 2.5,
+      viscosity: 0.1,
+      surface_profile: "ceramic",
+      path_roughness: 0.35,
+      body_resonance_mix: 0.7,
+      cavity_mix: 0.4,
+      slosh_mix: 0.1,
+      rayleigh_mix: 0.35,
+      microbubble_mix: 0.5,
+      stickslip_mix: 0.4,
+      surface_tension_n_m: 0.072,
+      surface_ring_mix: 0.7,
+      shimmer_depth: 0.2,
+      continuous_layer_mix: 0.75,
+      discrete_mix: 0.5,
+    },
+    renderFn: async (ctx, params) => renderRollingDroplet(ctx, params),
+  };
+}
+
 const SPACE_BUILDERS = {
   rolling_droplet: makeRollingDropletSpace,
   rolling_xy_continuity: makeRollingContinuityGranularitySpace,
+  wetting_velocity: makeWettingVelocitySpace,
   impossible_mix: makeImpossibleMixSpace,
 };
 

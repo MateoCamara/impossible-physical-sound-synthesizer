@@ -333,9 +333,34 @@ ported from the Python physics engine. Optional convolution reverb. No backend.<
     <span class="value" id="roll-ring-mix-val"></span>
   </div>
   <div class="row">
-    <label>Sloshing (subharmonic wobble)</label>
-    <input id="roll-slosh-mix" type="range" min="0" max="1" step="0.05" value="0.3" />
+    <label>Sloshing (heuristic legacy)</label>
+    <input id="roll-slosh-mix" type="range" min="0" max="1" step="0.05" value="0.1" />
     <span class="value" id="roll-slosh-mix-val"></span>
+  </div>
+  <div class="row">
+    <label>Rayleigh modes (exact shape oscillations)</label>
+    <input id="roll-rayleigh-mix" type="range" min="0" max="1" step="0.05" value="0.35" />
+    <span class="value" id="roll-rayleigh-mix-val"></span>
+  </div>
+  <div class="row">
+    <label>Microbubble cloud (multi-Minnaert)</label>
+    <input id="roll-micro-mix" type="range" min="0" max="1" step="0.05" value="0.5" />
+    <span class="value" id="roll-micro-mix-val"></span>
+  </div>
+  <div class="row">
+    <label>Stick-slip (rolling friction)</label>
+    <input id="roll-stick-mix" type="range" min="0" max="1" step="0.05" value="0.4" />
+    <span class="value" id="roll-stick-mix-val"></span>
+  </div>
+  <div class="row">
+    <label>Contact angle θ (30=spread, 110=neutral, 170=lotus)</label>
+    <input id="roll-contact-angle" type="range" min="20" max="175" step="2" value="110" />
+    <span class="value" id="roll-contact-angle-val"></span>
+  </div>
+  <div class="row">
+    <label>Surface tension σ (N/m)</label>
+    <input id="roll-sigma" type="range" min="0.02" max="0.10" step="0.002" value="0.072" />
+    <span class="value" id="roll-sigma-val"></span>
   </div>
   <div class="row">
     <label>Shimmer depth (capillary ripples)</label>
