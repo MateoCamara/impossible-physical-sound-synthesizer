@@ -134,6 +134,11 @@ bindSlider("roll-bounce", "roll-bounce-val", (v) => v.toFixed(2));
 bindSlider("roll-bounce-chain", "roll-bounce-chain-val", (v) => v.toFixed(0));
 bindSlider("roll-bounce-decay", "roll-bounce-decay-val", (v) => v.toFixed(2));
 bindSlider("roll-drying", "roll-drying-val", (v) => v.toFixed(2));
+bindSlider("roll-discrete", "roll-discrete-val", (v) => v.toFixed(2));
+bindSlider("roll-body-mix", "roll-body-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-cavity-mix", "roll-cavity-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-slosh-mix", "roll-slosh-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-shimmer", "roll-shimmer-val", (v) => v.toFixed(2));
 bindSlider("roll-continuous", "roll-continuous-val", (v) => v.toFixed(2));
 bindSlider("roll-body-res", "roll-body-res-val", (v) => v.toFixed(2));
 bindSlider("roll-duration", "roll-duration-val", (v) => `${v.toFixed(1)} s`);
@@ -152,6 +157,11 @@ document.getElementById("roll-render").addEventListener("click", async () => {
     bounce_chain_length: parseInt(document.getElementById("roll-bounce-chain").value, 10),
     bounce_decay: parseFloat(document.getElementById("roll-bounce-decay").value),
     drying_factor: parseFloat(document.getElementById("roll-drying").value),
+    discrete_mix: parseFloat(document.getElementById("roll-discrete").value),
+    body_resonance_mix: parseFloat(document.getElementById("roll-body-mix").value),
+    cavity_mix: parseFloat(document.getElementById("roll-cavity-mix").value),
+    slosh_mix: parseFloat(document.getElementById("roll-slosh-mix").value),
+    shimmer_depth: parseFloat(document.getElementById("roll-shimmer").value),
     continuous_layer_mix: parseFloat(document.getElementById("roll-continuous").value),
     body_resonance_strength: parseFloat(document.getElementById("roll-body-res").value),
     duration_s: parseFloat(document.getElementById("roll-duration").value),

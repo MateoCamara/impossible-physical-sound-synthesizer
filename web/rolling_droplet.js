@@ -170,6 +170,134 @@ export function writeDripInline(dst, sampleStart, sr, opts) {
   }
 }
 
+// ====================================================================
+// Continuous-contact layers: the "water roller" character
+// ====================================================================
+//
+// A rolling droplet is NOT a series of impacts — it's a continuous
+// contact of a deformable liquid mass against a surface. Four layers
+// model the physics of this sustained contact:
+//
+//   A) Body resonance:  Minnaert tone sustained throughout the roll,
+//                       AM-modulated by rolling speed, FM-wobbled by
+//                       path roughness (the droplet deforms as it rolls).
+//   B) Cavity:          Helmholtz-like rumble of the trapped air pocket
+//                       between droplet bottom and surface (200-600 Hz).
+//   C) Sloshing:        Subharmonic wobble of the liquid mass deforming.
+//   D) Shimmer:         Slow random AM applied to A+B+C, the "alive"
+//                       quality of moving water (capillary ripples).
+//
+// These layers are the PROTAGONISTS (60-80% energy). The discrete drip
+// events become subtle texture (20-40%, attenuated from 0.7 to ~0.25).
+
+/** Generate a slowly-varying random LFO using one-pole LPF on white noise. */
+function slowLFO(n, sr, cutoffHz, rng) {
+  const a = Math.exp(-2 * Math.PI * cutoffHz / sr);
+  const out = new Float32Array(n);
+  let state = 0;
+  let sum = 0, sumSq = 0;
+  for (let i = 0; i < n; i++) {
+    const x = rng() * 2 - 1;
+    state = a * state + (1 - a) * x;
+    out[i] = state;
+    sum += state;
+    sumSq += state * state;
+  }
+  // Normalize to unit variance, zero mean
+  const mean = sum / n;
+  const variance = sumSq / n - mean * mean;
+  const std = Math.sqrt(Math.max(variance, 1e-9));
+  for (let i = 0; i < n; i++) out[i] = (out[i] - mean) / std;
+  return out;
+}
+
+/** Layer A: sustained Minnaert body resonance with deformation FM/AM. */
+function renderBodyResonanceLayer(sr, n, opts) {
+  const { radius_mm, viscosity, roll_velocity_hz, path_roughness, seed } = opts;
+  const rng = rand(seed + 7001);
+  const fM = 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
+  // AM envelope: LFO at 2-8 Hz scales with velocity
+  const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
+  const am = slowLFO(n, sr, amHz, rng);
+  // FM wobble: separate slower LFO drives frequency offset
+  const fm = slowLFO(n, sr, amHz * 0.6, rng);
+  const fmDepth = 0.03 + 0.05 * path_roughness;  // ±3-8% of fM
+  // Viscosity dampens (honey doesn't ring)
+  const viscAtten = 1.0 - 0.6 * viscosity;
+  const out = new Float32Array(n);
+  let phase = 0;
+  const baseAmp = 0.7 * viscAtten;
+  for (let i = 0; i < n; i++) {
+    const fInst = fM * (1 + fmDepth * fm[i]);
+    phase += 2 * Math.PI * fInst / sr;
+    // AM: sostenida (0.75±0.25), not pulsed
+    const amVal = 0.75 + 0.25 * am[i];
+    out[i] = baseAmp * Math.max(0, amVal) * Math.sin(phase);
+  }
+  return out;
+}
+
+/** Layer B: Helmholtz cavity resonance (low-freq trapped air pocket). */
+function renderCavityResonanceLayer(sr, n, opts) {
+  const { surface_profile, viscosity, roll_velocity_hz, seed } = opts;
+  const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
+  const rng = rand(seed + 7002);
+  // Cavity freq: softer surfaces -> larger trapped cavity -> lower freq.
+  // Use the lowest surface mode as a proxy for hardness.
+  const minMode = Math.min(...surf.modes);
+  const hardness = Math.min(1, minMode / 1500);
+  const fCavity = 200 + 400 * hardness;
+  const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
+  // Same LFO rate as body but ~90° phase shift (cavity peaks when body wobbles)
+  const am = slowLFO(n, sr, amHz, rng);
+  const viscAtten = 1.0 - 0.6 * viscosity;
+  const out = new Float32Array(n);
+  let phase = Math.PI / 2;
+  const baseAmp = 0.5 * viscAtten;
+  for (let i = 0; i < n; i++) {
+    phase += 2 * Math.PI * fCavity / sr;
+    const amVal = 0.75 + 0.25 * am[i];
+    out[i] = baseAmp * Math.max(0, amVal) * Math.sin(phase);
+  }
+  return out;
+}
+
+/** Layer C: sloshing subharmonic wobble (droplet deforms as it rolls). */
+function renderSloshingLayer(sr, n, opts) {
+  const { radius_mm, path_roughness, seed } = opts;
+  const rng = rand(seed + 7003);
+  const fM = 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
+  // Subharmonic at 0.4-0.6× Minnaert
+  const fSlosh = fM * (0.4 + 0.2 * rng());
+  // Tremolo at 3-6 Hz
+  const tremHz = 3 + 3 * rng();
+  const out = new Float32Array(n);
+  let phase = 0;
+  // Amplitude scales with path roughness (rough path → more wobble)
+  const baseAmp = 0.3 * (0.3 + 0.7 * path_roughness);
+  for (let i = 0; i < n; i++) {
+    phase += 2 * Math.PI * fSlosh / sr;
+    const trem = 0.5 + 0.5 * Math.sin(2 * Math.PI * tremHz * i / sr);
+    out[i] = baseAmp * trem * Math.sin(phase);
+  }
+  return out;
+}
+
+/** Layer D: spectral shimmer (slow random AM on the combined continuous mix). */
+function applyShimmer(data, n, sr, depth, seed) {
+  if (depth < 0.01) return;
+  const rng = rand(seed + 7004);
+  // Random LFO at 5-15 Hz
+  const shHz = 5 + 10 * rng();
+  const lfo = slowLFO(n, sr, shHz, rng);
+  for (let i = 0; i < n; i++) {
+    // Multiplier oscillates around 1, scaled by depth
+    const mult = 1 + depth * lfo[i];
+    data[i] *= Math.max(0, mult);
+  }
+}
+
+
 /**
  * Continuous rolling rumble layer (anti 'tacatacataca').
  *
@@ -253,24 +381,19 @@ async function renderContinuousRollLayer(sr, duration_s, opts) {
 
 
 /**
- * Render a rolling droplet (quasi-periodic train of drips) into a new
- * AudioBuffer. Combines a discrete drip-event train with a continuous
- * rumble layer that fills in the silences between contacts so the
- * percept is "rrrrr with ticks" rather than "tacatacataca".
+ * Render a rolling droplet as a continuous liquid mass rolling on a surface.
+ *
+ * Architecture (NEW): continuous-contact layers are protagonists, discrete
+ * drip events are subtle texture.
+ *   - Body resonance (Minnaert tone sustained throughout the roll)
+ *   - Cavity (Helmholtz of trapped air pocket droplet/surface)
+ *   - Sloshing (subharmonic wobble of the liquid mass)
+ *   - Shimmer (slow random AM = capillary ripple texture)
+ *   - Noise-based rumble (material click_color filtered through modal bank)
+ *   - Discrete drip ticks (attenuated to ~25%, just texture)
  *
  * @param {BaseAudioContext} ctx
- * @param {object} opts
- *   radius_mm, viscosity, surface_profile
- *   roll_velocity_hz: contacts per second
- *   path_roughness: 0=metronome, 1=heavy jitter
- *   continuous_layer_mix: 0=only discrete drips, 1=heavy rumble
- *   body_resonance_strength: how loud the modal body response is in the rumble
- *   capillary_ringing: 0..1 capillary film oscillation contribution
- *   bounce_amount: 0..1 post-impact rebound strength
- *   bounce_chain_length: 1..4 number of chained bounces
- *   bounce_decay: 0..1 energy factor per bounce
- *   drying_factor: 0..1 progressive energy attenuation in second half
- *   duration_s, seed
+ * @param {object} opts — see slider definitions in index.html
  * @returns {Promise<AudioBuffer>}
  */
 export async function renderRollingDroplet(ctx, opts) {
@@ -280,8 +403,16 @@ export async function renderRollingDroplet(ctx, opts) {
     surface_profile = "ceramic",
     roll_velocity_hz = 14.0,
     path_roughness = 0.35,
-    continuous_layer_mix = 0.4,
+    // New "water roller" continuous-layer mix levels:
+    body_resonance_mix = 0.7,
+    cavity_mix = 0.4,
+    slosh_mix = 0.3,
+    shimmer_depth = 0.2,
+    // Existing noise-based rumble and surface modal body:
+    continuous_layer_mix = 0.75,
     body_resonance_strength = 0.6,
+    // Discrete drip "ticks" — texture, not protagonist:
+    discrete_mix = 0.3,
     capillary_ringing = 0.5,
     bounce_amount = 0.35,
     bounce_chain_length = 1,
@@ -298,66 +429,92 @@ export async function renderRollingDroplet(ctx, opts) {
   const rng = rand(seed);
   const periodSamples = sr / Math.max(roll_velocity_hz, 0.1);
 
-  // 1) Discrete drip-event train with inter-event variability
-  //    High variability: each drip gets a unique seed so timbre varies;
-  //    low variability: seeds cycle through a small pool (similar drips).
-  //    Velocity spread scales with path_roughness + variability.
-  const nVariants = 1 + Math.round(inter_event_variability * 5);
-  let t = 0;
-  let count = 0;
-  while (t < nTotal) {
-    const start = Math.floor(t);
-    if (start >= nTotal) break;
-    const velSpread = 0.25 + 0.4 * path_roughness * (0.5 + 0.5 * inter_event_variability);
-    const velocity = Math.max(0.4, Math.min(1.8,
-      1.0 + (rng() * 2 - 1) * velSpread));
-    const useFreshSeed = inter_event_variability > 0.1 &&
-                         Math.abs(velocity - 1.0) > 0.25;
-    const evtSeed = useFreshSeed
-      ? seed + start
-      : seed + 100 + (count % nVariants);
-    writeDripInline(data, start, sr, {
-      radius_mm, viscosity, surface_profile,
-      velocity_factor: velocity, seed: evtSeed,
-      capillary_ringing, bounce_amount, bounce_chain_length, bounce_decay,
+  // ============================================================
+  // 1) Continuous-contact layers (protagonists)
+  // ============================================================
+  // Layer A: sustained Minnaert body resonance
+  if (body_resonance_mix > 0.01) {
+    const bodyLayer = renderBodyResonanceLayer(sr, nTotal, {
+      radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
     });
-    const offset = periodSamples * (1 + path_roughness * (rng() * 2 - 1) * 0.7);
-    t += Math.max(periodSamples * 0.1, offset);
-    count++;
-    if (count > 600) break;
+    for (let i = 0; i < nTotal; i++) data[i] += bodyLayer[i] * body_resonance_mix;
   }
 
-  // 2) Continuous rolling-rumble layer, modulated by RMS of drip train
+  // Layer B: Helmholtz cavity resonance (low-freq rumble)
+  if (cavity_mix > 0.01) {
+    const cavityLayer = renderCavityResonanceLayer(sr, nTotal, {
+      surface_profile, viscosity, roll_velocity_hz, seed,
+    });
+    for (let i = 0; i < nTotal; i++) data[i] += cavityLayer[i] * cavity_mix;
+  }
+
+  // Layer C: sloshing subharmonic
+  if (slosh_mix > 0.01) {
+    const sloshLayer = renderSloshingLayer(sr, nTotal, {
+      radius_mm, path_roughness, seed,
+    });
+    for (let i = 0; i < nTotal; i++) data[i] += sloshLayer[i] * slosh_mix;
+  }
+
+  // Layer D: spectral shimmer (post-process the continuous mix BEFORE
+  // adding discrete ticks and noise rumble, so the shimmer only affects
+  // the liquid body, not the surface clicks)
+  applyShimmer(data, nTotal, sr, shimmer_depth, seed);
+
+  // ============================================================
+  // 2) Noise-based rumble layer (material click_color + modal bank)
+  // ============================================================
   if (continuous_layer_mix > 0.01) {
     const layerBuf = await renderContinuousRollLayer(sr, duration_s, {
       surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
       body_resonance_strength,
     });
     const layer = layerBuf.getChannelData(0);
-
-    // Sliding-window RMS of drip-train data (40 ms)
-    const winN = Math.max(1, Math.floor(0.04 * sr));
-    let sumSq = 0;
-    for (let i = 0; i < Math.min(winN, nTotal); i++) sumSq += data[i] * data[i];
-    const env = new Float32Array(nTotal);
-    let maxRms = 0;
-    for (let i = 0; i < nTotal; i++) {
-      env[i] = Math.sqrt(Math.max(0, sumSq) / winN);
-      if (env[i] > maxRms) maxRms = env[i];
-      sumSq -= data[i] * data[i];
-      if (i + winN < nTotal) sumSq += data[i + winN] * data[i + winN];
-    }
-    const floorVal = 0.3 + 0.5 * Math.min(roll_velocity_hz / 25.0, 1.0);
-    const maxRmsInv = 1.0 / (maxRms + 1e-9);
     const layerLen = Math.min(layer.length, nTotal);
+    // Continuous gain (not RMS-gated by drip train): the rumble is
+    // present as long as the droplet is rolling, not just at impacts.
+    const velocityFloor = 0.4 + 0.6 * Math.min(roll_velocity_hz / 25, 1);
     for (let i = 0; i < layerLen; i++) {
-      const rmsNorm = env[i] * maxRmsInv;
-      const envelope = floorVal + (1.0 - floorVal) * rmsNorm;
-      data[i] += layer[i] * envelope * continuous_layer_mix;
+      data[i] += layer[i] * velocityFloor * continuous_layer_mix;
     }
   }
 
-  // 3) Drying tail: progressive energy attenuation in second half
+  // ============================================================
+  // 3) Discrete drip ticks (texture on top of the continuous body)
+  // ============================================================
+  if (discrete_mix > 0.01) {
+    const tickBuf = new Float32Array(nTotal);
+    const nVariants = 1 + Math.round(inter_event_variability * 5);
+    let t = 0;
+    let count = 0;
+    while (t < nTotal) {
+      const start = Math.floor(t);
+      if (start >= nTotal) break;
+      const velSpread = 0.25 + 0.4 * path_roughness * (0.5 + 0.5 * inter_event_variability);
+      const velocity = Math.max(0.4, Math.min(1.8,
+        1.0 + (rng() * 2 - 1) * velSpread));
+      const useFreshSeed = inter_event_variability > 0.1 &&
+                           Math.abs(velocity - 1.0) > 0.25;
+      const evtSeed = useFreshSeed
+        ? seed + start
+        : seed + 100 + (count % nVariants);
+      writeDripInline(tickBuf, start, sr, {
+        radius_mm, viscosity, surface_profile,
+        velocity_factor: velocity, seed: evtSeed,
+        capillary_ringing, bounce_amount, bounce_chain_length, bounce_decay,
+      });
+      const offset = periodSamples * (1 + path_roughness * (rng() * 2 - 1) * 0.7);
+      t += Math.max(periodSamples * 0.1, offset);
+      count++;
+      if (count > 600) break;
+    }
+    // Mix ticks at attenuated level (texture, not protagonist)
+    for (let i = 0; i < nTotal; i++) data[i] += tickBuf[i] * discrete_mix;
+  }
+
+  // ============================================================
+  // 4) Drying tail
+  // ============================================================
   if (drying_factor > 0.05) {
     const half = Math.floor(nTotal / 2);
     for (let i = half; i < nTotal; i++) {
@@ -367,7 +524,21 @@ export async function renderRollingDroplet(ctx, opts) {
     }
   }
 
-  // 4) Peak-normalise
+  // ============================================================
+  // 5) Fade-in/out (avoid filter edge transients)
+  // ============================================================
+  const fadeN = Math.min(Math.floor(0.02 * sr), Math.floor(nTotal / 8));
+  if (fadeN > 4) {
+    for (let i = 0; i < fadeN; i++) {
+      const w = 0.5 * (1 - Math.cos(Math.PI * i / fadeN));
+      data[i] *= w;
+      data[nTotal - 1 - i] *= w;
+    }
+  }
+
+  // ============================================================
+  // 6) Peak-normalise
+  // ============================================================
   let peak = 0;
   for (let i = 0; i < nTotal; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
   if (peak > 0.95) {

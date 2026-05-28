@@ -118,8 +118,14 @@ class DropletParams:
     inter_event_variability: float = 0.6  # 0=todos iguales; 1=muy variables
     capillary_ringing: float = 0.5      # contribucion del ringing capilar 0..1
     drying_factor: float = 0.0          # 0=sin drying, 1=la escena se seca al final del clip
-    continuous_layer_mix: float = 0.4   # 0=solo drips discretos ('tacataca'), 1=mucho rumor continuo ('rrrrr')
+    continuous_layer_mix: float = 0.75  # nivel de la capa de ruido coloreado por surface (antes 0.4)
     body_resonance_strength: float = 0.6  # intensidad del eco modal del surface en la capa continua
+    # Capas continuas "rodillo de agua" (rework perceptual):
+    body_resonance_mix: float = 0.7     # Minnaert sostenido durante el contacto (protagonista)
+    cavity_mix: float = 0.4             # resonancia Helmholtz cavidad gota-superficie (~200-600 Hz)
+    slosh_mix: float = 0.3              # wobble subarmonico de deformacion
+    shimmer_depth: float = 0.2          # AM lenta tipo capillary ripple
+    discrete_mix: float = 0.3           # ticks discretos (textura, no protagonista) — antes implicit 1.0
 
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
@@ -370,80 +376,162 @@ def _continuous_roll_layer(
 
 
 # ====================================================================
-# Rolling droplet: usa variabilidad inter-event + velocity per contact
+# Capas continuas: el caracter "rodillo de agua"
+# ====================================================================
+# Una gota rodando NO es una serie de impactos: es un contacto continuo
+# de una masa liquida deformable contra la superficie. Cuatro capas:
+#   A) Body resonance: Minnaert sostenido durante toda la rodadura,
+#      AM modulada por velocidad, FM wobble por path_roughness.
+#   B) Cavity:         resonancia Helmholtz del bolsillo de aire atrapado
+#                      entre la gota y la superficie (200-600 Hz).
+#   C) Sloshing:       subarmonico de deformacion (0.4-0.6 x f_M).
+#   D) Shimmer:        AM lenta aplicada a A+B+C, calidad "viva" de agua.
+
+def _slow_lfo(n: int, sr: int, cutoff_hz: float,
+              rng: np.random.Generator) -> np.ndarray:
+    """LFO lento normalizado: ruido pasado por LPF a cutoff_hz, media 0, std 1."""
+    raw = rng.standard_normal(n).astype(np.float32)
+    sos = signal.butter(2, max(0.5, cutoff_hz), btype="low", fs=sr, output="sos")
+    lfo = signal.sosfiltfilt(sos, raw).astype(np.float32)
+    return ((lfo - lfo.mean()) / (lfo.std() + 1e-9)).astype(np.float32)
+
+
+def _body_resonance_layer(p: DropletParams, sr: int, n: int,
+                          rng: np.random.Generator) -> np.ndarray:
+    """Layer A: Minnaert tone sostenido con AM (velocidad) + FM wobble (rugosidad).
+    AM mas sutil (0.75±0.25) para que sea sostenido, no pulsado."""
+    fM = _bubble_freq_from_radius(p.droplet_radius_mm)
+    am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
+    am = _slow_lfo(n, sr, am_hz, rng)
+    fm = _slow_lfo(n, sr, am_hz * 0.6, rng)
+    fm_depth = 0.03 + 0.05 * p.path_roughness
+    visc_atten = 1.0 - 0.6 * p.viscosity
+    f_inst = fM * (1 + fm_depth * fm)
+    phase = 2 * np.pi * np.cumsum(f_inst) / sr
+    am_env = np.clip(0.75 + 0.25 * am, 0, None)  # mas sostenido
+    return (0.7 * visc_atten * am_env * np.sin(phase)).astype(np.float32)
+
+
+def _cavity_resonance_layer(p: DropletParams, surface: SurfaceProfile,
+                             sr: int, n: int, rng: np.random.Generator) -> np.ndarray:
+    """Layer B: resonancia Helmholtz del bolsillo de aire (200-600 Hz)."""
+    min_mode = min(surface.modes_hz) if surface.modes_hz else 1000
+    hardness = min(1.0, min_mode / 1500)
+    f_cavity = 200 + 400 * hardness
+    am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
+    am = _slow_lfo(n, sr, am_hz, rng)
+    visc_atten = 1.0 - 0.6 * p.viscosity
+    phase = 2 * np.pi * f_cavity * np.arange(n) / sr + np.pi / 2
+    am_env = np.clip(0.75 + 0.25 * am, 0, None)
+    return (0.5 * visc_atten * am_env * np.sin(phase)).astype(np.float32)
+
+
+def _sloshing_layer(p: DropletParams, sr: int, n: int,
+                    rng: np.random.Generator) -> np.ndarray:
+    """Layer C: subarmonico de deformacion (0.4-0.6 x f_M) con tremolo."""
+    fM = _bubble_freq_from_radius(p.droplet_radius_mm)
+    f_slosh = fM * (0.4 + 0.2 * rng.random())
+    trem_hz = 3 + 3 * rng.random()
+    base_amp = 0.3 * (0.3 + 0.7 * p.path_roughness)
+    t = np.arange(n) / sr
+    trem = 0.5 + 0.5 * np.sin(2 * np.pi * trem_hz * t)
+    phase = 2 * np.pi * f_slosh * t
+    return (base_amp * trem * np.sin(phase)).astype(np.float32)
+
+
+def _apply_shimmer(data: np.ndarray, sr: int, depth: float,
+                   rng: np.random.Generator) -> np.ndarray:
+    """Layer D: AM lenta aleatoria (5-15 Hz) sobre la mezcla continua."""
+    if depth < 0.01:
+        return data
+    n = len(data)
+    sh_hz = 5 + 10 * rng.random()
+    lfo = _slow_lfo(n, sr, sh_hz, rng)
+    mult = np.clip(1 + depth * lfo, 0, None)
+    return (data * mult).astype(np.float32)
+
+
+# ====================================================================
+# Rolling droplet: continuous-contact layers + discrete ticks texture
 # ====================================================================
 def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
-    """Sintesis completa: tren cuasiperiodico de drip events.
-
-    Mejoras: cada contacto puede tener velocity, brightness y seed propios,
-    en lugar de reutilizar una plantilla fija.
+    """Rolling droplet con jerarquia perceptual NUEVA:
+    los layers continuos (body + cavity + sloshing + shimmer) son los
+    protagonistas (60-80% energia); los drip ticks discretos son textura
+    sutil (20-40%). Esto da la percepcion de masa liquida rodando,
+    no de gotas cayendo rapido.
     """
     p = _derive_params(p)
     n_total = int(p.duration_s * sr)
     out = np.zeros(n_total, dtype=np.float32)
     rng = np.random.default_rng(p.seed)
     period_samples = sr / max(p.roll_velocity_hz, 0.1)
+    surface = _get_surface(p)
 
-    # Pre-renderizamos un pool pequeno de variantes (3-5 segun variability)
-    n_variants = 1 + int(round(p.inter_event_variability * 5))
-    variants = [
-        synth_drip_event(p, sr, velocity_factor=1.0, seed_override=p.seed + 100 + k)
-        for k in range(n_variants)
-    ]
-    evt_n_base = max(len(v) for v in variants)
+    # === 1) Capas continuas (PROTAGONISTAS) =========================
+    if p.body_resonance_mix > 0.01:
+        body = _body_resonance_layer(p, sr, n_total, rng)
+        out += body * p.body_resonance_mix
+    if p.cavity_mix > 0.01:
+        cavity = _cavity_resonance_layer(p, surface, sr, n_total, rng)
+        out += cavity * p.cavity_mix
+    if p.slosh_mix > 0.01:
+        slosh = _sloshing_layer(p, sr, n_total, rng)
+        out += slosh * p.slosh_mix
+    # Shimmer aplicado ANTES de añadir noise/ticks (solo afecta al body liquido)
+    if p.shimmer_depth > 0.01:
+        out = _apply_shimmer(out, sr, p.shimmer_depth, rng)
 
-    t_sample = 0.0
-    while t_sample < n_total:
-        # Jitter de timing (path roughness)
-        offset = period_samples * (1 + p.path_roughness * rng.uniform(-0.7, 0.7))
-        start = int(t_sample)
-        if start >= n_total:
-            break
-        # Velocity para este contacto: dependiente del path roughness y un poco random
-        # Path roughness alto -> contactos mas variados en velocidad
-        velocity_factor = float(np.clip(
-            rng.normal(loc=1.0, scale=0.25 + 0.4 * p.path_roughness), 0.4, 1.8
-        ))
-        # Amplitud derivada de velocity (contacto mas duro = mas amplitud)
-        amp = velocity_factor * rng.uniform(0.55, 1.0)
-        # Elegir variante (o regenerar si la velocity es muy distinta de 1.0)
-        if p.inter_event_variability > 0.1 and abs(velocity_factor - 1.0) > 0.25:
-            evt = synth_drip_event(p, sr, velocity_factor=velocity_factor,
-                                    seed_override=p.seed + start)
-        else:
-            evt = variants[rng.integers(0, n_variants)]
-        end = min(n_total, start + len(evt))
-        out[start:end] += amp * evt[: end - start]
-        t_sample += offset
-
-    # Capa continua de rumor de rodadura (sustituye al bed estático antiguo):
-    # convierte 'tacatacataca' en 'rrrrrr con ticks de gotas'.
-    # El floor de la envolvente escala con roll_velocity_hz: a velocidad
-    # alta la bolita está siempre en contacto (floor alto, percepción más
-    # continua "rrrrrr"); a velocidad baja hay más percusión discreta
-    # entre cada golpe (floor bajo, percepción más "drips puntuales").
+    # === 2) Capa de ruido coloreado por surface (sin RMS gating) ====
     if p.continuous_layer_mix > 0.01:
-        surface = _get_surface(p)
         continuous = _continuous_roll_layer(p, surface, sr, n_total, rng)
-        win = max(1, int(0.04 * sr))
-        rms = np.sqrt(np.convolve(out * out, np.ones(win) / win, mode="same"))
-        rms_max = float(rms.max() + 1e-9)
-        rms_norm = rms / rms_max
-        envelope_floor = 0.3 + 0.5 * min(p.roll_velocity_hz / 25.0, 1.0)
-        rms_envelope = envelope_floor + (1.0 - envelope_floor) * rms_norm
-        out = out + continuous * rms_envelope * p.continuous_layer_mix
+        velocity_floor = 0.4 + 0.6 * min(p.roll_velocity_hz / 25, 1)
+        out = out + continuous * velocity_floor * p.continuous_layer_mix
 
-    # Drying tail: la escena se va secando hacia el final.
-    # Aplicamos una envolvente que atenua la energia liquida progresivamente.
+    # === 3) Drip ticks discretos (TEXTURA, atenuados) ===============
+    if p.discrete_mix > 0.01:
+        ticks = np.zeros(n_total, dtype=np.float32)
+        n_variants = 1 + int(round(p.inter_event_variability * 5))
+        variants = [
+            synth_drip_event(p, sr, velocity_factor=1.0, seed_override=p.seed + 100 + k)
+            for k in range(n_variants)
+        ]
+        t_sample = 0.0
+        while t_sample < n_total:
+            offset = period_samples * (1 + p.path_roughness * rng.uniform(-0.7, 0.7))
+            start = int(t_sample)
+            if start >= n_total:
+                break
+            velocity_factor = float(np.clip(
+                rng.normal(loc=1.0, scale=0.25 + 0.4 * p.path_roughness), 0.4, 1.8
+            ))
+            amp = velocity_factor * rng.uniform(0.55, 1.0)
+            if p.inter_event_variability > 0.1 and abs(velocity_factor - 1.0) > 0.25:
+                evt = synth_drip_event(p, sr, velocity_factor=velocity_factor,
+                                        seed_override=p.seed + start)
+            else:
+                evt = variants[rng.integers(0, n_variants)]
+            end = min(n_total, start + len(evt))
+            ticks[start:end] += amp * evt[: end - start]
+            t_sample += offset
+        out = out + ticks * p.discrete_mix
+
+    # === 4) Drying tail =============================================
     if p.drying_factor > 0.05:
-        # La envolvente arranca en 1 y termina en (1 - drying_factor).
-        # Aplicada exponencialmente en la segunda mitad del clip.
         half = n_total // 2
         dry_env = np.ones(n_total, dtype=np.float32)
         ramp = np.linspace(0, 1, n_total - half).astype(np.float32)
         dry_env[half:] = 1.0 - p.drying_factor * (1 - np.exp(-3 * ramp))
         out = out * dry_env
 
+    # === 5) Fade-in/out (avoids filter edge transients) ============
+    fade_n = min(int(0.02 * sr), n_total // 8)
+    if fade_n > 4:
+        fade = 0.5 * (1 - np.cos(np.linspace(0, np.pi, fade_n))).astype(np.float32)
+        out[:fade_n] *= fade
+        out[-fade_n:] *= fade[::-1]
+
+    # === 6) Peak-normalise ==========================================
     peak = float(np.max(np.abs(out)) + 1e-9)
     if peak > 0.95:
         out = out * (0.95 / peak)
