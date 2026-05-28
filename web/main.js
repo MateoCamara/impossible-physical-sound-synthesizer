@@ -138,6 +138,7 @@ bindSlider("roll-discrete", "roll-discrete-val", (v) => v.toFixed(2));
 bindSlider("roll-body-mix", "roll-body-mix-val", (v) => v.toFixed(2));
 bindSlider("roll-cavity-mix", "roll-cavity-mix-val", (v) => v.toFixed(2));
 bindSlider("roll-slosh-mix", "roll-slosh-mix-val", (v) => v.toFixed(2));
+bindSlider("roll-ring-mix", "roll-ring-mix-val", (v) => v.toFixed(2));
 bindSlider("roll-shimmer", "roll-shimmer-val", (v) => v.toFixed(2));
 bindSlider("roll-continuous", "roll-continuous-val", (v) => v.toFixed(2));
 bindSlider("roll-body-res", "roll-body-res-val", (v) => v.toFixed(2));
@@ -161,6 +162,7 @@ document.getElementById("roll-render").addEventListener("click", async () => {
     body_resonance_mix: parseFloat(document.getElementById("roll-body-mix").value),
     cavity_mix: parseFloat(document.getElementById("roll-cavity-mix").value),
     slosh_mix: parseFloat(document.getElementById("roll-slosh-mix").value),
+    surface_ring_mix: parseFloat(document.getElementById("roll-ring-mix").value),
     shimmer_depth: parseFloat(document.getElementById("roll-shimmer").value),
     continuous_layer_mix: parseFloat(document.getElementById("roll-continuous").value),
     body_resonance_strength: parseFloat(document.getElementById("roll-body-res").value),

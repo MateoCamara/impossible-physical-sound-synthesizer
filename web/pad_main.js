@@ -40,9 +40,10 @@ function makeRollingDropletSpace() {
       body_resonance_mix: 0.7,
       cavity_mix: 0.4,
       slosh_mix: 0.3,
+      surface_ring_mix: 0.7,
       shimmer_depth: 0.2,
       continuous_layer_mix: 0.75,
-      discrete_mix: 0.3,
+      discrete_mix: 0.5,
     },
     renderFn: async (ctx, params) => {
       // Map surface_hardness_proxy [0..1] to a surface profile name
@@ -81,9 +82,10 @@ function makeRollingContinuityGranularitySpace() {
         body_resonance_mix: 0.4 + 0.6 * cont,
         cavity_mix: 0.4,
         slosh_mix: 0.2 + 0.4 * gran,
+        surface_ring_mix: 0.4 + 0.5 * cont,
         shimmer_depth: 0.1 + 0.3 * cont,
         continuous_layer_mix: 0.4 + 0.7 * cont,
-        discrete_mix: 0.6 - 0.5 * cont,
+        discrete_mix: 0.7 - 0.4 * cont,
         duration_s: params.duration_s,
         seed: params.seed,
       });

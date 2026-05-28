@@ -6,6 +6,27 @@
 // physics as Python rolling_droplet (Minnaert chirp + decay + surface
 // modal tail), but inlined for efficiency with 50-300 contacts per clip.
 
+// Per-material voicing presets: multipliers applied on top of the user's
+// mix sliders so each surface has a clearly recognisable sonic signature.
+// Conceptually: "fabric should be muffled, metal should ring, stone should
+// rumble low". These are perceptual hyper-parameters tuned by ear.
+const MATERIAL_VOICING = {
+  fabric:  { body_mul: 0.30, cavity_mul: 0.50, ring_mul: 0.40, discrete_mul: 1.0 },
+  wood:    { body_mul: 0.60, cavity_mul: 0.80, ring_mul: 0.80, discrete_mul: 1.2 },
+  ceramic: { body_mul: 1.00, cavity_mul: 0.70, ring_mul: 1.10, discrete_mul: 1.0 },
+  glass:   { body_mul: 1.20, cavity_mul: 0.50, ring_mul: 1.30, discrete_mul: 1.0 },
+  metal:   { body_mul: 1.10, cavity_mul: 0.40, ring_mul: 1.50, discrete_mul: 0.9 },
+  stone:   { body_mul: 0.40, cavity_mul: 1.20, ring_mul: 0.70, discrete_mul: 1.1 },
+  water:   { body_mul: 0.50, cavity_mul: 0.80, ring_mul: 0.50, discrete_mul: 0.8 },
+  rubber:  { body_mul: 0.25, cavity_mul: 0.40, ring_mul: 0.30, discrete_mul: 0.7 },
+  leather: { body_mul: 0.45, cavity_mul: 0.70, ring_mul: 0.50, discrete_mul: 0.9 },
+  mud:     { body_mul: 0.20, cavity_mul: 0.60, ring_mul: 0.20, discrete_mul: 0.5 },
+  ice:     { body_mul: 1.00, cavity_mul: 0.60, ring_mul: 1.40, discrete_mul: 1.0 },
+  plastic: { body_mul: 0.70, cavity_mul: 0.60, ring_mul: 0.90, discrete_mul: 1.0 },
+  cork:    { body_mul: 0.35, cavity_mul: 0.60, ring_mul: 0.40, discrete_mul: 0.8 },
+};
+const DEFAULT_VOICING = { body_mul: 1.0, cavity_mul: 1.0, ring_mul: 1.0, discrete_mul: 1.0 };
+
 const SURFACE_PROFILES = {
   fabric:  { modes: [180, 320],                    gains: [0.7, 0.3],            t60_ms: 8,   click_color: [500, 2500] },
   wood:    { modes: [280, 720, 1450, 2400],        gains: [0.4, 0.3, 0.2, 0.1],  t60_ms: 80,  click_color: [800, 5000] },
@@ -77,7 +98,38 @@ export function writeDripInline(dst, sampleStart, sr, opts) {
   const totalN = chirpN + decayN + Math.floor(0.08 * sr);
   if (sampleStart >= dst.length) return;
 
-  // 1) Chirp: exponential frequency ramp + envelope
+  // 1) Material-coloured onset click: very short bandpass-flavoured noise
+  // burst using surf.click_color. This gives each material a recognisable
+  // "click" character (metal=bright/high, wood=dull/mid, fabric=muffled/low).
+  // Implemented as filtered noise via a one-pole BP approximation: feed
+  // white noise through a resonator centred at sqrt(clLo*clHi).
+  const onsetN = Math.max(4, Math.floor(0.003 * sr));  // 3 ms
+  const [clLo, clHi] = surf.click_color;
+  const clCenter = Math.sqrt(clLo * clHi);
+  const clBw = Math.max(50, clHi - clLo);
+  // 2-pole resonator (Direct Form II Transposed): biquad bandpass coeffs
+  const omega = 2 * Math.PI * clCenter / sr;
+  const alpha = Math.sin(omega) * (clBw / clCenter) / 2;  // bandwidth-driven
+  const cosw = Math.cos(omega);
+  const b0 = alpha, b1 = 0, b2 = -alpha;
+  const a0 = 1 + alpha, a1 = -2 * cosw, a2 = 1 - alpha;
+  const nb0 = b0 / a0, nb1 = b1 / a0, nb2 = b2 / a0;
+  const na1 = a1 / a0, na2 = a2 / a0;
+  let z1 = 0, z2 = 0;
+  for (let i = 0; i < onsetN; i++) {
+    const dst_idx = sampleStart + i;
+    if (dst_idx >= dst.length) break;
+    const noise = rng() * 2 - 1;
+    // Biquad filter: y[n] = b0*x[n] + z1
+    const y = nb0 * noise + z1;
+    z1 = nb1 * noise - na1 * y + z2;
+    z2 = nb2 * noise - na2 * y;
+    // Envelope: short attack, exponential decay over onsetN samples
+    const env = Math.exp(-3 * i / onsetN);
+    dst[dst_idx] += 0.5 * velocity_factor * env * y;
+  }
+
+  // 2) Chirp: exponential frequency ramp + envelope
   const attackN = Math.max(2, Math.floor(0.001 * sr));
   let phase = 0;
   const ratio = Math.max(1.001, fEnd / Math.max(fStart, 1));
@@ -211,44 +263,46 @@ function slowLFO(n, sr, cutoffHz, rng) {
   return out;
 }
 
-/** Layer A: sustained Minnaert body resonance with deformation FM/AM. */
+/** Layer A: sustained Minnaert body resonance with deformation FM/AM.
+ *  Amplitude couples to surface acoustic impedance via t60_ms: hard
+ *  surfaces (long t60) reflect Minnaert energy back into the droplet
+ *  → strong body; soft surfaces (short t60) absorb → weak body. */
 function renderBodyResonanceLayer(sr, n, opts) {
-  const { radius_mm, viscosity, roll_velocity_hz, path_roughness, seed } = opts;
+  const { radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
+          surface_profile } = opts;
+  const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
   const rng = rand(seed + 7001);
   const fM = 3.26 / (Math.max(radius_mm, 0.1) * 1e-3);
-  // AM envelope: LFO at 2-8 Hz scales with velocity
   const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
   const am = slowLFO(n, sr, amHz, rng);
-  // FM wobble: separate slower LFO drives frequency offset
   const fm = slowLFO(n, sr, amHz * 0.6, rng);
-  const fmDepth = 0.03 + 0.05 * path_roughness;  // ±3-8% of fM
-  // Viscosity dampens (honey doesn't ring)
-  const viscAtten = 1.0 - 0.6 * viscosity;
+  const fmDepth = 0.03 + 0.05 * path_roughness;
+  // Surface impedance: t60_ms range is [8 (fabric), 900 (metal)] → [0.013, 1.0]
+  const t60Factor = Math.min(1, surf.t60_ms / 600);
+  const impedanceGain = 0.3 + 0.7 * t60Factor;
+  const viscAtten = (1.0 - 0.6 * viscosity) * impedanceGain;
   const out = new Float32Array(n);
   let phase = 0;
   const baseAmp = 0.7 * viscAtten;
   for (let i = 0; i < n; i++) {
     const fInst = fM * (1 + fmDepth * fm[i]);
     phase += 2 * Math.PI * fInst / sr;
-    // AM: sostenida (0.75±0.25), not pulsed
     const amVal = 0.75 + 0.25 * am[i];
     out[i] = baseAmp * Math.max(0, amVal) * Math.sin(phase);
   }
   return out;
 }
 
-/** Layer B: Helmholtz cavity resonance (low-freq trapped air pocket). */
+/** Layer B: Helmholtz cavity resonance — frequency directly tied to the
+ *  surface's lowest mode (×0.6), spanning 120-1200 Hz across materials.
+ *  This widens the cavity frequency range 10× vs the old 200-600 Hz. */
 function renderCavityResonanceLayer(sr, n, opts) {
   const { surface_profile, viscosity, roll_velocity_hz, seed } = opts;
   const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
   const rng = rand(seed + 7002);
-  // Cavity freq: softer surfaces -> larger trapped cavity -> lower freq.
-  // Use the lowest surface mode as a proxy for hardness.
   const minMode = Math.min(...surf.modes);
-  const hardness = Math.min(1, minMode / 1500);
-  const fCavity = 200 + 400 * hardness;
+  const fCavity = Math.max(120, Math.min(1200, minMode * 0.6));
   const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
-  // Same LFO rate as body but ~90° phase shift (cavity peaks when body wobbles)
   const am = slowLFO(n, sr, amHz, rng);
   const viscAtten = 1.0 - 0.6 * viscosity;
   const out = new Float32Array(n);
@@ -258,6 +312,43 @@ function renderCavityResonanceLayer(sr, n, opts) {
     phase += 2 * Math.PI * fCavity / sr;
     const amVal = 0.75 + 0.25 * am[i];
     out[i] = baseAmp * Math.max(0, amVal) * Math.sin(phase);
+  }
+  return out;
+}
+
+/** Layer E (NEW): continuous surface ringing. For each mode of the surface,
+ *  a sustained damped sinusoid at fc[k] with amplitude proportional to
+ *  gains[k] × t60-derived sustain. Excited continuously by the same rolling
+ *  LFO that drives body/cavity. This is the "material voice" — what makes
+ *  metal sing and wood thud when rolled on. */
+function renderSurfaceRingingLayer(sr, n, opts) {
+  const { surface_profile, viscosity, roll_velocity_hz, path_roughness, seed } = opts;
+  const surf = SURFACE_PROFILES[surface_profile] || SURFACE_PROFILES.ceramic;
+  const rng = rand(seed + 7005);
+  const amHz = 2 + 6 * Math.min(roll_velocity_hz / 25, 1);
+  const am = slowLFO(n, sr, amHz, rng);
+  // Per-mode FM wobble (each mode jitters independently — adds liveness)
+  const fmDepth = 0.005 + 0.015 * path_roughness;
+  const viscAtten = 1.0 - 0.6 * viscosity;
+  // t60-derived sustain factor: long t60 (metal) → sustained ring,
+  // short t60 (fabric) → barely audible.
+  const t60Factor = Math.min(1, surf.t60_ms / 600);
+  const sustainGain = 0.2 + 0.8 * t60Factor;
+  const out = new Float32Array(n);
+  const baseAmp = 0.55 * viscAtten * sustainGain;
+  for (let m = 0; m < surf.modes.length; m++) {
+    const fc = surf.modes[m];
+    if (fc <= 0 || fc >= sr / 2 - 100) continue;
+    const g = surf.gains[m];
+    // Each mode has its own slow FM (uncorrelated with body/cavity)
+    const modeFm = slowLFO(n, sr, amHz * (0.7 + 0.4 * m / surf.modes.length), rng);
+    let phase = 2 * Math.PI * rng();  // random phase per mode
+    for (let i = 0; i < n; i++) {
+      const fInst = fc * (1 + fmDepth * modeFm[i]);
+      phase += 2 * Math.PI * fInst / sr;
+      const amVal = 0.7 + 0.3 * am[i];
+      out[i] += baseAmp * g * Math.max(0, amVal) * Math.sin(phase);
+    }
   }
   return out;
 }
@@ -408,11 +499,13 @@ export async function renderRollingDroplet(ctx, opts) {
     cavity_mix = 0.4,
     slosh_mix = 0.3,
     shimmer_depth = 0.2,
+    surface_ring_mix = 0.7,
     // Existing noise-based rumble and surface modal body:
     continuous_layer_mix = 0.75,
     body_resonance_strength = 0.6,
-    // Discrete drip "ticks" — texture, not protagonist:
-    discrete_mix = 0.3,
+    // Discrete drip "ticks" — texture, but now boosted so material
+    // click_color colours the percept clearly.
+    discrete_mix = 0.5,
     capillary_ringing = 0.5,
     bounce_amount = 0.35,
     bounce_chain_length = 1,
@@ -429,23 +522,31 @@ export async function renderRollingDroplet(ctx, opts) {
   const rng = rand(seed);
   const periodSamples = sr / Math.max(roll_velocity_hz, 0.1);
 
+  // Per-material voicing: each surface multiplies the user's mix levels
+  // so that fabric is muffled, metal sings, etc., without the user
+  // needing to tune sliders per material.
+  const voicing = MATERIAL_VOICING[surface_profile] || DEFAULT_VOICING;
+
   // ============================================================
   // 1) Continuous-contact layers (protagonists)
   // ============================================================
-  // Layer A: sustained Minnaert body resonance
+  // Layer A: sustained Minnaert body resonance (impedance-coupled)
   if (body_resonance_mix > 0.01) {
     const bodyLayer = renderBodyResonanceLayer(sr, nTotal, {
       radius_mm, viscosity, roll_velocity_hz, path_roughness, seed,
+      surface_profile,
     });
-    for (let i = 0; i < nTotal; i++) data[i] += bodyLayer[i] * body_resonance_mix;
+    const mix = body_resonance_mix * voicing.body_mul;
+    for (let i = 0; i < nTotal; i++) data[i] += bodyLayer[i] * mix;
   }
 
-  // Layer B: Helmholtz cavity resonance (low-freq rumble)
+  // Layer B: Helmholtz cavity resonance (low-freq rumble, tied to lowest mode)
   if (cavity_mix > 0.01) {
     const cavityLayer = renderCavityResonanceLayer(sr, nTotal, {
       surface_profile, viscosity, roll_velocity_hz, seed,
     });
-    for (let i = 0; i < nTotal; i++) data[i] += cavityLayer[i] * cavity_mix;
+    const mix = cavity_mix * voicing.cavity_mul;
+    for (let i = 0; i < nTotal; i++) data[i] += cavityLayer[i] * mix;
   }
 
   // Layer C: sloshing subharmonic
@@ -454,6 +555,17 @@ export async function renderRollingDroplet(ctx, opts) {
       radius_mm, path_roughness, seed,
     });
     for (let i = 0; i < nTotal; i++) data[i] += sloshLayer[i] * slosh_mix;
+  }
+
+  // Layer E (NEW): continuous surface ringing — the "material voice".
+  // For each surface mode, a sustained sinusoid at that frequency, with
+  // t60-derived sustain. Metal sings; fabric thuds.
+  if (surface_ring_mix > 0.01) {
+    const ringLayer = renderSurfaceRingingLayer(sr, nTotal, {
+      surface_profile, viscosity, roll_velocity_hz, path_roughness, seed,
+    });
+    const mix = surface_ring_mix * voicing.ring_mul;
+    for (let i = 0; i < nTotal; i++) data[i] += ringLayer[i] * mix;
   }
 
   // Layer D: spectral shimmer (post-process the continuous mix BEFORE
@@ -508,8 +620,9 @@ export async function renderRollingDroplet(ctx, opts) {
       count++;
       if (count > 600) break;
     }
-    // Mix ticks at attenuated level (texture, not protagonist)
-    for (let i = 0; i < nTotal; i++) data[i] += tickBuf[i] * discrete_mix;
+    // Mix ticks with per-material voicing multiplier
+    const tickMix = discrete_mix * voicing.discrete_mul;
+    for (let i = 0; i < nTotal; i++) data[i] += tickBuf[i] * tickMix;
   }
 
   // ============================================================

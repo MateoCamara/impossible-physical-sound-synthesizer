@@ -83,6 +83,27 @@ SURFACE_PROFILES: dict[str, SurfaceProfile] = {
 }
 
 
+# Per-material voicing presets: multiplicadores aplicados encima de los mix
+# levels del usuario para que cada superficie tenga firma sonica clara.
+# Estos son hyper-parametros perceptuales tuneados de oido.
+MATERIAL_VOICING: dict[str, dict[str, float]] = {
+    "fabric":  {"body_mul": 0.30, "cavity_mul": 0.50, "ring_mul": 0.40, "discrete_mul": 1.0},
+    "wood":    {"body_mul": 0.60, "cavity_mul": 0.80, "ring_mul": 0.80, "discrete_mul": 1.2},
+    "ceramic": {"body_mul": 1.00, "cavity_mul": 0.70, "ring_mul": 1.10, "discrete_mul": 1.0},
+    "glass":   {"body_mul": 1.20, "cavity_mul": 0.50, "ring_mul": 1.30, "discrete_mul": 1.0},
+    "metal":   {"body_mul": 1.10, "cavity_mul": 0.40, "ring_mul": 1.50, "discrete_mul": 0.9},
+    "stone":   {"body_mul": 0.40, "cavity_mul": 1.20, "ring_mul": 0.70, "discrete_mul": 1.1},
+    "water":   {"body_mul": 0.50, "cavity_mul": 0.80, "ring_mul": 0.50, "discrete_mul": 0.8},
+    "rubber":  {"body_mul": 0.25, "cavity_mul": 0.40, "ring_mul": 0.30, "discrete_mul": 0.7},
+    "leather": {"body_mul": 0.45, "cavity_mul": 0.70, "ring_mul": 0.50, "discrete_mul": 0.9},
+    "mud":     {"body_mul": 0.20, "cavity_mul": 0.60, "ring_mul": 0.20, "discrete_mul": 0.5},
+    "ice":     {"body_mul": 1.00, "cavity_mul": 0.60, "ring_mul": 1.40, "discrete_mul": 1.0},
+    "plastic": {"body_mul": 0.70, "cavity_mul": 0.60, "ring_mul": 0.90, "discrete_mul": 1.0},
+    "cork":    {"body_mul": 0.35, "cavity_mul": 0.60, "ring_mul": 0.40, "discrete_mul": 0.8},
+}
+_DEFAULT_VOICING = {"body_mul": 1.0, "cavity_mul": 1.0, "ring_mul": 1.0, "discrete_mul": 1.0}
+
+
 def surface_from_hardness(hardness: float) -> SurfaceProfile:
     """Mapea hardness 0..1 a un perfil de superficie razonable, ordenado
     de mas blando (rubber) a mas duro (metal). Posiciones intermedias se
@@ -121,11 +142,12 @@ class DropletParams:
     continuous_layer_mix: float = 0.75  # nivel de la capa de ruido coloreado por surface (antes 0.4)
     body_resonance_strength: float = 0.6  # intensidad del eco modal del surface en la capa continua
     # Capas continuas "rodillo de agua" (rework perceptual):
-    body_resonance_mix: float = 0.7     # Minnaert sostenido durante el contacto (protagonista)
-    cavity_mix: float = 0.4             # resonancia Helmholtz cavidad gota-superficie (~200-600 Hz)
+    body_resonance_mix: float = 0.7     # Minnaert sostenido (impedance-coupled)
+    cavity_mix: float = 0.4             # resonancia Helmholtz, atada al modo mas bajo
     slosh_mix: float = 0.3              # wobble subarmonico de deformacion
     shimmer_depth: float = 0.2          # AM lenta tipo capillary ripple
-    discrete_mix: float = 0.3           # ticks discretos (textura, no protagonista) — antes implicit 1.0
+    surface_ring_mix: float = 0.7       # voz del material (modos continuos sostenidos)
+    discrete_mix: float = 0.5           # ticks discretos con click_color material-flavored
 
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
@@ -211,16 +233,20 @@ def synth_drip_event(p: DropletParams, sr: int,
     out = np.zeros(total_n, dtype=np.float32)
     out[: chirp_n] = chirp * 0.7
 
-    # ---- 2. Click inicial (bandpass color del material) ----
-    click_n = max(2, int(0.0015 * sr))
+    # ---- 2. Click inicial (bandpass color del material, prolongado) ----
+    # Ampliado a 3 ms con decay exponencial para que el "color" del
+    # material (click_color_hz) se perciba claramente.
+    click_n = max(4, int(0.003 * sr))
     click = rng.standard_normal(click_n).astype(np.float32)
     cl_lo, cl_hi = surf.click_color_hz
     cl_hi_safe = min(cl_hi, sr / 2 - 200)
     if cl_lo < cl_hi_safe:
         sos = signal.butter(3, [cl_lo, cl_hi_safe], btype="band", fs=sr, output="sos")
         click = signal.sosfiltfilt(sos, click).astype(np.float32)
-    # velocity afecta amplitud del click
-    click *= 0.6 * velocity_factor * p.velocity_to_brightness
+    # Envolvente exponencial: el click decae rapidamente
+    click_env = np.exp(-3 * np.arange(click_n) / click_n).astype(np.float32)
+    click *= click_env
+    click *= 0.5 * velocity_factor * p.velocity_to_brightness
     out[: click_n] += click
 
     # ---- 3. Capillary ringing (oscilacion corta de la lamina liquida) ----
@@ -396,34 +422,69 @@ def _slow_lfo(n: int, sr: int, cutoff_hz: float,
     return ((lfo - lfo.mean()) / (lfo.std() + 1e-9)).astype(np.float32)
 
 
-def _body_resonance_layer(p: DropletParams, sr: int, n: int,
+def _body_resonance_layer(p: DropletParams, surface: SurfaceProfile,
+                          sr: int, n: int,
                           rng: np.random.Generator) -> np.ndarray:
-    """Layer A: Minnaert tone sostenido con AM (velocidad) + FM wobble (rugosidad).
-    AM mas sutil (0.75±0.25) para que sea sostenido, no pulsado."""
+    """Layer A: Minnaert tone sostenido. La AMPLITUD se acopla a la
+    impedancia acustica de la superficie via t60_ms: superficies duras
+    (largo t60) reflejan energia Minnaert hacia la gota -> body fuerte;
+    blandas (t60 corto) absorben -> body debil."""
     fM = _bubble_freq_from_radius(p.droplet_radius_mm)
     am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
     am = _slow_lfo(n, sr, am_hz, rng)
     fm = _slow_lfo(n, sr, am_hz * 0.6, rng)
     fm_depth = 0.03 + 0.05 * p.path_roughness
-    visc_atten = 1.0 - 0.6 * p.viscosity
+    # Impedancia: t60_ms range [8 (fabric), 900 (metal)] -> [0.013, 1.0]
+    t60_factor = min(1.0, surface.t60_ms / 600)
+    impedance_gain = 0.3 + 0.7 * t60_factor
+    visc_atten = (1.0 - 0.6 * p.viscosity) * impedance_gain
     f_inst = fM * (1 + fm_depth * fm)
     phase = 2 * np.pi * np.cumsum(f_inst) / sr
-    am_env = np.clip(0.75 + 0.25 * am, 0, None)  # mas sostenido
+    am_env = np.clip(0.75 + 0.25 * am, 0, None)
     return (0.7 * visc_atten * am_env * np.sin(phase)).astype(np.float32)
 
 
 def _cavity_resonance_layer(p: DropletParams, surface: SurfaceProfile,
                              sr: int, n: int, rng: np.random.Generator) -> np.ndarray:
-    """Layer B: resonancia Helmholtz del bolsillo de aire (200-600 Hz)."""
+    """Layer B: resonancia Helmholtz ligada al modo mas bajo de la
+    superficie (rango 120-1200 Hz, 10x mas amplio que antes)."""
     min_mode = min(surface.modes_hz) if surface.modes_hz else 1000
-    hardness = min(1.0, min_mode / 1500)
-    f_cavity = 200 + 400 * hardness
+    f_cavity = max(120.0, min(1200.0, min_mode * 0.6))
     am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
     am = _slow_lfo(n, sr, am_hz, rng)
     visc_atten = 1.0 - 0.6 * p.viscosity
     phase = 2 * np.pi * f_cavity * np.arange(n) / sr + np.pi / 2
     am_env = np.clip(0.75 + 0.25 * am, 0, None)
     return (0.5 * visc_atten * am_env * np.sin(phase)).astype(np.float32)
+
+
+def _surface_ringing_layer(p: DropletParams, surface: SurfaceProfile,
+                            sr: int, n: int, rng: np.random.Generator) -> np.ndarray:
+    """Layer E (NEW): continuous surface ringing — la "voz del material".
+    Por cada modo de la superficie, una sinusoide sostenida en fc[k] con
+    amplitud proporcional a gains[k] x sustain (derivado de t60_ms).
+    Excitada continuamente por el mismo LFO que body/cavity.
+    Esto es lo que hace que el metal "cante" y la madera suene mate."""
+    am_hz = 2 + 6 * min(p.roll_velocity_hz / 25, 1)
+    am = _slow_lfo(n, sr, am_hz, rng)
+    fm_depth = 0.005 + 0.015 * p.path_roughness
+    visc_atten = 1.0 - 0.6 * p.viscosity
+    t60_factor = min(1.0, surface.t60_ms / 600)
+    sustain_gain = 0.2 + 0.8 * t60_factor
+    base_amp = 0.55 * visc_atten * sustain_gain
+    out = np.zeros(n, dtype=np.float32)
+    n_modes = len(surface.modes_hz)
+    for m, (fc, g) in enumerate(zip(surface.modes_hz, surface.mode_gains)):
+        if fc <= 0 or fc >= sr / 2 - 100:
+            continue
+        # Per-mode slow FM (cada modo con su propio jitter)
+        mode_fm = _slow_lfo(n, sr, am_hz * (0.7 + 0.4 * m / max(n_modes, 1)), rng)
+        f_inst = fc * (1 + fm_depth * mode_fm)
+        phase_offset = 2 * np.pi * rng.random()
+        phase = 2 * np.pi * np.cumsum(f_inst) / sr + phase_offset
+        am_env = np.clip(0.7 + 0.3 * am, 0, None)
+        out += (base_amp * g * am_env * np.sin(phase)).astype(np.float32)
+    return out
 
 
 def _sloshing_layer(p: DropletParams, sr: int, n: int,
@@ -467,17 +528,22 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
     rng = np.random.default_rng(p.seed)
     period_samples = sr / max(p.roll_velocity_hz, 0.1)
     surface = _get_surface(p)
+    voicing = MATERIAL_VOICING.get(surface.name, _DEFAULT_VOICING)
 
     # === 1) Capas continuas (PROTAGONISTAS) =========================
     if p.body_resonance_mix > 0.01:
-        body = _body_resonance_layer(p, sr, n_total, rng)
-        out += body * p.body_resonance_mix
+        body = _body_resonance_layer(p, surface, sr, n_total, rng)
+        out += body * p.body_resonance_mix * voicing["body_mul"]
     if p.cavity_mix > 0.01:
         cavity = _cavity_resonance_layer(p, surface, sr, n_total, rng)
-        out += cavity * p.cavity_mix
+        out += cavity * p.cavity_mix * voicing["cavity_mul"]
     if p.slosh_mix > 0.01:
         slosh = _sloshing_layer(p, sr, n_total, rng)
         out += slosh * p.slosh_mix
+    # Layer E: surface ringing (la voz del material)
+    if p.surface_ring_mix > 0.01:
+        ring = _surface_ringing_layer(p, surface, sr, n_total, rng)
+        out += ring * p.surface_ring_mix * voicing["ring_mul"]
     # Shimmer aplicado ANTES de añadir noise/ticks (solo afecta al body liquido)
     if p.shimmer_depth > 0.01:
         out = _apply_shimmer(out, sr, p.shimmer_depth, rng)
@@ -488,7 +554,7 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
         velocity_floor = 0.4 + 0.6 * min(p.roll_velocity_hz / 25, 1)
         out = out + continuous * velocity_floor * p.continuous_layer_mix
 
-    # === 3) Drip ticks discretos (TEXTURA, atenuados) ===============
+    # === 3) Drip ticks discretos (TEXTURA con click_color material) ==
     if p.discrete_mix > 0.01:
         ticks = np.zeros(n_total, dtype=np.float32)
         n_variants = 1 + int(round(p.inter_event_variability * 5))
@@ -514,7 +580,7 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
             end = min(n_total, start + len(evt))
             ticks[start:end] += amp * evt[: end - start]
             t_sample += offset
-        out = out + ticks * p.discrete_mix
+        out = out + ticks * p.discrete_mix * voicing["discrete_mul"]
 
     # === 4) Drying tail =============================================
     if p.drying_factor > 0.05:
