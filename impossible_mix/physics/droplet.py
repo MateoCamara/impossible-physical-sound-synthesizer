@@ -168,6 +168,24 @@ def _bubble_freq_from_radius(radius_mm: float) -> float:
     return 3.26 / max(r_m, 1e-4)
 
 
+def _bubble_t60_ms(radius_mm: float) -> float:
+    """Tiempo de decaimiento (-60 dB, ms) de una burbuja de Minnaert.
+
+    Damping fisicamente derivado del radio segun van den Doel (2005): la
+    burbuja radia como una sinusoide amortiguada ``sin(2*pi*f*t)*exp(-d*t)``
+    cuyo coeficiente de amortiguamiento crece con la frecuencia,
+
+        d = 0.043 f + 0.0014 f^{3/2}     (f en kHz, d en ms^-1),
+
+    de modo que las burbujas pequenas (agudas) decaen mas rapido que las
+    grandes. Sustituye al antiguo decay heuristico, acoplando explicitamente
+    el amortiguamiento al radio en vez de fijarlo de forma independiente.
+    """
+    f_khz = _bubble_freq_from_radius(radius_mm) / 1000.0
+    d = 0.043 * f_khz + 0.0014 * f_khz ** 1.5  # ms^-1
+    return 6.907755 / max(d, 1e-6)             # ln(1000) / d
+
+
 def _derive_params(p: DropletParams) -> DropletParams:
     f_minnaert = _bubble_freq_from_radius(p.droplet_radius_mm)
     if p.bubble_freq_end_hz is None:
@@ -177,7 +195,8 @@ def _derive_params(p: DropletParams) -> DropletParams:
     if p.chirp_duration_ms is None:
         p.chirp_duration_ms = (15 + 8 * p.droplet_radius_mm) * (1 + 1.5 * p.viscosity)
     if p.decay_ms is None:
-        p.decay_ms = (50 + 30 * p.droplet_radius_mm) * (1 - 0.6 * p.viscosity)
+        # Decay acoplado al radio (van den Doel) y acortado por la viscosidad.
+        p.decay_ms = _bubble_t60_ms(p.droplet_radius_mm) * (1 - 0.6 * p.viscosity)
     return p
 
 

@@ -41,6 +41,19 @@ _LN1000 = 6.907755
 _RHO_WATER = 1000.0  # kg/m³
 
 
+def _bubble_efold_tau_ms(radius_mm: float) -> float:
+    """E-folding time constant (ms) of a Minnaert bubble of given radius.
+
+    van den Doel (2005) damping law ``d = 0.043 f + 0.0014 f^{3/2}`` (f in
+    kHz, d in ms^-1); the radiated sinusoid decays as ``exp(-d t) = exp(-t/tau)``
+    with ``tau = 1/d``. Couples each microbubble's decay to its radius via
+    validated physics instead of an ad-hoc radius power law.
+    """
+    f_khz = 3.26 / max(radius_mm, 1e-4)          # Minnaert: f[kHz] = 3.26 / r[mm]
+    d = 0.043 * f_khz + 0.0014 * f_khz ** 1.5    # ms^-1
+    return 1.0 / max(d, 1e-6)
+
+
 @dataclass
 class RollingDropletParamsT:
     """Differentiable parameters of the rolling droplet.
@@ -382,8 +395,10 @@ def synth_rolling_droplet_diff(p: RollingDropletParamsT) -> torch.Tensor:
         onset = int(p.microbubble_onsets[b].item())
         # decay_n based on the FIXED bubble radius (buffer), not current
         # learnable radius_mm (which could become NaN at exact-zero loss).
+        # Damping coupled to radius via van den Doel (e-folding tau = 1/d),
+        # so small microbubbles decay faster than large ones.
         r_b_buf = float(p.microbubble_radii_mm[b].item())
-        decay_n = max(200, int(0.05 * sr * (r_b_buf / 0.8) ** 2))
+        decay_n = max(200, int(_bubble_efold_tau_ms(r_b_buf) * 1e-3 * sr))
         # Build oscillator from onset to end (differentiable through f_b and amp)
         idxs = torch.arange(n - onset, device=device, dtype=dtype)
         decay = torch.exp(-idxs / decay_n)
