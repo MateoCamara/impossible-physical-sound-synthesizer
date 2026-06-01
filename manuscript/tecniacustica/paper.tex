@@ -22,11 +22,11 @@
 \vspace{0.5em}
 
 \begin{resumen}
-El diseño sonoro audiovisual requiere con frecuencia combinaciones materia--interacción que no ocurren en la naturaleza: una gota líquida que rueda, un impacto rocoso húmedo, grava raspando bajo agua. Los enfoques generativos basados en codificadores neuronales preentrenados permiten manipular el espacio latente y producen variación medible en métricas espectrales, pero raramente se traducen en cambios que el oyente identifique semánticamente como ``más líquido'' o ``más rocoso''. Este trabajo propone un marco paramétrico físicamente informado organizado en capas modulares — síntesis modal, fricción de cuerpo y superficie, granular estocástico, eventos de gota con dinámica de Minnaert — combinadas por un compositor genérico que admite especificaciones \texttt{(material, interacción, modificadores)}. Cada parámetro tiene significado físico directo, garantizando que un control ``más X'' corresponda a una transformación acústica coherente. Como caso paradigmático presentamos la gota rodante, sin referente natural directo. Sobre 75 mediciones, 9 de 15 pares (escena, knob) producen variación monotónica significativa ($|\rho_\mathrm{Spearman}| > 0,7$); los pares no monotónicos corresponden a propiedades no aplicables al material. Una contraparte diferenciable del motor permite recuperar parámetros físicos por descenso de gradiente desde grabaciones, con error inferior al 1\,\% en gotas e impactos modales.
+El diseño sonoro audiovisual requiere con frecuencia combinaciones materia--interacción que no ocurren en la naturaleza: una gota líquida que rueda, un impacto rocoso húmedo, grava raspando bajo agua. Los enfoques generativos basados en codificadores neuronales preentrenados permiten manipular el espacio latente y producen variación medible en métricas espectrales, pero raramente se traducen en cambios que el oyente identifique semánticamente como ``más líquido'' o ``más rocoso''. Este trabajo propone un marco paramétrico físicamente informado organizado en capas modulares — síntesis modal, fricción de cuerpo y superficie, granular estocástico, eventos de gota con dinámica de Minnaert — combinadas por un compositor genérico que admite especificaciones de material, interacción y modificadores. Cada parámetro tiene significado físico directo, garantizando que un control ``más X'' corresponda a una transformación acústica coherente. Como caso paradigmático presentamos la gota rodante, sin referente natural directo. Sobre 75 mediciones, 9 de 15 pares (escena, parámetro) producen variación monotónica significativa ($|\rho_\mathrm{Spearman}| > 0,7$); los pares no monotónicos corresponden a propiedades no aplicables al material. Una contraparte diferenciable del motor permite recuperar parámetros físicos por descenso de gradiente desde grabaciones, con error inferior al 1\,\% en gotas e impactos modales. Discutimos el posicionamiento del marco frente al estado del arte reciente en acústica de burbujas acopladas y en modelado físico diferenciable, e identificamos el principal cuello de botella de la inversión — la estimación de frecuencia por descenso de gradiente sobre pérdidas espectrales — como una patología intrínseca que sitúa a la gota rodante en el extremo mal condicionado de un continuo de identificabilidad.
 \end{resumen}
 
 \begin{englishabstract}
-Audiovisual sound design routinely requires material--interaction combinations that do not occur in nature: a rolling liquid droplet, a wet rock impact, gravel scraping under water. Generative approaches based on pretrained neural codecs allow latent-space manipulation and yield measurable variation in spectral metrics, but seldom translate into changes that listeners semantically identify as ``more liquid'' or ``more rocky''. We propose a physics-informed parametric framework organised in modular layers --- modal resonators, body-and-surface friction, stochastic granular events, droplet events with Minnaert bubble dynamics --- combined by a generic composer that accepts \texttt{(material, interaction, modifiers)} specifications. Each parameter has direct physical meaning, so that a ``more X'' knob produces an acoustically coherent transformation. As paradigmatic case we present the \emph{rolling droplet}, which has no direct natural referent. Across 75 measurements, 9 of 15 (scene, knob) pairs produce significant monotonic variation ($|\rho_\mathrm{Spearman}| > 0.7$); the non-monotonic pairs correspond to properties not applicable to the material. A differentiable counterpart of the engine recovers physical parameters by gradient descent from recordings, with errors below 1\,\% on droplet and modal impact events.
+Audiovisual sound design routinely requires material--interaction combinations that do not occur in nature: a rolling liquid droplet, a wet rock impact, gravel scraping under water. Generative approaches based on pretrained neural codecs allow latent-space manipulation and yield measurable variation in spectral metrics, but seldom translate into changes that listeners semantically identify as ``more liquid'' or ``more rocky''. We propose a physics-informed parametric framework organised in modular layers --- modal resonators, body-and-surface friction, stochastic granular events, droplet events with Minnaert bubble dynamics --- combined by a generic composer that accepts material, interaction and modifier specifications. Each parameter has direct physical meaning, so that a ``more X'' control produces an acoustically coherent transformation. As paradigmatic case we present the \emph{rolling droplet}, which has no direct natural referent. Across 75 measurements, 9 of 15 (scene, parameter) pairs produce significant monotonic variation ($|\rho_\mathrm{Spearman}| > 0.7$); the non-monotonic pairs correspond to properties not applicable to the material. A differentiable counterpart of the engine recovers physical parameters by gradient descent from recordings, with errors below 1\,\% on droplet and modal impact events. We position the framework against recent state of the art in coupled-bubble acoustics and differentiable physical modelling, and identify the main bottleneck of the inverse problem --- frequency estimation by gradient descent on spectral losses --- as an intrinsic pathology that places the rolling droplet at the ill-conditioned end of an identifiability continuum.
 \end{englishabstract}
 
 % ============================================================
@@ -37,37 +37,25 @@ El diseño sonoro para cine, animación, videojuegos y medios inmersivos requier
 
 La primera, el \textbf{Foley clásico}, combina capas grabadas en estudio que se procesan manualmente. El resultado es de gran calidad pero costoso, lento y poco reproducible: no existe una forma sistemática de pedir ``más mojado'' o ``menos granuloso'' sobre un evento existente.
 
-La segunda, los \textbf{enfoques generativos neurales} basados en codificadores preentrenados (EnCodec~\cite{defossez2022encodec}, RAVE~\cite{caillon2021rave}, DAC~\cite{kumar2023dac}) o difusión latente condicionada por texto (AudioLDM~\cite{liu2023audioldm}, Stable Audio Open~\cite{evans2024stableaudio}), promete una ruta más rápida. Pero presenta dos limitaciones recurrentes:
-\begin{enumerate}[leftmargin=2em,itemsep=0.2em]
-  \item Los espacios latentes de los codificadores preentrenados están optimizados para \emph{reconstrucción general de audio}, no para representar semántica de material o interacción. Sus ejes carecen de anclaje en atributos físicos.
-  \item Cuando se manipulan estas representaciones para obtener mezclas tipo ``más líquido'' o ``más rocoso'', el espectro cambia de forma medible (RMS, rango dinámico, centroide), pero el carácter percibido del sonido a menudo \emph{no} cambia~--- el oyente no oye un líquido donde no lo había~\cite{roche2021autoencoders,devis2023control}.
-\end{enumerate}
+La segunda, los \textbf{enfoques generativos neurales} basados en codificadores preentrenados (EnCodec~\cite{defossez2022encodec}, RAVE~\cite{caillon2021rave}, DAC~\cite{kumar2023dac}) o difusión latente condicionada por texto (AudioLDM~\cite{liu2023audioldm}, Stable Audio Open~\cite{evans2024stableaudio}), promete una ruta más rápida. Pero presenta dos limitaciones recurrentes. Primero, los espacios latentes de los codificadores preentrenados están optimizados para \emph{reconstrucción general de audio}, no para representar semántica de material o interacción, y sus ejes carecen de anclaje en atributos físicos. Segundo, cuando se manipulan estas representaciones para obtener mezclas tipo ``más líquido'' o ``más rocoso'', el espectro cambia de forma medible (RMS, rango dinámico, centroide), pero el carácter percibido del sonido a menudo \emph{no} cambia: el oyente no oye un líquido donde no lo había~\cite{roche2021autoencoders,devis2023control}.
 
-Esta disociación entre \emph{monotonía cuantitativa} en el espacio de métricas y \emph{monotonía perceptual} en el espacio del audio es un obstáculo central para el control interpretable. Proponemos atacar el problema desde el extremo opuesto: en lugar de partir de un espacio latente aprendido y esperar que codifique significado físico, construimos un \textbf{motor de síntesis paramétrico cuyos knobs \emph{son} parámetros físicos por construcción}. Bancos de resonadores modales reproducen cuerpos materiales (roca, metal, madera, cristal, tierra, tela); modelos de fricción reproducen scrapes y arrastres; trenes granulares estocásticos reproducen grava y arenas; la resonancia de Minnaert reproduce la formación de burbujas de agua. Un compositor genérico combina estas primitivas siguiendo especificaciones \texttt{(material, interacción, modificadores)}, y un controlador expone los knobs físicos (\emph{wetness}, \emph{granularity}, \emph{rigidity}, \emph{resonance}, \emph{continuity}) que el usuario manipula como sliders continuos.
+Esta disociación entre \emph{monotonía cuantitativa} en el espacio de métricas y \emph{monotonía perceptual} en el espacio del audio es un obstáculo central para el control interpretable. Proponemos atacar el problema desde el extremo opuesto: en lugar de partir de un espacio latente aprendido y esperar que codifique significado físico, construimos un motor de síntesis paramétrico cuyos controles \emph{son} parámetros físicos por construcción. Bancos de resonadores modales reproducen cuerpos materiales; modelos de fricción reproducen raspados y arrastres; trenes granulares estocásticos reproducen grava y arenas; la resonancia de Minnaert reproduce la formación de burbujas de aire en agua. Un compositor genérico combina estas primitivas a partir de una especificación de material, interacción y modificadores de alto nivel, y expone controles físicos continuos — humedad, granularidad, rigidez, resonancia, continuidad — que el usuario manipula como deslizadores.
 
-El resultado es un marco donde \emph{más humedad} cambia directamente la viscosidad de la gota, \emph{más granularidad} aumenta la rugosidad de la trayectoria de rodadura, y \emph{más rigidez} desplaza las fundamentales modales hacia arriba — cada knob produce una transformación audible coherente con su significado físico. El caso de la \textbf{gota rodante} — un sonido sin referente natural que podamos grabar — ilustra el enfoque: un tren cuasi-periódico de eventos drip modulados por velocidad y rugosidad, capa de cola modal sutil de la superficie debajo.
+El resultado es un marco donde más humedad incrementa la viscosidad de la gota, más granularidad aumenta la rugosidad de la trayectoria de rodadura, y más rigidez desplaza las fundamentales modales hacia arriba: cada control produce una transformación audible coherente con su significado físico. El caso de la \textbf{gota rodante} — un sonido sin referente natural que podamos grabar — ilustra el enfoque como un tren cuasi-periódico de contactos modulados por velocidad y rugosidad sobre una sutil cola modal de la superficie.
 
-Las contribuciones de este trabajo son:
-\begin{enumerate}[leftmargin=2em,itemsep=0.2em]
-  \item Una biblioteca modular de primitivas físicamente informadas para SFX (modal, fricción, granular, droplet con dinámica de Minnaert, splash, pour).
-  \item Un compositor genérico que admite combinaciones materia--interacción imposibles.
-  \item Un controlador con knobs físicos y monotonía demostrable, tanto objetiva como (en estudio piloto) perceptual.
-  \item Un conjunto abierto de 24 estímulos sonoros imposibles con metadatos.
-  \item Una contraparte \textbf{diferenciable} (PyTorch) del motor que permite recuperar parámetros físicos por descenso de gradiente desde audio real --- sin entrenar ninguna red neuronal.
-  \item Un estudio perceptual piloto que contrasta monotonía espectral y monotonía perceptual entre el marco propuesto y un baseline neural.
-\end{enumerate}
+Las contribuciones de este trabajo son: (i) una biblioteca modular de primitivas físicamente informadas para efectos de sonido (modal, fricción, granular, gota con dinámica de Minnaert, salpicadura y vertido); (ii) un compositor genérico que admite combinaciones materia--interacción imposibles; (iii) un controlador con parámetros físicos y monotonía demostrable, tanto objetiva como, en estudio piloto, perceptual; (iv) un conjunto abierto de 24 estímulos sonoros imposibles con metadatos; (v) una contraparte diferenciable del motor que recupera parámetros físicos por descenso de gradiente desde audio real, sin entrenar ninguna red neuronal; y (vi) un estudio perceptual piloto que contrasta monotonía espectral y monotonía perceptual entre el marco propuesto y un baseline neural.
 
 % ============================================================
 \section{Trabajo relacionado}
 % ============================================================
 
-\textbf{Síntesis físicamente basada.} La síntesis modal con resonadores biquad es una herramienta clásica para sonidos percusivos y de impacto. Trabajos como los de van~den~Doel~\cite{vandendoel2005physically} sobre líquidos, las formulaciones de Avanzini y colaboradores sobre fricción~\cite{avanzini2006friction}, o las herramientas tipo PhySynth cubren la mayor parte de los casos de cuerpo rígido. La síntesis de líquidos con resonancia de Minnaert ($f_M = 3{,}26/r$ en agua con $r$ en metros) subyace al trabajo de Drumm~\cite{drumm2010bubble}.
+\textbf{Síntesis físicamente basada.} La síntesis modal con resonadores es una herramienta clásica para sonidos percusivos y de impacto, y los modelos de líquidos basados en la resonancia de burbuja de Minnaert ($f_M = 3{,}26/r$ para una burbuja de aire en agua, con $r$ en metros) son el fundamento canónico del sonido de gotas y flujos~\cite{minnaert1933,vandendoel2005physically,drumm2010bubble}. En particular, van~den~Doel~\cite{vandendoel2005physically} muestra que sonidos líquidos complejos (lluvia, arroyos, vertidos) se sintetizan como superposición granular de burbujas individuales gobernadas por un modelo estadístico de población — el paradigma de \emph{modelado sónico físicamente informado} que adoptamos para nuestras capas granulares. El estado del arte en acústica de fluidos ha avanzado, sin embargo, más allá de la burbuja única: se modelan el acoplamiento entre burbujas, responsable del contenido de baja frecuencia más rico de las nubes de burbujas~\cite{xue2023coupled}, los desplazamientos de frecuencia por forma y proximidad a interfaces mediante métodos de capacitancia, y la dinámica topológica de nacimiento, división, fusión y estallido~\cite{langlois2016bubbles}. Como ruta de mayor fidelidad, la síntesis numérica por diferencias finitas en el dominio del tiempo~\cite{bilbao2009numerical} simula directamente las ecuaciones en derivadas parciales del medio, a un coste computacional mucho mayor. Nuestro motor se sitúa deliberadamente en el régimen analítico/modal, ligero y en tiempo real, asumiendo la burbuja de Minnaert como aproximación de primer orden.
 
-\textbf{Síntesis neural de SFX.} Los codificadores preentrenados (EnCodec, RAVE) codifican audio arbitrario en latentes compactos. Trabajos recientes (FOLEY-VAE, NoiseBandNet~\cite{barahona2024noisebandnet}, \emph{Learning Control of Neural Sound Effects from Physically Inspired Models}~\cite{lee2023learning}) exploran controlabilidad dentro de estos latentes. Los modelos de difusión condicionados por texto (AudioLDM2, Stable Audio Open) aceptan descripciones en lenguaje natural y producen salidas plausibles pero opacas.
+\textbf{Síntesis neural de efectos de sonido.} Los codificadores preentrenados codifican audio arbitrario en latentes compactos, y trabajos recientes exploran la controlabilidad dentro de estos latentes~\cite{barahona2024noisebandnet,lee2023learning}. Los modelos de difusión condicionados por texto aceptan descripciones en lenguaje natural y producen salidas plausibles pero opacas. Frente a ellos, nuestro marco prioriza la interpretabilidad y la reproducibilidad sobre la generalidad.
 
-\textbf{Morphing e infusión.} SoundMorpher~\cite{soundmorpher2023} introduce criterios explícitos de \emph{correspondencia}, \emph{intermediación} y \emph{suavidad} en el morphing de audio; Mix2Morph propone una infusión estructural--tímbrica. Los modelos basados en CLAP~\cite{wu2023clap} permiten medir alineamiento semántico entre audio y descripciones textuales. Tomamos prestado el criterio de \emph{intermediateness} como una de nuestras métricas objetivas.
+\textbf{Morphing e infusión.} SoundMorpher~\cite{soundmorpher2023} introduce criterios explícitos de correspondencia, intermediación y suavidad en el morphing de audio, y los modelos basados en CLAP~\cite{wu2023clap} permiten medir alineamiento semántico entre audio y texto. Tomamos prestado el criterio de intermediación como una de nuestras métricas objetivas.
 
-\textbf{DDSP.} El paradigma DDSP~\cite{engel2020ddsp} reformula bloques DSP clásicos como operaciones diferenciables. Nuestro marco está cercano en espíritu a \cite{lee2023learning}, pero \textbf{deliberadamente no entrenado}: los parámetros físicos se exponen directamente y la inversión usa gradiente sobre el motor diferenciable, sin red neuronal en el camino.
+\textbf{Modelado diferenciable.} El paradigma DDSP~\cite{engel2020ddsp} reformula bloques de procesado clásico como operaciones diferenciables. El estado del arte reciente en modelado físico diferenciable acopla el renderizado diferenciable con componentes neuronales y de elementos finitos para resolver problemas inversos de material, forma y excitación~\cite{jin2024diffsound,lee2024modal}. Nuestro marco comparte el paradigma de inversión por gradiente pero es \emph{deliberadamente no entrenado}: los parámetros físicos se exponen directamente y la inversión opera sobre el motor diferenciable, sin red neuronal en el camino, lo que delimita una posición minoritaria pero plenamente interpretable dentro de este espacio.
 
 % ============================================================
 \section{Método}
@@ -75,63 +63,55 @@ Las contribuciones de este trabajo son:
 
 \subsection{Capas primitivas}
 
-\textbf{Síntesis modal.} Un cuerpo material se modela como suma de sinusoides amortiguadas excitadas por un impulso corto. Cada perfil material define $n_\mathrm{modes}$, frecuencia fundamental, espaciado armónico, $t_{60}$, inarmonicidad, y forma del espectro (tilt). Proveemos perfiles calibrados para metal, roca, madera, cristal, tierra y tela, ampliados con un catálogo extendido (caucho, hueso, hielo, quitina, plasma).
+\textbf{Síntesis modal.} Un cuerpo material se modela como suma de sinusoides amortiguadas excitadas por un impulso corto. Cada perfil material define el número de modos, la frecuencia fundamental, el espaciado armónico, el tiempo de decaimiento, la inarmonicidad y la forma espectral. Proveemos perfiles calibrados para metal, roca, madera, cristal, tierra y tela, ampliados con un catálogo extendido para materiales exóticos.
 
-\textbf{Fricción.} Los eventos de scrape y drag se modelan como ruido bandpass modulado por una envolvente de velocidad fluctuante y enrutado a través de la resonancia del cuerpo del material. La rugosidad añade micro-pulsos estocásticos. Incluimos un modelo simple de \emph{stick-slip} con eventos discretos de desprendimiento sobre la envolvente continua.
+\textbf{Fricción.} Los eventos de raspado y arrastre se modelan como ruido de banda modulado por una envolvente de velocidad fluctuante y enrutado a través de la resonancia del cuerpo del material. La rugosidad añade micro-pulsos estocásticos, y un modelo de \emph{stick-slip} introduce eventos discretos de desprendimiento sobre la envolvente continua~\cite{avanzini2006friction}.
 
-\textbf{Flujos granulares.} Grava, arena y tierra se modelan como nubes estocásticas de micro-impactos modales. Cada grano es un golpe modal corto cuya fundamental escala inversamente con el tamaño del grano. Disponemos de ocho perfiles minerales (\emph{pebble}, \emph{fine\_gravel}, \emph{coarse\_gravel}, \emph{sand}, \emph{crushed\_glass}, \emph{broken\_ceramic}, \emph{basalt}, \emph{ice}), más \emph{ice\_shards}, \emph{snow\_crunch} y \emph{ash} para texturas extremas.
+\textbf{Flujos granulares.} Grava, arena y tierra se modelan como nubes estocásticas de micro-impactos modales, donde cada grano es un golpe modal corto cuya fundamental escala inversamente con el tamaño del grano. Disponemos de un catálogo de perfiles minerales y de texturas extremas (hielo, nieve, ceniza).
 
-\textbf{Evento de gota.} Un drip se compone de un ataque impulsivo (1\,ms de ruido), un chirp ascendente de burbuja ($f_\mathrm{start} \approx 0{,}45\,f_M$, $f_\mathrm{end} \approx 1{,}6\,f_M$) con $Q$ alto, una envolvente exponencial de decaimiento, y una cola modal opcional de la superficie de impacto. La frecuencia de Minnaert deriva del radio. La viscosidad ralentiza el chirp y acorta el decay.
+\textbf{Evento de gota.} Un impacto de gota se compone de un ataque impulsivo, un chirp ascendente de formación de burbuja de alto factor de calidad cuya frecuencia central deriva del radio mediante la relación de Minnaert, una envolvente exponencial de decaimiento y una cola modal opcional de la superficie de impacto. El amortiguamiento de la burbuja se acopla a su radio siguiendo la ley de van~den~Doel~\cite{vandendoel2005physically}, de modo que las gotas pequeñas decaen más rápido que las grandes. La viscosidad ralentiza el chirp y acorta el decaimiento.
 
-\textbf{Gota rodante.} Un tren cuasi-periódico de eventos drip con jitter temporal (rugosidad de trayectoria) y jitter de amplitud (dinámica de rodadura), sumado a un lecho de ruido coloreado modulado por la envolvente del tren. Parámetros: \texttt{droplet\_radius\_mm}, \texttt{viscosity}, \texttt{surface\_hardness}, \texttt{roll\_velocity\_hz}, \texttt{path\_roughness}.
+\textbf{Gota rodante.} Un tren cuasi-periódico de contactos de gota con jitter temporal (rugosidad de la trayectoria) y jitter de amplitud (dinámica de rodadura), sumado a un lecho de ruido coloreado modulado por la envolvente del tren. Sus grados de libertad son físicos: radio de la gota, viscosidad, dureza de la superficie, velocidad de rodadura y rugosidad de la trayectoria.
 
-\textbf{Splash y pour.} Un splash es un estallido bandpass corto seguido de $N$ eventos drip dispersos con una distribución controlable de tamaños de burbuja. Un pour es un tren denso de drips con turbulencia bandpass superpuesta.
+\textbf{Salpicadura y vertido.} Una salpicadura es un estallido de banda corto seguido de un conjunto de impactos de gota dispersos con una distribución controlable de tamaños de burbuja. Un vertido es un tren denso de gotas con turbulencia de banda superpuesta.
 
-\subsection{Compositor}
+\subsection{Compositor y control físico}
 
-El compositor expone una función única \texttt{compose(material, interaction, modifiers, duration) $\to$ wav}. Una tabla de lookup mapea pares \texttt{(material, interaction)} a generadores primitivos (Tabla~\ref{tab:generators}). Los modificadores de alto nivel — \emph{wetness}, \emph{granularity}, \emph{rigidity}, \emph{resonance}, \emph{continuity} — se traducen a los parámetros físicos consumidos por la primitiva activa.
+El compositor traduce una especificación de alto nivel — material, interacción y modificadores — en la primitiva o combinación de primitivas adecuada, mapeando cada par materia--interacción a su generador (Tabla~\ref{tab:generators}) y convirtiendo los modificadores perceptuales en los parámetros físicos que consume la primitiva activa. Las combinaciones imposibles se realizan por superposición ponderada de dos escenas: un impacto rocoso húmedo combina un impacto de roca con una salpicadura líquida; un raspado de grava mojada combina grava raspando con un vertido líquido; y la gota rodante es una escena directa, pues su imposibilidad es intrínseca a la combinación — los líquidos no ruedan en la naturaleza.
 
-Para combinaciones imposibles, el compositor admite \emph{overlay}: \texttt{compose\_impossible(base, overlay, weight)} mezcla dos composiciones con un peso. \emph{Liquid rock impact} se realiza como \texttt{(rock, impact)} más overlay \texttt{(liquid, splash)} con peso 0,55. \emph{Wet gravel scrape} es \texttt{(gravel, scrape)} más overlay \texttt{(liquid, pour)} con peso 0,35. \emph{Rolling droplet} es la escena \texttt{(liquid, roll)} directa sin overlay — la imposibilidad es intrínseca a la combinación porque los líquidos no ruedan en la naturaleza.
+El usuario interactúa mediante controles físicos continuos. Fijada una escena, cada control puede ajustarse a un valor estático o barrerse en un rango, produciendo secuencias de audio cuyo contenido acústico varía coherentemente con el valor del control. Además, los controles pueden seguir envolventes temporales — rampas, decaimientos, oscilaciones — que, mediante síntesis solapada, producen sonidos evolutivos: una gota que se humedece, una rodadura que se acelera, una resonancia que oscila.
 
 \begin{table}[h]
-\caption{Pares (material, interacción) soportados.}
+\caption{Pares (material, interacción) soportados por el compositor.}
 \label{tab:generators}
 \centering\small
 \begin{tabular}{ll}
 \toprule
 \textbf{Material} & \textbf{Interacciones soportadas} \\
 \midrule
-rock, metal & impact, roll, scrape (rock también drag) \\
-wood & impact, scrape \\
-fabric & drag \\
-liquid & drip, splash, pour, roll, impact \\
-gravel & step, roll, scrape, pour \\
-earth & step \\
+roca, metal & impacto, rodadura, raspado (roca también arrastre) \\
+madera & impacto, raspado \\
+tela & arrastre \\
+líquido & gota, salpicadura, vertido, rodadura, impacto \\
+grava & paso, rodadura, raspado, vertido \\
+tierra & paso \\
 \midrule
-\multicolumn{2}{l}{\emph{Catálogo extendido (combos en \texttt{GENERATORS}):}} \\
-rubber & impact, roll, scrape \\
-bone, chitin & impact, scrape \\
-ice & impact, scrape, roll \\
-plasma & impact, roll (imposible) \\
+\multicolumn{2}{l}{\emph{Catálogo extendido (materiales exóticos):}} \\
+caucho & impacto, rodadura, raspado \\
+hueso, quitina & impacto, raspado \\
+hielo & impacto, raspado, rodadura \\
+plasma & impacto, rodadura (imposible) \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\subsection{Controlador físico}
-
-La clase \texttt{PhysicsController} encapsula el compositor. El usuario invoca \texttt{set\_scene(material, interaction)} y luego \texttt{render(wetness=..., granularity=..., ...)} o \texttt{sweep(knob, values)}. La salida de un sweep es una secuencia de buffers de audio cuyo contenido acústico varía coherentemente con el valor del knob. Una herramienta de línea de comandos acepta argumentos como \texttt{--material liquid --interaction roll --more wetness --from 0 --to 1 --steps 6} y escribe un directorio de WAVs listo para evaluación.
-
-\subsection{Modulación temporal}
-
-Los knobs pueden además seguir \emph{curvas temporales}, no solo valores estáticos. La utilidad \texttt{KnobCurve} permite \emph{ramp}, \emph{exp\_decay}, \emph{lfo\_sine} y curvas definidas por puntos; \texttt{compose\_evolving} renderiza un clip evolutivo con overlap-add (ventana de 0,6\,s, hop de 0,3\,s). Esto produce sonidos cinematográficos: una gota que se humedece, una rodadura que se acelera, una resonancia que oscila.
 
 % ============================================================
 \section{La gota rodante como caso de estudio}
 % ============================================================
 
-La pregunta del título — \emph{¿cómo suena una gota que rueda?} — no tiene referente grabable. Construimos el sonido desde abajo: una gota de 2\,mm rodando a 14 contactos por segundo sobre una superficie semi-dura, con rugosidad de trayectoria moderada. Cada contacto es un chirp de 1,6\,kHz (la frecuencia de Minnaert para 2\,mm) durante $\approx 30$\,ms, decayendo durante $\approx 100$\,ms, con una débil cola metálica de la capa modal de la superficie. El lecho de ruido coloreado gated por la envolvente del contacto sugiere humedad ambiental. Renderizamos ocho variantes perturbando la configuración canónica: \emph{very\_wet}, \emph{dry\_drip} (contactos lentos y discretos), \emph{slow\_roll}, \emph{fast\_roll}, \emph{grainy\_path}, \emph{smooth\_path}, \emph{big\_droplet}, y la propia \emph{canonical}.
+La pregunta del título — \emph{¿cómo suena una gota que rueda?} — no tiene referente grabable. Construimos el sonido desde abajo: una gota de 2\,mm rodando a 14 contactos por segundo sobre una superficie semi-dura, con rugosidad de trayectoria moderada. Cada contacto es un chirp en torno a 1,6\,kHz (la frecuencia de Minnaert para 2\,mm) de unos 30\,ms, decayendo durante unos 100\,ms, con una débil cola metálica de la capa modal de la superficie. Un lecho de ruido coloreado, modulado por la envolvente del contacto, sugiere humedad ambiental. Renderizamos ocho variantes perturbando la configuración canónica para barrer humedad, velocidad de rodadura, granularidad de la trayectoria y tamaño de la gota.
 
-La Figura~\ref{fig:specs} muestra los espectrogramas de cuatro variantes. La gota canónica exhibe un tren periódico de chirps en la banda 1--2\,kHz; \emph{very\_wet} desplaza el centroide hacia abajo y extiende los decays; \emph{slow\_roll} separa los contactos en eventos claramente identificables; \emph{fast\_roll} los colapsa en una textura casi continua.
+La Figura~\ref{fig:specs} muestra los espectrogramas de cuatro variantes. La gota canónica exhibe un tren periódico de chirps en la banda 1--2\,kHz; la variante muy húmeda desplaza el centroide hacia abajo y extiende los decaimientos; la rodadura lenta separa los contactos en eventos claramente identificables; y la rodadura rápida los colapsa en una textura casi continua.
 
 \begin{figure}[h]
 \centering
@@ -146,19 +126,11 @@ La Figura~\ref{fig:specs} muestra los espectrogramas de cuatro variantes. La got
 
 \subsection{Corpus de estímulos}
 
-Renderizamos 24 estímulos agrupados como 3 escenas $\times$ 8 variantes:
-\begin{itemize}[leftmargin=2em,itemsep=0.1em]
-  \item \textbf{A: rolling droplet} — variantes del evento de rodadura descrito arriba.
-  \item \textbf{B: liquid rock impact} — impactos rocosos con overlay de splash líquido con pesos variables.
-  \item \textbf{C: wet gravel scrape} — grava raspando bajo overlay de pour líquido.
-\end{itemize}
-Todos los estímulos son de 5\,s, mono, 44,1\,kHz, peak-normalizados a $-1$\,dBFS. El manifest (\texttt{perceptual\_test/stimuli\_manifest.csv}) registra todos los parámetros y métricas de calidad por clip.
+Renderizamos 24 estímulos agrupados como tres escenas por ocho variantes: una gota rodante, un impacto rocoso húmedo (impacto de roca con superposición de salpicadura líquida de peso variable) y un raspado de grava mojada (grava raspando bajo superposición de vertido líquido). Todos los estímulos son de 5\,s, mono, 44,1\,kHz, normalizados a $-1$\,dBFS de pico, y se acompañan de un registro con todos los parámetros y métricas de calidad por clip.
 
 \subsection{Métricas objetivas}
 
-Computamos seis métricas acústicas en cada audio: RMS en dBFS, peak en dBFS, factor de cresta, planitud espectral, centroide espectral y rango dinámico. Un \emph{quality verdict} compuesto en \{\emph{good}, \emph{suspicious}, \emph{garbage}\} integra las métricas con umbrales calibrados para detectar silencios, ausencia de transitorios, ruido blanco o hiss aislado.
-
-La Tabla~\ref{tab:master} compara el marco físico con baselines neurales sobre rangos métricos idénticos.
+Computamos seis métricas acústicas en cada audio: RMS y pico en dBFS, factor de cresta, planitud espectral, centroide espectral y rango dinámico. Un veredicto de calidad compuesto en \{bueno, sospechoso, defectuoso\} integra las métricas con umbrales calibrados para detectar silencios, ausencia de transitorios, ruido blanco o siseo aislado. La Tabla~\ref{tab:master} compara el marco físico con baselines neurales sobre rangos métricos idénticos.
 
 \begin{table}[h]
 \caption{Comparación maestra de métodos sobre generaciones de sonidos imposibles.}
@@ -166,69 +138,67 @@ La Tabla~\ref{tab:master} compara el marco físico con baselines neurales sobre 
 \centering\small
 \begin{tabular}{lrrrrr}
 \toprule
-\textbf{Método} & \textbf{n} & \textbf{\% good} & \textbf{dyn (dB)} & \textbf{RMS (dB)} & \textbf{centroide (Hz)} \\
+\textbf{Método} & \textbf{n} & \textbf{\% bueno} & \textbf{dyn (dB)} & \textbf{RMS (dB)} & \textbf{centroide (Hz)} \\
 \midrule
 \textbf{Físico (24 variantes)} & 24 & \textbf{100,0} & 42,0 & $-25{,}1$ & 2554 \\
-Neural A (dirección latente, 162) & 162 & 100,0 & 45,8 & $-28{,}6$ & 4002 \\
-Neural B (edición por gradiente, 24) & 24 & 100,0 & 59,2 & $-32{,}8$ & 2987 \\
+Neural A (dirección latente) & 162 & 100,0 & 45,8 & $-28{,}6$ & 4002 \\
+Neural B (edición por gradiente) & 24 & 100,0 & 59,2 & $-32{,}8$ & 2987 \\
 Baseline suma aditiva & 6 & 100,0 & 11,2 & $-17{,}3$ & 451 \\
 Baseline interpolación lineal & 6 & \textbf{16,7} & 38,9 & $-48{,}2$ & 3409 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-El marco físico, Neural~A, Neural~B y el baseline aditivo pasan el verdict al 100\,\%. El baseline de interpolación lineal falla en 5 de 6 casos, como anticipa el criterio de \emph{intermediateness}.
+El marco físico, ambos baselines neurales y el baseline aditivo pasan el veredicto al 100\,\%. El baseline de interpolación lineal falla en 5 de 6 casos, como anticipa el criterio de intermediación.
 
 \subsection{Monotonía}
 
-Para cada par (escena, knob) renderizamos siete estímulos con el knob en $\{0;\,0{,}17;\,0{,}33;\,0{,}5;\,0{,}67;\,0{,}83;\,1\}$ y los demás knobs fijados en 0,5. Computamos la correlación de Spearman entre el valor del knob y cada métrica acústica. Un par es \emph{monotónico} si al menos una métrica satisface $|\rho| > 0{,}7$.
-
-De los 15 pares (3 escenas $\times$ 5 knobs), \textbf{9 son monotónicos}. Los seis no monotónicos corresponden a combinaciones físicamente no aplicables: \emph{resonance} en el scrape de grava (los eventos granulares no tienen resonancia de cuerpo), \emph{rigidity} y \emph{resonance} en la gota rodante (el agua no tiene estructura modal rígida), y \emph{granularity} en la escena de impacto rocoso (la granularidad es un atributo de los flujos granulares, no de impactos únicos). La Figura~\ref{fig:heatmap} reporta el mapa de calor de $|\rho_\mathrm{máx}|$ por (escena, knob).
+Para cada par (escena, parámetro) renderizamos siete estímulos barriendo el parámetro de 0 a 1 con los demás fijados en su valor central, y computamos la correlación de Spearman entre el valor del parámetro y cada métrica acústica. Un par es \emph{monotónico} si al menos una métrica satisface $|\rho| > 0{,}7$. De los 15 pares (tres escenas por cinco parámetros), nueve son monotónicos. Los seis no monotónicos corresponden a combinaciones físicamente no aplicables: la resonancia en el raspado de grava (los eventos granulares no tienen resonancia de cuerpo), la rigidez y la resonancia en la gota rodante (el agua no tiene estructura modal rígida) y la granularidad en el impacto rocoso (la granularidad es un atributo de los flujos, no de impactos únicos). La Figura~\ref{fig:heatmap} reporta el mapa de calor de $|\rho_\mathrm{máx}|$ por par.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.9\linewidth]{../../figures/F3_monotonicity_heatmap.png}
-\caption{Monotonía de los knobs físicos: 9 de 15 pares (escena, knob) alcanzan $|\rho|>0{,}7$.}
+\caption{Monotonía de los parámetros físicos: 9 de 15 pares (escena, parámetro) alcanzan $|\rho|>0{,}7$.}
 \label{fig:heatmap}
 \end{figure}
 
-\textbf{Crucialmente}, los sweeps de dirección latente neural (re-medidos sobre cuatro combinaciones escena/knob disponibles de experimentos previos) son también monotónicos en métricas espectrales (4 de 4). \emph{El marco físico y los baselines neurales son indistinguibles en este test objetivo de monotonía.} Lo que los separa es si la monotonía espectral se traduce en monotonía perceptual — cuestión que aborda el estudio piloto.
+Crucialmente, los barridos de dirección latente neural — re-medidos sobre cuatro combinaciones disponibles de experimentos previos — son también monotónicos en métricas espectrales (4 de 4). El marco físico y los baselines neurales son, por tanto, indistinguibles en este test objetivo de monotonía. Lo que los separa es si la monotonía espectral se traduce en monotonía perceptual, cuestión que aborda el estudio piloto.
 
 \subsection{Estudio perceptual piloto}
 
-Preparamos un formulario HTML que sirve 12 de los 24 estímulos por oyente en orden aleatorizado (Latin Square ligero). Cada estímulo va seguido de cuatro preguntas: (1) material percibido, (2) interacción percibida, (3) imposibilidad en escala Likert 1--7, (4) coherencia como evento único en escala 1--7. El formulario se despliega como página estática; los oyentes descargan al final un CSV con sus respuestas numéricas. El reclutamiento apunta a $n \geq 16$ (listas profesionales y redes).
+Diseñamos un experimento de escucha en el que cada oyente evalúa la mitad de los 24 estímulos en orden aleatorizado. Tras cada estímulo se recogen cuatro respuestas: material percibido, interacción percibida, grado de imposibilidad en escala Likert de 1 a 7 y coherencia como evento único en escala de 1 a 7. Para cada escena se compararán las tasas de identificación frente a una verdad de campo permisiva (cualquiera de los componentes del imposible cuenta como acierto), pruebas de Friedman sobre las variantes para imposibilidad y coherencia, y la correlación de Spearman entre el valor del parámetro físico y la mediana de imposibilidad percibida a través de las variantes — el test de monotonía perceptual propiamente dicho.
 
-Para cada escena compararemos: (i) tasas de identificación contra una verdad de campo permisiva (cualquiera de los componentes del imposible cuenta como acierto), (ii) tests de Friedman sobre variantes para imposibilidad y coherencia, y (iii) correlación de Spearman entre el valor del knob físico y la mediana de imposibilidad percibida a través de las variantes — el test de monotonía perceptual propiamente dicho.
-
-\emph{Los resultados del piloto se sustituirán en la sección 5.4 de la versión final del artículo cuando el conteo de oyentes alcance el umbral.}
+\emph{Los resultados del piloto se incorporarán a esta sección en la versión final del artículo cuando el número de oyentes alcance el umbral previsto.}
 
 % ============================================================
 \section{Recuperación diferenciable de parámetros}
 % ============================================================
 
-Una contraparte completamente diferenciable del motor permite \emph{invertir} cualquier audio target a los parámetros físicos del marco. Reescribimos las primitivas core (modal, drip, granular, friction, reverb) en PyTorch puro: el banco modal pasa a ser una suma cerrada de sinusoides amortiguadas (sin filtros IIR recursivos), el chirp Minnaert se obtiene con \texttt{cumsum/sin} sobre una rampa exponencial de frecuencia, los granos se acumulan vía \texttt{index\_add}, la convolución del reverb se calcula vía FFT. Una pérdida de STFT multi-resolución combinada con descenso de gradiente Adam suficientemente lento (cosine LR decay) recupera los parámetros físicos directamente.
-
-Los resultados son cualitativamente distintos por primitiva:
+Una contraparte completamente diferenciable del motor permite \emph{invertir} cualquier audio objetivo hacia los parámetros físicos del marco. Reescribimos las primitivas principales como un grafo de cómputo diferenciable, de modo que el gradiente de una pérdida espectral fluye hasta cada parámetro físico, y recuperamos dichos parámetros minimizando una pérdida de STFT multi-resolución con descenso de gradiente y una tasa de aprendizaje suficientemente lenta. Los resultados son cualitativamente distintos por primitiva (Tabla~\ref{tab:recovery}).
 
 \begin{itemize}[leftmargin=2em,itemsep=0.2em]
-  \item \textbf{Drip:} con un init físicamente razonable, recuperamos el radio con error inferior al 0,05\,\% y la viscosidad por debajo del 0,5\,\%. Los cinco parámetros auxiliares (chirp\_amp, decay\_scale, capillary) caen por debajo del 0,1\,\%.
-  \item \textbf{Modal:} la pieza clave es \textbf{inicializar las frecuencias en los $K$ picos espectrales más prominentes del target} mediante \texttt{torch.fft.rfft}. Con esa siembra, sobre un blanco sintético de 4 modos en [440, 880, 1320, 1760]\,Hz, las frecuencias se recuperan con error inferior al 0,3\,\% y los $t_{60}$ por debajo del 1\,\% (Figura~\ref{fig:modalrecovery}).
-  \item \textbf{Granular:} matemáticamente \emph{mal condicionado} sin priors externos. El espectro granular es una textura difusa sin picos discretos: subir \texttt{base\_freq\_hz} un X\,\% y bajar \texttt{spread\_octaves} compensa. La loss STFT baja correctamente pero los parámetros recuperados degeneran. Con un guess razonable para \texttt{base\_freq\_hz} (e.g.\ del centroide observado), la recuperación cae a 0,1\,\%.
-  \item \textbf{Reverb:} la convolución es nativamente diferenciable. La IR se aprende como tensor libre con un prior $L_1$ de \emph{sparsity}. Recupera la magnitud espectral pero no la fase — suficiente para resíntesis pero no para deconvolución literal.
-  \item \textbf{Fricción:} la dureza de superficie se recupera con 1,3\,\% de error y la velocidad media con 8,6\,\%; el $t_{60}$ del cuerpo tiende a colapsar al mínimo porque la loss STFT es poco sensible a decays modales muy cortos. Esto se documenta como limitación esperada del método.
+  \item \textbf{Gota:} con una inicialización físicamente razonable, el radio y la viscosidad se recuperan con error inferior al 0,5\,\%, igual que los parámetros auxiliares del chirp y el decaimiento.
+  \item \textbf{Modal:} la clave es inicializar las frecuencias modales en los picos espectrales dominantes del objetivo; con esa siembra, las frecuencias se recuperan con error inferior al 0,3\,\% y los tiempos de decaimiento por debajo del 1\,\% (Figura~\ref{fig:sweeps}).
+  \item \textbf{Granular:} matemáticamente mal condicionado sin información previa, pues el espectro granular es una textura difusa sin picos discretos y desplazamientos opuestos de la frecuencia base y la dispersión se compensan; con una estimación razonable de la frecuencia base la recuperación cae al 0,1\,\%.
+  \item \textbf{Reverberación:} la convolución es nativamente diferenciable y la respuesta al impulso se aprende con un prior de dispersión; recupera la magnitud espectral pero no la fase, suficiente para resíntesis pero no para deconvolución literal.
+  \item \textbf{Fricción:} la dureza de superficie se recupera con error del orden del 1\,\% y la velocidad media en torno al 9\,\%; el decaimiento del cuerpo tiende a colapsar porque la pérdida espectral es poco sensible a decaimientos modales muy cortos.
 \end{itemize}
+
+Este continuo — de recuperación quirúrgica (gota, modal) a honestamente mal condicionada (granular) — es en sí mismo un resultado: distingue qué partes del modelo físico están localmente identificables desde el audio y cuáles requieren conocimiento previo.
+
+\textbf{El problema inverso de frecuencia.} La recuperación parcial observada no es un defecto de implementación sino una patología intrínseca y reconocida: la estimación de parámetros de frecuencia por descenso de gradiente sobre pérdidas espectrales sufre gradientes abruptos o nulos y superficies de error densamente pobladas de mínimos locales~\cite{hayes2022sinusoidal,uzrad2024diffmoog}. Cuando las frecuencias predichas y objetivo dejan de solaparse, el gradiente de una pérdida de magnitud se anula y el optimizador se estanca. La gota rodante, con sus 17 grados de libertad, ocupa por ello el extremo mal condicionado de este continuo: su radio incide sobre todo en la frecuencia del tono de cuerpo de Minnaert, un único rasgo espectral que compite con una rica capa modal de superficie, de modo que el mínimo de la pérdida de magnitud no coincide en general con el radio verdadero y la inversión converge a un valor sesgado aunque el ajuste espectral global sea bueno. Como direcciones para estrechar esta brecha, pérdidas perceptualmente fundamentadas como el scattering tiempo--frecuencia conjunto o la pérdida perceptual-neuronal-física~\cite{han2023pnp} prometen gradientes más informativos para contenido inarmónico y no estacionario.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{../../figures/F4_sweep_curves.png}
-\caption{Cinco sweeps monotónicos: cada knob físico produce un efecto audible y ordenado.}
+\caption{Cinco barridos monotónicos: cada parámetro físico produce un efecto audible y ordenado.}
 \label{fig:sweeps}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{../../figures/F5_master_comparison.png}
-\caption{Físico vs.\ neural: rendimiento de \emph{quality verdict} y rango dinámico medio sobre 24 + 162 + 24 + 6 + 6 generaciones.}
+\caption{Físico frente a neural: veredicto de calidad y rango dinámico medio sobre el conjunto de generaciones.}
 \label{fig:master}
 \end{figure}
 
@@ -238,49 +208,38 @@ Los resultados son cualitativamente distintos por primitiva:
 \centering\small
 \begin{tabular}{lll}
 \toprule
-\textbf{Primitiva} & \textbf{Error típico} & \textbf{Caveat} \\
+\textbf{Primitiva} & \textbf{Error típico} & \textbf{Observación} \\
 \midrule
-Drip & radio $<0{,}05$\,\%, viscosidad $<0{,}5$\,\% & ninguno \\
-Modal & frecuencia $<0{,}3$\,\%, $t_{60} <1$\,\% & init de picos espectrales crítico \\
-Granular & base\_freq $0{,}1$\,\% con guess; $40$--$60$\,\% sin & redundancia matemática \\
-Reverb & magnitud recuperada, fase no & STFT no enforce fase \\
-Fricción & hardness $1{,}3$\,\%, velocidad $8{,}6$\,\% & $t_{60}$ del cuerpo colapsa \\
+Gota & radio $<0{,}05$\,\%, viscosidad $<0{,}5$\,\% & ninguna \\
+Modal & frecuencia $<0{,}3$\,\%, decaim. $<1$\,\% & init de picos espectrales crítico \\
+Granular & base $0{,}1$\,\% con prior; $40$--$60$\,\% sin & redundancia matemática \\
+Reverb. & magnitud sí, fase no & pérdida insensible a la fase \\
+Fricción & dureza $\sim1$\,\%, velocidad $\sim9$\,\% & decaim. del cuerpo colapsa \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-Este \emph{continuum} — de recuperación quirúrgica (drip, modal) a honestamente mal condicionado (granular) — es en sí mismo un resultado del trabajo: distingue qué partes del modelo físico están localmente identificables desde audio y cuáles requieren conocimiento previo.
 
 % ============================================================
 \section{Discusión}
 % ============================================================
 
-El marco \textbf{no aprende deliberadamente}. Cada primitiva está diseñada a mano, cada modificador es función de parámetros físicos, y la pipeline entera es determinista dado un seed. Los beneficios son reproducibilidad, interpretabilidad y ausencia de requisitos de datos de entrenamiento. Los costes son alcance (cada material $\times$ interacción requiere una decisión de ingeniería) e imposibilidad de generalizar a combinaciones realmente nuevas sin intervención humana. Vemos el marco como el \emph{profesor} en un futuro escenario teacher--student: un modelo neural entrenado para invertir parámetros físicos desde grabaciones reales, con el motor físico generando supervisión bajo demanda.
+El marco \textbf{no aprende deliberadamente}: cada primitiva está diseñada a mano, cada modificador es función de parámetros físicos, y la cadena entera es determinista. Los beneficios son reproducibilidad, interpretabilidad y ausencia de requisitos de datos de entrenamiento; los costes son el alcance, ya que cada material e interacción requiere una decisión de modelado, y la imposibilidad de generalizar a combinaciones realmente nuevas sin intervención humana. Vemos el marco como el \emph{profesor} en un futuro escenario profesor--alumno: un modelo neural entrenado para invertir parámetros físicos desde grabaciones reales, con el motor físico generando supervisión bajo demanda.
 
-Los baselines neurales con dirección latente destacan un confondiente recurrente en la literatura: \emph{la monotonía espectral es necesaria pero no suficiente} para el control perceptual. Un método que cambia el RMS y el centroide de un audio de forma monotónica puede aun así producir audio que los oyentes no pueden ordenar a lo largo del eje semántico pretendido. El marco físico propuesto colapsa esa brecha por construcción; la cuestión abierta — y que el piloto perceptual resuelve — es si los oyentes coinciden.
+Los baselines neurales con dirección latente destacan un confundente recurrente en la literatura: la monotonía espectral es necesaria pero no suficiente para el control perceptual. Un método que cambia el RMS y el centroide de forma monotónica puede aún producir audio que los oyentes no ordenan a lo largo del eje semántico pretendido. El marco físico colapsa esa brecha por construcción; la cuestión abierta — que el piloto perceptual resuelve — es si los oyentes coinciden.
 
-\textbf{Limitaciones.} (a) El marco está restringido actualmente a los materiales e interacciones tabulados. (b) Los perfiles modales están afinados a mano y se beneficiarían de calibración data-driven contra respuestas impulso reales. (c) La gota rodante, aunque audiblemente reconocible, es una realización de una clase: distintas superficies y formas de gota requerirían sweeps de parámetros aún no validados.
+\textbf{Limitaciones.} El marco está restringido a los materiales e interacciones tabulados. Los perfiles modales están afinados a mano y se beneficiarían de calibración data-driven contra respuestas al impulso reales. El modelo de líquido emplea la burbuja de Minnaert como aproximación de primer orden; estrictamente, esta resonancia describe la burbuja entrañada en el agua receptora en el instante del contacto, no una burbuja contenida en la gota en vuelo, e ignora el acoplamiento entre burbujas y los desplazamientos de frecuencia por forma e interfaz que caracterizan el estado del arte en acústica de fluidos~\cite{xue2023coupled,langlois2016bubbles}; incorporar modos acoplados es una vía natural de mejora. Finalmente, la gota rodante, aunque audiblemente reconocible, es una realización de una clase: distintas superficies y formas de gota requerirían validación de parámetros aún pendiente.
 
 % ============================================================
 \section{Conclusiones}
 % ============================================================
 
-Hemos presentado un marco paramétrico físicamente informado para sintetizar sonidos imposibles, con la gota rodante como caso paradigmático. El marco soporta combinaciones imposibles materia--interacción mediante primitivas en capas y un compositor genérico. Las métricas acústicas confirman control monotónico donde físicamente aplicable; el estudio perceptual piloto verifica si esa monotonía cuantitativa se traduce a monotonía perceptual. Una contraparte diferenciable cierra el bucle inverso: cinco primitivas se recuperan por gradiente desde audio, con un \emph{continuum} de identificabilidad que el trabajo documenta explícitamente. Código, dataset de audio y demostración interactiva (versión Gradio y port WebAudio sin backend) se liberan de forma anónima para revisión y se abrirán públicamente tras la aceptación.
+Hemos presentado un marco paramétrico físicamente informado para sintetizar sonidos imposibles, con la gota rodante como caso paradigmático. El marco soporta combinaciones imposibles materia--interacción mediante primitivas en capas y un compositor genérico. Las métricas acústicas confirman control monotónico donde es físicamente aplicable, y el estudio perceptual piloto verifica si esa monotonía cuantitativa se traduce a monotonía perceptual. Una contraparte diferenciable cierra el bucle inverso, recuperando parámetros físicos desde audio con un continuo de identificabilidad que el trabajo documenta explícitamente, desde la recuperación quirúrgica de gotas e impactos modales hasta casos mal condicionados como la propia gota rodante, cuyo cuello de botella es la estimación de frecuencia por gradiente. Situado frente al estado del arte reciente, el marco es una demostración interpretable y reproducible de modelado físico diferenciable cuya principal vía de mejora es la adopción de física de burbujas acopladas. El código, el conjunto de datos y la demostración interactiva se liberan de forma anónima para revisión y públicamente tras la aceptación.
 
 % ============================================================
 \section*{Reproducibilidad}
 % ============================================================
 
-Todo el audio del artículo se genera con código determinista. La pipeline completa se ejecuta en CPU en menos de 5 minutos:
-
-\begin{verbatim}
-python scripts/13_final_stimuli.py          # 24 estímulos
-python scripts/14_monotonicity.py           # tabla de monotonía
-python scripts/15_figures.py                # F2-F4
-python scripts/18_compare_physics_vs_neural.py  # Tabla 2 + F5
-\end{verbatim}
-
-La demo WebAudio (\texttt{web/}) es una página HTML single-page con primitivas modales, drip, granular, rolling-droplet, friction y convolution reverb portadas a JavaScript puro; desplegable a cualquier hosting estático.
+Todo el audio del artículo se genera con código determinista; la cadena completa — estímulos, tablas de monotonía, figuras y comparación físico frente a neural — se ejecuta en CPU en menos de cinco minutos. Se acompaña además una demostración interactiva en navegador, con las primitivas portadas a una página autónoma desplegable en cualquier alojamiento estático. Código, datos y demostración se publican junto al artículo.
 
 % ============================================================
 \begin{thebibliography}{99}
@@ -321,20 +280,40 @@ N.~Devis \emph{et al.},
 ``Continuous descriptor-based control for deep audio synthesis,''
 \emph{ICASSP}, 2023.
 
+\bibitem{minnaert1933}
+M.~Minnaert,
+``On musical air-bubbles and the sounds of running water,''
+\emph{The London, Edinburgh, and Dublin Philosophical Magazine}, vol.~16, no.~104, 1933.
+
 \bibitem{vandendoel2005physically}
 K.~van~den~Doel,
 ``Physically based models for liquid sounds,''
 \emph{ACM Transactions on Applied Perception}, vol.~2, no.~4, 2005.
 
-\bibitem{avanzini2006friction}
-F.~Avanzini and S.~Crosato,
-``Friction models for sound synthesis,''
-\emph{Proc.\ DAFx}, 2006.
-
 \bibitem{drumm2010bubble}
 I.~Drumm,
 ``Synthesis of bubble sounds,''
 \emph{Internoise}, 2010.
+
+\bibitem{xue2023coupled}
+K.~Xue, J.~Aronson, D.~Wang, T.~Langlois, and D.~L.~James,
+``Improved water sound synthesis using coupled bubbles,''
+\emph{ACM Transactions on Graphics (SIGGRAPH)}, vol.~42, no.~4, 2023.
+
+\bibitem{langlois2016bubbles}
+T.~R.~Langlois, C.~Zheng, and D.~L.~James,
+``Toward animating water with complex acoustic bubbles,''
+\emph{ACM Transactions on Graphics (SIGGRAPH)}, vol.~35, no.~4, 2016.
+
+\bibitem{bilbao2009numerical}
+S.~Bilbao,
+\emph{Numerical Sound Synthesis: Finite Difference Schemes and Simulation in Musical Acoustics}.
+Wiley, 2009.
+
+\bibitem{avanzini2006friction}
+F.~Avanzini and S.~Crosato,
+``Friction models for sound synthesis,''
+\emph{Proc.\ DAFx}, 2006.
 
 \bibitem{barahona2024noisebandnet}
 A.~Barahona-R{\'i}os and T.~Collins,
@@ -360,6 +339,31 @@ Y.~Wu \emph{et al.},
 J.~Engel \emph{et al.},
 ``DDSP: Differentiable digital signal processing,''
 \emph{ICLR}, 2020.
+
+\bibitem{jin2024diffsound}
+X.~Jin \emph{et al.},
+``DiffSound: Differentiable modal sound rendering and inverse rendering for diverse inference tasks,''
+\emph{ACM SIGGRAPH}, 2024.
+
+\bibitem{lee2024modal}
+J.~W.~Lee \emph{et al.},
+``Differentiable modal synthesis for physical modeling of planar string sound and motion simulation,''
+\emph{NeurIPS}, 2024.
+
+\bibitem{hayes2022sinusoidal}
+B.~Hayes, C.~Saitis, and G.~Fazekas,
+``Sinusoidal frequency estimation by gradient descent,''
+\emph{arXiv:2210.14476}, 2022.
+
+\bibitem{uzrad2024diffmoog}
+N.~Uzrad \emph{et al.},
+``DiffMoog: A differentiable modular synthesizer for sound matching,''
+\emph{arXiv:2401.12570}, 2024.
+
+\bibitem{han2023pnp}
+H.~Han, V.~Lostanlen, and M.~Lagrange,
+``Perceptual-neural-physical sound matching,''
+\emph{ICASSP}, 2023.
 
 \end{thebibliography}
 
