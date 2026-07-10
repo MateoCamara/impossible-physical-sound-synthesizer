@@ -232,6 +232,7 @@ def synth_modal_impact(
     damping_anisotropy: float = 0.5,
     t60_per_mode: dict[int, float] | None = None,
     envelope_params: "EnvelopeParams | None" = None,
+    seed_override: int | None = None,
 ) -> np.ndarray:
     """Genera un golpe modal mejorado.
 
@@ -250,10 +251,14 @@ def synth_modal_impact(
         suena, las parciales mueren al instante".
     envelope_params: EnvelopeParams opcional con ataque/hold/release/sustain
         en ms. Si None, usa el shape hardcoded ('felt', 'wood', etc).
+    seed_override: int opcional para forzar una semilla distinta a
+        profile.seed (usado por synth_modal_roll para que cada golpe de
+        una rodadura tenga su propia realizacion de ruido/jitter en vez de
+        clonar siempre el mismo golpe). Si None, se usa profile.seed.
     """
     n = int(duration_s * sr)
     out = np.zeros(n, dtype=np.float32)
-    rng = np.random.default_rng(profile.seed)
+    rng = np.random.default_rng(profile.seed if seed_override is None else seed_override)
 
     # Construir excitador con la forma pedida (o con envelope ADSR custom)
     eff_strength = impact_strength * float(np.clip(velocity, 0.3, 2.0))
@@ -334,6 +339,7 @@ def synth_modal_roll(
     out = np.zeros(n, dtype=np.float32)
     period = sr / rate_hz
     t = 0.0
+    k = 0
     while t < n:
         t_perturb = period * (1 + jitter * rng.uniform(-0.6, 0.6))
         impact_time_s = t / sr
@@ -342,9 +348,11 @@ def synth_modal_roll(
         hit = synth_modal_impact(profile, sr, duration_s=duration_s,
                                  impact_time_s=impact_time_s,
                                  impact_strength=stroke_strength,
-                                 sharpness=sharpness)
+                                 sharpness=sharpness,
+                                 seed_override=profile.seed + 7 + 1013 * k)
         out += hit
         t += t_perturb
+        k += 1
     peak = float(np.max(np.abs(out)) + 1e-9)
     if peak > 0.95:
         out = out * (0.95 / peak)
