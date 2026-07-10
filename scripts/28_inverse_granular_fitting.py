@@ -30,8 +30,6 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-import soundfile as sf
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -41,6 +39,7 @@ from impossible_mix.physics.diff import (
     fit_granular_flow,
     synth_granular_flow_diff,
 )
+from impossible_mix.utils import load_wav_mono, save_fit_report, save_wav, seed_everything
 
 
 def main() -> int:
@@ -67,7 +66,10 @@ def main() -> int:
                     help="Duracion del audio si --demo, o longitud usada si --target.")
     ap.add_argument("--out", type=Path, default=None,
                     help="Guarda audio reconstruido (wav 44.1 kHz).")
+    ap.add_argument("--out-dir", type=Path, default=Path("results/diff_fits/granular"),
+                    help="Directorio donde guardar params.json con el reporte del fit.")
     args = ap.parse_args()
+    seed_everything(args.seed)
 
     sr = SAMPLE_RATE
     n_samples = int(args.duration * sr)
@@ -91,24 +93,8 @@ def main() -> int:
             print(f"ERROR: archivo no encontrado: {args.target}")
             return 1
         print(f"=== Loading target: {args.target} ===")
-        wav, sr_in = sf.read(str(args.target), dtype="float32", always_2d=False)
-        if wav.ndim == 2:
-            wav = wav.mean(axis=1)
-        if sr_in != sr:
-            print(f"  Resampling {sr_in} -> {sr} Hz")
-            try:
-                import librosa
-                wav = librosa.resample(wav, orig_sr=sr_in, target_sr=sr)
-            except ImportError:
-                from math import gcd
-                from scipy.signal import resample_poly
-                g = gcd(sr_in, sr)
-                wav = resample_poly(wav, sr // g, sr_in // g).astype(np.float32)
-        if len(wav) > n_samples:
-            wav = wav[:n_samples]
-        else:
-            wav = np.pad(wav, (0, n_samples - len(wav)))
-        target = torch.from_numpy(wav.astype(np.float32))
+        wav = load_wav_mono(args.target, sr, max_seconds=n_samples / sr)
+        target = torch.from_numpy(wav)
         gt = None
 
     # 2. Fitting
@@ -150,10 +136,15 @@ def main() -> int:
     print(f"Elapsed: {elapsed:.1f}s for {args.n_iters} iters")
 
     if args.out:
-        sf.write(str(args.out),
-                  result.final_pred.detach().numpy().astype(np.float32),
-                  sr)
+        save_wav(args.out, result.final_pred.detach().numpy(), sr)
         print(f"\nReconstructed audio saved to {args.out}")
+
+    report_path = save_fit_report(
+        args.out_dir, engine="granular", recovered=rec, gt=gt,
+        loss_history=result.loss_history,
+        extra={"elapsed_s": elapsed, "n_grains": args.n_grains},
+    )
+    print(f"Fit report saved to {report_path}")
     return 0
 
 

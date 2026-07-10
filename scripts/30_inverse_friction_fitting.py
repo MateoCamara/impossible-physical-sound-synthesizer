@@ -21,8 +21,6 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-import soundfile as sf
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -32,27 +30,7 @@ from impossible_mix.physics.diff import (
     fit_friction,
     synth_scrape_diff,
 )
-
-
-def _load_wav(path: Path, target_sr: int, max_seconds: float) -> np.ndarray:
-    wav, sr = sf.read(str(path), dtype="float32", always_2d=False)
-    if wav.ndim == 2:
-        wav = wav.mean(axis=1)
-    if sr != target_sr:
-        try:
-            import librosa
-            wav = librosa.resample(wav, orig_sr=sr, target_sr=target_sr)
-        except ImportError:
-            from math import gcd
-            from scipy.signal import resample_poly
-            g = gcd(sr, target_sr)
-            wav = resample_poly(wav, target_sr // g, sr // g).astype(np.float32)
-    n_max = int(max_seconds * target_sr)
-    if len(wav) > n_max:
-        wav = wav[:n_max]
-    elif len(wav) < n_max:
-        wav = np.pad(wav, (0, n_max - len(wav)))
-    return wav.astype(np.float32)
+from impossible_mix.utils import load_wav_mono, save_fit_report, save_wav, seed_everything
 
 
 def main() -> int:
@@ -66,7 +44,10 @@ def main() -> int:
     ap.add_argument("--n-iters", type=int, default=150)
     ap.add_argument("--lr", type=float, default=5e-2)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--out-dir", type=Path, default=Path("results/diff_fits/friction"),
+                    help="Directorio donde guardar params.json con el reporte del fit.")
     args = ap.parse_args()
+    seed_everything(args.seed)
 
     sr = SAMPLE_RATE
     n = int(args.duration * sr)
@@ -88,7 +69,7 @@ def main() -> int:
             print(f"ERROR: archivo no encontrado: {args.target}")
             return 1
         print(f"=== Loading target: {args.target} ===")
-        wav = _load_wav(args.target, sr, args.duration)
+        wav = load_wav_mono(args.target, sr, max_seconds=args.duration)
         target = torch.from_numpy(wav)
         gt = None
 
@@ -121,10 +102,15 @@ def main() -> int:
     print(f"Elapsed: {elapsed:.1f}s for {args.n_iters} iters")
 
     if args.out:
-        sf.write(str(args.out),
-                  res.final_pred.detach().numpy().astype(np.float32),
-                  sr)
+        save_wav(args.out, res.final_pred.detach().numpy(), sr)
         print(f"Reconstructed audio saved to {args.out}")
+
+    report_path = save_fit_report(
+        args.out_dir, engine="friction", recovered=rec, gt=gt,
+        loss_history=res.loss_history,
+        extra={"elapsed_s": elapsed},
+    )
+    print(f"Fit report saved to {report_path}")
     return 0
 
 

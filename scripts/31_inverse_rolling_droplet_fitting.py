@@ -20,40 +20,24 @@ parametric physics engine made differentiable + a standard optimizer.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
 import torch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from impossible_mix.physics.diff import (
     RollingDropletParamsT,
     synth_rolling_droplet_diff,
     fit_rolling_droplet,
 )
+from impossible_mix.utils import load_wav_mono, save_fit_report, save_wav, seed_everything
 
 
 def load_wav(path: str, target_sr: int = 44_100) -> torch.Tensor:
     """Load a mono wav as a float32 torch tensor at target_sr."""
-    import soundfile as sf
-    audio, sr = sf.read(path, always_2d=False)
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1)
-    if sr != target_sr:
-        # Cheap resample via linear interp; for proper work use librosa
-        n_new = int(len(audio) * target_sr / sr)
-        audio = np.interp(np.linspace(0, len(audio) - 1, n_new),
-                           np.arange(len(audio)), audio)
-    return torch.tensor(audio.astype(np.float32))
-
-
-def save_wav(path: str, audio: np.ndarray, sr: int = 44_100) -> None:
-    import wave
-    audio_int = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
-    with wave.open(path, "w") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(sr)
-        w.writeframes(audio_int.tobytes())
+    return torch.from_numpy(load_wav_mono(Path(path), target_sr))
 
 
 def make_synthetic_target(
@@ -97,10 +81,12 @@ def main():
     parser.add_argument("--multistart", type=int, default=1,
                         help="Number of random inits; pick best loss.")
     args = parser.parse_args()
+    seed_everything(args.seed)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     sr = 44_100
+    rng = np.random.default_rng(args.seed)
 
     # 1) Build target
     if args.target:
@@ -119,8 +105,8 @@ def main():
     for k in range(args.multistart):
         print(f"\n=== Multistart {k+1}/{args.multistart} ===")
         # Vary initial radius/contact_angle for different starts
-        r_init = 2.5 if k == 0 else (1.5 + 4.0 * np.random.random())
-        theta_init = 110.0 if k == 0 else (40 + 120 * np.random.random())
+        r_init = 2.5 if k == 0 else (1.5 + 4.0 * rng.random())
+        theta_init = 110.0 if k == 0 else (40 + 120 * rng.random())
         initial = RollingDropletParamsT.physical_init(
             radius_mm=r_init, viscosity=0.0,
             contact_angle_deg=theta_init, surface_tension_n_m=0.072,
@@ -170,6 +156,13 @@ def main():
     save_wav(str(out_dir / "recovered.wav"),
               result.final_pred.detach().numpy(), sr=sr)
     print(f"\nWAVs saved to {out_dir}/  (target.wav, recovered.wav)")
+
+    report_path = save_fit_report(
+        out_dir, engine="rolling_droplet", recovered=recovered, gt=gt,
+        loss_history=result.loss_history,
+        extra={"multistart": args.multistart},
+    )
+    print(f"Fit report saved to {report_path}")
 
     # 5) Loss curve
     try:

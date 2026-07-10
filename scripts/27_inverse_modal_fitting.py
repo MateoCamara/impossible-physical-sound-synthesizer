@@ -31,8 +31,6 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-import soundfile as sf
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -43,6 +41,7 @@ from impossible_mix.physics.diff import (
     fit_modal_impact_multistart,
     synth_modal_impact_diff,
 )
+from impossible_mix.utils import load_wav_mono, save_fit_report, save_wav, seed_everything
 
 
 def main() -> int:
@@ -62,7 +61,12 @@ def main() -> int:
                     help="Desactiva init por picos espectrales del target.")
     ap.add_argument("--out", type=Path, default=None,
                     help="Guarda audio reconstruido (wav 44.1 kHz).")
+    ap.add_argument("--out-dir", type=Path, default=Path("results/diff_fits/modal"),
+                    help="Directorio donde guardar params.json con el reporte del fit.")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="Semilla global (default: impossible_mix.config.SEED).")
     args = ap.parse_args()
+    seed_everything(args.seed)
 
     # 1. Target
     if args.demo:
@@ -86,25 +90,9 @@ def main() -> int:
             print(f"ERROR: archivo no encontrado: {args.target}")
             return 1
         print(f"=== Loading target: {args.target} ===")
-        wav, sr = sf.read(str(args.target), dtype="float32", always_2d=False)
-        if wav.ndim == 2:
-            wav = wav.mean(axis=1)
-        if sr != SAMPLE_RATE:
-            print(f"  Resampling {sr} -> {SAMPLE_RATE} Hz")
-            try:
-                import librosa
-                wav = librosa.resample(wav, orig_sr=sr, target_sr=SAMPLE_RATE)
-            except ImportError:
-                from math import gcd
-                from scipy.signal import resample_poly
-                g = gcd(sr, SAMPLE_RATE)
-                wav = resample_poly(wav, SAMPLE_RATE // g, sr // g).astype(np.float32)
         n_samples = SAMPLE_RATE // 2
-        if len(wav) > n_samples:
-            wav = wav[:n_samples]
-        else:
-            wav = np.pad(wav, (0, n_samples - len(wav)))
-        target = torch.from_numpy(wav.astype(np.float32))
+        wav = load_wav_mono(args.target, SAMPLE_RATE, max_seconds=n_samples / SAMPLE_RATE)
+        target = torch.from_numpy(wav)
         gt = None
 
     # 2. Fitting
@@ -143,8 +131,10 @@ def main() -> int:
     for i, (f, t, g) in enumerate(zip(freqs, t60s, gains)):
         print(f"{i:>3} {f:>10} {t:>8} {g:>8}")
 
+    mode_matches = None
     if gt is not None:
         print("\n=== GROUND TRUTH ===")
+        mode_matches = []
         for i, (f_t, t_t) in enumerate(zip(gt["freqs_hz"], gt["t60s_s"])):
             # Match con el modo recuperado mas cercano en freq
             closest = min(range(K), key=lambda j: abs(freqs[j] - f_t))
@@ -153,6 +143,12 @@ def main() -> int:
             print(f"  TARGET mode {i}  freq={f_t:.1f} Hz t60={t_t:.3f} s   |   "
                    f"err freq={ef:.2f} Hz ({100*ef/f_t:.2f}%)  "
                    f"err t60={et:.4f} s ({100*et/t_t:.1f}%)")
+            mode_matches.append({
+                "target_mode": i, "freq_hz": f_t, "t60_s": t_t,
+                "matched_index": closest, "err_freq_hz": ef,
+                "err_freq_pct": 100 * ef / f_t, "err_t60_s": et,
+                "err_t60_pct": 100 * et / t_t,
+            })
 
     print(f"\nFinal loss: {result.final_loss:.4f}  "
           f"(started at {result.loss_history[0]:.4f})")
@@ -160,10 +156,16 @@ def main() -> int:
 
     # 4. Guardar audio si se pide
     if args.out:
-        sf.write(str(args.out),
-                  result.final_pred.detach().numpy().astype(np.float32),
-                  SAMPLE_RATE)
+        save_wav(args.out, result.final_pred.detach().numpy(), SAMPLE_RATE)
         print(f"\nReconstructed audio saved to {args.out}")
+
+    rec = {"freqs_hz": freqs, "t60s_s": t60s, "gains": gains}
+    report_path = save_fit_report(
+        args.out_dir, engine="modal", recovered=rec, gt=gt,
+        loss_history=result.loss_history,
+        extra={"elapsed_s": elapsed, "n_modes": K, "mode_matches": mode_matches},
+    )
+    print(f"Fit report saved to {report_path}")
     return 0
 
 
