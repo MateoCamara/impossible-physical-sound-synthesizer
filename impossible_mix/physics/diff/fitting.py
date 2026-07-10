@@ -328,6 +328,7 @@ def fit_granular_flow(
     seed: int = 0,
     n_grains: int = 200,
     init_base_freq_hz: float | None = None,
+    grain_dur_ms: float = 40.0,
 ) -> GranularFitResult:
     """Ajusta GranularFlowParamsT por gradiente para reproducir target_wav.
 
@@ -338,6 +339,14 @@ def fit_granular_flow(
     duration_s: si None, se infiere de la longitud del target.
     initial: si None, se inicializa con base_freq_hz = spectral centroid
               del target (o init_base_freq_hz si se pasa).
+    grain_dur_ms: grain_dur_ms del init (y del cap `eff_grain_dur_ms` del
+              synth diferenciable, ver granular.py). Si el target fue
+              generado con un grain_dur_ms alto (p.ej. el demo del script 28
+              usa 200), pasar aqui el mismo valor evita un mismatch
+              arquitectonico: con el default 40 el synth nunca puede
+              reproducir granos largos, y eso contamina la recuperacion de
+              damping_ms (que acopla `eff_grain_dur_ms = min(grain_dur_ms,
+              max(5*damping_ms, 8))`).
 
     LIMITACION HONESTA: a diferencia del drip (Minnaert mapea radius->
     frecuencia uniquamente) y el modal (picos espectrales discretos), el
@@ -354,7 +363,8 @@ def fit_granular_flow(
     if initial is None:
         initial = init_granular_from_target(target_wav, sr,
                                               duration_s=duration_s, seed=seed,
-                                              n_grains=n_grains)
+                                              n_grains=n_grains,
+                                              grain_dur_ms=grain_dur_ms)
         if init_base_freq_hz is not None:
             # Override del init automatico con el guess del usuario
             initial.base_freq_hz = torch.tensor(

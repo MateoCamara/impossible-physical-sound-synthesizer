@@ -19,6 +19,8 @@ Flags utiles:
     --n-iters N            Iteraciones de Adam (default 180).
     --lr X                 LR inicial (default 0.08, cosine decay).
     --init-base-freq HZ    Override del init de base_freq_hz.
+    --grain-dur-ms MS      grain_dur_ms del init del fit (default 200, igual
+                            que el target del --demo).
     --out path.wav         Guarda audio reconstruido.
 """
 from __future__ import annotations
@@ -55,6 +57,12 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=8e-2)
     ap.add_argument("--init-base-freq", type=float, default=None,
                     help="Override base_freq_hz inicial (Hz). Si no, spectral centroid.")
+    ap.add_argument("--grain-dur-ms", type=float, default=200.0,
+                    help="grain_dur_ms del init del fit (default 200, igual "
+                         "que el target del --demo). Evita el mismatch "
+                         "arquitectonico donde el fit arranca capado a "
+                         "granos cortos (default previo 40ms) mientras el "
+                         "target tiene granos largos.")
     ap.add_argument("--duration", type=float, default=2.0,
                     help="Duracion del audio si --demo, o longitud usada si --target.")
     ap.add_argument("--out", type=Path, default=None,
@@ -113,6 +121,7 @@ def main() -> int:
         log_every=max(1, args.n_iters // 6),
         seed=args.seed, n_grains=args.n_grains,
         init_base_freq_hz=args.init_base_freq,
+        grain_dur_ms=args.grain_dur_ms,
     )
     elapsed = time.time() - t0
 
