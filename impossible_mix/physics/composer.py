@@ -163,7 +163,7 @@ def _rolling_droplet(spec: CompositionSpec, sr: int) -> np.ndarray:
 
 def _granular_step(spec: CompositionSpec, sr: int) -> np.ndarray:
     p = GranularParams(
-        grain_material=spec.material if spec.material in ("rock", "metal", "wood") else "rock",
+        grain_material=spec.material,
         density_hz=30 + 200 * spec.continuity,
         density_jitter=0.4 + 0.5 * (1 - spec.continuity),
         grain_size_mm=4 + 8 * (1 - spec.granularity),
