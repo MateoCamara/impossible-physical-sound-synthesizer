@@ -104,7 +104,7 @@ def main() -> int:
     # PHYSICS canonico + sweep
     physics_dir = Path("perceptual_test/stimuli")
     s = summarize_dir(physics_dir)
-    rows.append(dict(method="PHYSICS (24 variantes)", **s, max_abs_rho_in_sweep="see F3"))
+    rows.append(dict(method=f"PHYSICS ({s['n']} variantes)", **s, max_abs_rho_in_sweep="see F3"))
 
     # Las cifras de monotonia ya estan en results/monotonicity/summary.csv
     mono_path = Path("results/monotonicity/summary.csv")
@@ -121,20 +121,20 @@ def main() -> int:
     # Neural method A
     a_dir = Path("outputs/method_a/full")
     s = summarize_dir(a_dir)
-    rows.append(dict(method="NEURAL A (latent dir, 162)", **s, max_abs_rho_in_sweep="n/a"))
+    rows.append(dict(method=f"NEURAL A (latent dir, {s['n']})", **s, max_abs_rho_in_sweep="n/a"))
 
     # Neural method B
     b_dir = Path("outputs/method_b/b_full")
     s = summarize_dir(b_dir)
-    rows.append(dict(method="NEURAL B (grad edit, 24)", **s, max_abs_rho_in_sweep="n/a"))
+    rows.append(dict(method=f"NEURAL B (grad edit, {s['n']})", **s, max_abs_rho_in_sweep="n/a"))
 
     # Baselines
     for name, path in [
-        ("BASELINE_SUM (12)", "outputs/baseline_sum/full"),
-        ("BASELINE_INTERP (12)", "outputs/baseline_interp/full"),
+        ("BASELINE_SUM", "outputs/baseline_sum/full"),
+        ("BASELINE_INTERP", "outputs/baseline_interp/full"),
     ]:
         s = summarize_dir(Path(path))
-        rows.append(dict(method=name, **s, max_abs_rho_in_sweep=""))
+        rows.append(dict(method=f"{name} ({s['n']})", **s, max_abs_rho_in_sweep=""))
 
     table = pd.DataFrame(rows)
     table.to_csv(OUT_DIR / "master_table.csv", index=False)
