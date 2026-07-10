@@ -1,6 +1,6 @@
 method,n,pct_good,dyn_db_mean,rms_db_mean,centroid_hz_mean,max_abs_rho_in_sweep
-PHYSICS (24 variantes),24,100.0,38.71,-24.18,2863.0,see F3
+PHYSICS (24 variantes),24,100.0,36.14,-25.09,3282.0,see F3
 "NEURAL A (latent dir, 162)",162,100.0,45.78,-28.57,4002.0,n/a
 "NEURAL B (grad edit, 24)",24,100.0,59.15,-32.76,2987.0,n/a
-BASELINE_SUM (12),6,100.0,11.16,-17.28,451.0,
-BASELINE_INTERP (12),6,16.7,38.92,-48.17,3409.0,
+BASELINE_SUM (6),6,100.0,11.16,-17.28,451.0,
+BASELINE_INTERP (6),6,16.7,38.92,-48.17,3409.0,
