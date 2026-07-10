@@ -94,12 +94,19 @@ def save_fit_report(
     gt: dict | None,
     loss_history: list[float],
     extra: dict | None = None,
+    final_loss: float | None = None,
 ) -> Path:
     """Escribe `out_dir/params.json` con el resumen completo de un fit.
 
     Incluye: engine, argv, gt, recovered, errors (por clave comun de
     gt/recovered), initial_loss, final_loss, n_iters, loss_history
     completo, y cualquier `extra` que el caller quiera adjuntar.
+
+    `final_loss`, si se pasa, es el valor que el script ya imprime como
+    "Final loss" (recomputado por el fitter tras el ultimo `clamp_()`
+    bajo `torch.no_grad()` — no siempre coincide con `loss_history[-1]`,
+    que es la loss del ultimo paso de entrenamiento). Si no se pasa, se
+    usa `loss_history[-1]` como aproximacion.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -108,6 +115,10 @@ def save_fit_report(
     gt_j = {k: _to_jsonable(v) for k, v in gt.items()} if gt is not None else None
     errors = _compute_errors(gt_j, recovered_j) if gt_j is not None else None
     loss_history_j = [float(x) for x in loss_history]
+    if final_loss is None:
+        final_loss = loss_history_j[-1] if loss_history_j else None
+    else:
+        final_loss = float(final_loss)
 
     report = {
         "engine": engine,
@@ -116,7 +127,7 @@ def save_fit_report(
         "recovered": recovered_j,
         "errors": errors,
         "initial_loss": loss_history_j[0] if loss_history_j else None,
-        "final_loss": loss_history_j[-1] if loss_history_j else None,
+        "final_loss": final_loss,
         "n_iters": len(loss_history_j),
         "loss_history": loss_history_j,
     }

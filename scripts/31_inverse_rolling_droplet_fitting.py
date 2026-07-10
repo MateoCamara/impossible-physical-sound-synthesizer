@@ -159,7 +159,7 @@ def main():
 
     report_path = save_fit_report(
         out_dir, engine="rolling_droplet", recovered=recovered, gt=gt,
-        loss_history=result.loss_history,
+        loss_history=result.loss_history, final_loss=result.final_loss,
         extra={"multistart": args.multistart},
     )
     print(f"Fit report saved to {report_path}")

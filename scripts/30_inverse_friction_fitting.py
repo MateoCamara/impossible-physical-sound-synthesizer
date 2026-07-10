@@ -107,7 +107,7 @@ def main() -> int:
 
     report_path = save_fit_report(
         args.out_dir, engine="friction", recovered=rec, gt=gt,
-        loss_history=res.loss_history,
+        loss_history=res.loss_history, final_loss=res.final_loss,
         extra={"elapsed_s": elapsed},
     )
     print(f"Fit report saved to {report_path}")

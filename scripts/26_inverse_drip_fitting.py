@@ -129,7 +129,7 @@ def main() -> int:
 
     report_path = save_fit_report(
         args.out_dir, engine="drip", recovered=rec, gt=gt,
-        loss_history=result.loss_history,
+        loss_history=result.loss_history, final_loss=result.final_loss,
         extra={"elapsed_s": elapsed},
     )
     print(f"Fit report saved to {report_path}")

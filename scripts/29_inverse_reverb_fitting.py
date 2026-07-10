@@ -142,7 +142,7 @@ def main() -> int:
     rec = {"t60_s": t60_est, "ir_rms": ir_rms, "ir_peak": ir_peak}
     report_path = save_fit_report(
         args.out_dir, engine="reverb", recovered=rec, gt=gt,
-        loss_history=res.loss_history,
+        loss_history=res.loss_history, final_loss=res.final_loss,
         extra={"elapsed_s": elapsed, "ir_seconds": args.ir_seconds},
     )
     print(f"Fit report saved to {report_path}")

@@ -162,7 +162,7 @@ def main() -> int:
     rec = {"freqs_hz": freqs, "t60s_s": t60s, "gains": gains}
     report_path = save_fit_report(
         args.out_dir, engine="modal", recovered=rec, gt=gt,
-        loss_history=result.loss_history,
+        loss_history=result.loss_history, final_loss=result.final_loss,
         extra={"elapsed_s": elapsed, "n_modes": K, "mode_matches": mode_matches},
     )
     print(f"Fit report saved to {report_path}")
