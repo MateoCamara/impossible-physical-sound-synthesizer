@@ -93,7 +93,7 @@ def main():
     parser.add_argument("--lr", type=float, default=2e-2)
     parser.add_argument("--seed", type=int, default=42,
                         help="Seed for the fitting model's random structure.")
-    parser.add_argument("--freeze-surface", action="store_true", default=True)
+    parser.add_argument("--freeze-surface", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--multistart", type=int, default=1,
                         help="Number of random inits; pick best loss.")
     args = parser.parse_args()

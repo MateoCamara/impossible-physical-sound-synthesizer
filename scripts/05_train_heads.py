@@ -80,7 +80,7 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=3e-3)
     ap.add_argument("--hidden", type=int, default=256)
     ap.add_argument("--weight-decay", type=float, default=1e-4)
-    ap.add_argument("--class-weights", action="store_true", default=True,
+    ap.add_argument("--class-weights", action=argparse.BooleanOptionalAction, default=True,
                     help="Pesos inversamente proporcionales al support (default ON).")
     ap.add_argument("--out-dir", type=Path, default=RESULTS_DIR / "method_b")
     args = ap.parse_args()
@@ -105,7 +105,6 @@ def main() -> int:
         train_y_int = [bundle.interactions[i] for i in train_idx]
         cm = Counter(train_y_mat); ci = Counter(train_y_int)
         # peso = N_total / (N_clases * support_c); clases inexistentes -> 1.0
-        from impossible_mix.methods.method_b_heads import MATERIAL_LIST, INTERACTION_LIST
         N_t = len(train_y_mat)
         w_mat = torch.tensor([
             N_t / (len(MATERIAL_LIST) * max(cm.get(m, 0), 1)) for m in MATERIAL_LIST
