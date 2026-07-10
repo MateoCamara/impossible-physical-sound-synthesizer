@@ -21,7 +21,10 @@ Layers mirror impossible_mix.physics.droplet.synth_rolling_droplet:
                         LFO trace fixed by seed; depth differentiable.
   G) Stick-slip:        asperity events at fixed timestamps (seed),
                         amplitudes differentiable.
-  H) Discrete ticks:    reuse synth_drip_event_diff at periodic offsets.
+  H) Discrete ticks:    NOT PORTED. The numpy engine's discrete-tick layer
+                        (synth_drip_event_diff) has no differentiable
+                        counterpart here; `discrete_mix` is kept only as a
+                        non-trainable placeholder (see physical_init).
 
 Random structure (microbubble radii, stick-slip schedule, shimmer LFO)
 is sampled ONCE at construction with a fixed seed and stored as
@@ -229,7 +232,10 @@ class RollingDropletParamsT:
             microbubble_mix=t(0.5),
             stickslip_mix=t(0.4),
             shimmer_depth=t(0.2),
-            discrete_mix=t(0.5),
+            # Layer H (discrete ticks) is not ported to the diff engine (see
+            # module docstring); kept as a non-trainable placeholder so the
+            # dataclass shape matches the numpy model, but never optimised.
+            discrete_mix=buf(0.5),
             # Fixed buffers
             microbubble_radii_mm=buf(radii_mm),
             microbubble_onsets=buf(onsets),
@@ -256,7 +262,7 @@ class RollingDropletParamsT:
             self.surface_modes_hz, self.surface_t60s_s, self.surface_gains,
             self.body_resonance_mix, self.cavity_mix, self.rayleigh_mix,
             self.surface_ring_mix, self.microbubble_mix, self.stickslip_mix,
-            self.shimmer_depth, self.discrete_mix, self.stick_amplitudes,
+            self.shimmer_depth, self.stick_amplitudes,
         ]
         return [t for t in ts if t.requires_grad]
 
@@ -271,8 +277,7 @@ class RollingDropletParamsT:
             self.surface_t60s_s.clamp_(1e-3, 5.0)
             for mix in (self.body_resonance_mix, self.cavity_mix,
                         self.rayleigh_mix, self.surface_ring_mix,
-                        self.microbubble_mix, self.stickslip_mix,
-                        self.discrete_mix):
+                        self.microbubble_mix, self.stickslip_mix):
                 mix.clamp_(0.0, 1.5)
             self.shimmer_depth.clamp_(0.0, 0.5)
             self.stick_amplitudes.clamp_(0.0, 2.0)
