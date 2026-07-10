@@ -452,18 +452,16 @@ function renderSurfaceRingingLayer(sr, n, opts) {
  *
  *  Reference: Rayleigh, Lord (1879) "On the capillary phenomena of jets".
  *  Excitation amplitude scales with path_roughness (a rougher surface
- *  perturbs the droplet shape more). Damping decreases with viscosity
- *  (honey stops wobbling faster; water keeps wobbling for ~100 ms). */
+ *  perturbs the droplet shape more). Modes are sustained by trigger AM;
+ *  no viscous decay envelope — same as the Python engine. */
 function renderRayleighModesLayer(sr, n, opts) {
-  const { radius_mm, viscosity, path_roughness, seed, surface_tension = 0.072 } = opts;
+  const { radius_mm, path_roughness, seed, surface_tension = 0.072 } = opts;
   const rng = rand(seed + 7003);
   const r = Math.max(0.1, radius_mm) * 1e-3;     // m
   const rho = 1000.0;                              // kg/m³ (water)
   const sigma = surface_tension;                   // N/m
   const out = new Float32Array(n);
   const baseAmp = 0.4 * (0.4 + 0.6 * path_roughness);
-  // Higher viscosity → faster damping (less ring time)
-  const dampRate = 5 + 20 * viscosity;             // Hz of envelope decay
   for (let mode = 2; mode <= 6; mode++) {
     const omega2 = mode * (mode - 1) * (mode + 2) * sigma / (rho * r * r * r);
     if (omega2 <= 0) continue;
@@ -477,7 +475,7 @@ function renderRayleighModesLayer(sr, n, opts) {
     let phase = 2 * Math.PI * rng();
     for (let i = 0; i < n; i++) {
       phase += 2 * Math.PI * fMode / sr;
-      // AM envelope from triggers, decayed by viscosity
+      // AM envelope from triggers (path bumps re-exciting the mode)
       const trig = 0.5 + 0.5 * triggers[i];
       out[i] += modeAmp * trig * Math.sin(phase);
     }
