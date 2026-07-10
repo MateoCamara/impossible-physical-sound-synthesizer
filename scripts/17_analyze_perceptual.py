@@ -10,7 +10,8 @@ Este script:
   - Test no parametrico (Friedman) para detectar diferencias entre variantes
   - Tasa de identificacion de material/interaccion vs ground truth
   - Correlacion Spearman entre 'impossibility' percibida y wetness/overlay
-  - Output: results/perceptual/{summary.csv, friedman.csv, plot.png}
+  - Output: results/perceptual/{summary.csv, identification.csv, friedman.csv,
+    knob_correlations.csv, boxplot.png}
 
 Uso:
     python scripts/17_analyze_perceptual.py
@@ -35,6 +36,12 @@ import matplotlib.pyplot as plt
 
 RESPONSES_DIR = Path("perceptual_test/responses")
 OUT_DIR = Path("results/perceptual")
+MANIFEST_PATH = Path("perceptual_test/stimuli_manifest.csv")
+
+# Columnas de "knobs" fisicos del manifest (perceptual_test/stimuli_manifest.csv)
+# usadas para la correlacion Spearman con impossibility_likert.
+KNOB_COLUMNS = ["wetness", "continuity", "granularity", "rigidity",
+                "overlay_weight", "resonance"]
 
 
 # Ground truth para cada estimulo (lo que esperamos que el oyente reporte
@@ -50,6 +57,28 @@ GROUND_TRUTH_INTERACTION = {
     "liquid_rock_impact":  ["impact", "splash"],
     "wet_gravel_scrape":   ["scrape", "pour"],
 }
+
+# Alias de nombres de combo que aparecen en distintos scripts del pipeline.
+# scripts/06_generate_method_a.py (y 07/08/09, mas antiguos) usan "rolling_drop",
+# mientras que scripts/13_final_stimuli.py, 16_build_perceptual_form.py y el
+# manifest commiteado (perceptual_test/stimuli_manifest.csv) usan
+# "rolling_droplet". Si el CSV de respuestas llega con la variante vieja,
+# sin normalizar el `.get(combo, [])` de ground truth devuelve `[]` en
+# silencio y la tasa de identificacion queda en 0 sin ningun error visible.
+COMBO_ALIASES = {
+    "rolling_drop": "rolling_droplet",
+}
+
+
+def normalize_combo(s):
+    """Normaliza un valor de combo: strip + lower + resolucion de alias.
+
+    Deja pasar NaN/None tal cual (no hay nada que normalizar).
+    """
+    if s is None or (isinstance(s, float) and pd.isna(s)):
+        return s
+    key = str(s).strip().lower()
+    return COMBO_ALIASES.get(key, key)
 
 
 def load_all_responses(d: Path) -> pd.DataFrame:
@@ -67,7 +96,18 @@ def load_all_responses(d: Path) -> pd.DataFrame:
             frames.append(df)
         except Exception as e:
             print(f"!! Error leyendo {f}: {e}")
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if not frames:
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True)
+    if "combo" in out.columns:
+        raw = out["combo"]
+        normalized = raw.apply(normalize_combo)
+        aliased = sorted(set(raw[normalized != raw].astype(str)))
+        if aliased:
+            print(f">> Normalizando alias de combo detectados en las respuestas: {aliased} "
+                  f"-> {[normalize_combo(a) for a in aliased]}")
+        out["combo"] = normalized
+    return out
 
 
 def basic_summary(df: pd.DataFrame) -> pd.DataFrame:
@@ -86,6 +126,18 @@ def basic_summary(df: pd.DataFrame) -> pd.DataFrame:
 def identification_rates(df: pd.DataFrame) -> pd.DataFrame:
     """Tasa de aciertos material e interaccion contra ground truth (any-of)."""
     df = df.copy()
+    # Defensa extra: normalizar de nuevo por si esta funcion se llama sobre un
+    # df que no paso por load_all_responses (p.ej. tests).
+    df["combo"] = df["combo"].apply(normalize_combo)
+
+    unknown = sorted(
+        set(df["combo"]) - set(GROUND_TRUTH_MATERIAL) | set(df["combo"]) - set(GROUND_TRUTH_INTERACTION)
+    )
+    if unknown:
+        print(f"!! AVISO: combo(s) sin ground truth definido tras normalizar: {unknown}. "
+              f"material_ok/interaction_ok seran False para estas filas -- "
+              f"revisa COMBO_ALIASES o GROUND_TRUTH_MATERIAL/GROUND_TRUTH_INTERACTION.")
+
     df["material_ok"] = df.apply(
         lambda r: r["material_pred"] in GROUND_TRUTH_MATERIAL.get(r["combo"], []),
         axis=1,
@@ -101,6 +153,77 @@ def identification_rates(df: pd.DataFrame) -> pd.DataFrame:
         interaction_acc=("interaction_ok", "mean"),
     ).round(3).reset_index()
     return g
+
+
+def knob_correlations(df: pd.DataFrame, manifest_path: Path = MANIFEST_PATH) -> pd.DataFrame:
+    """Correlacion Spearman entre 'impossibility' percibida y los knobs fisicos
+    del manifest (wetness/continuity/granularity/rigidity/overlay_weight/
+    resonance), calculada por separado dentro de cada combo.
+
+    Defensivo: si falta el manifest, las columnas combo/variant, o no hay
+    columnas de knobs reconocibles, emite un warning y devuelve un
+    DataFrame vacio sin lanzar excepcion.
+    """
+    if not manifest_path.exists():
+        print(f"!! AVISO: no existe el manifest {manifest_path}; se omite knob_correlations.")
+        return pd.DataFrame()
+    try:
+        manifest = pd.read_csv(manifest_path)
+    except Exception as e:
+        print(f"!! AVISO: error leyendo manifest {manifest_path}: {e}; se omite knob_correlations.")
+        return pd.DataFrame()
+
+    if "combo" not in manifest.columns or "variant" not in manifest.columns:
+        print(f"!! AVISO: manifest {manifest_path} sin columnas combo/variant; se omite knob_correlations.")
+        return pd.DataFrame()
+    if "combo" not in df.columns or "variant" not in df.columns or "impossibility_likert" not in df.columns:
+        print("!! AVISO: respuestas sin columnas combo/variant/impossibility_likert; se omite knob_correlations.")
+        return pd.DataFrame()
+
+    knob_cols = [c for c in KNOB_COLUMNS if c in manifest.columns]
+    if not knob_cols:
+        print(f"!! AVISO: manifest {manifest_path} sin ninguna columna de knob conocida "
+              f"({KNOB_COLUMNS}); se omite knob_correlations.")
+        return pd.DataFrame()
+
+    manifest = manifest.copy()
+    manifest["combo"] = manifest["combo"].apply(normalize_combo)
+    for c in knob_cols:
+        manifest[c] = pd.to_numeric(manifest[c], errors="coerce")
+
+    resp = df.copy()
+    resp["combo"] = resp["combo"].apply(normalize_combo)
+
+    merged = resp.merge(
+        manifest[["combo", "variant"] + knob_cols],
+        on=["combo", "variant"],
+        how="left",
+    )
+
+    rows = []
+    for combo, sub in merged.groupby("combo"):
+        for knob in knob_cols:
+            valid = sub[["impossibility_likert", knob]].dropna()
+            if valid[knob].nunique() < 3 or len(valid) < 3:
+                continue
+            try:
+                rho, pval = spearmanr(valid["impossibility_likert"], valid[knob])
+            except Exception as e:
+                print(f"!! AVISO: spearmanr fallo para combo={combo} knob={knob}: {e}")
+                continue
+            if rho != rho:  # NaN check
+                continue
+            rows.append(dict(
+                combo=combo, knob=knob, n=len(valid),
+                rho=round(float(rho), 3),
+                pval=round(float(pval), 4),
+                sig=("**" if pval < 0.05 else ""),
+            ))
+
+    if not rows:
+        print("!! AVISO: no hubo suficientes datos (>=3 valores distintos de knob) "
+              "para calcular ninguna correlacion Spearman.")
+    return pd.DataFrame(rows)
 
 
 def friedman_per_combo(df: pd.DataFrame) -> list[dict]:
@@ -159,6 +282,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--responses", type=Path, default=RESPONSES_DIR)
     ap.add_argument("--out", type=Path, default=OUT_DIR)
+    ap.add_argument("--manifest", type=Path, default=MANIFEST_PATH,
+                     help="CSV con los knobs fisicos por (combo, variant), "
+                          "para la correlacion Spearman.")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -183,6 +309,14 @@ def main() -> int:
     print("\n=== Friedman por combo ===")
     for r in fr:
         print(f"  {r}")
+
+    corr = knob_correlations(df, manifest_path=args.manifest)
+    print("\n=== Correlacion Spearman: impossibility_likert vs knobs del manifest ===")
+    if corr.empty:
+        print("  (sin correlaciones -- ver avisos arriba)")
+    else:
+        corr.to_csv(args.out / "knob_correlations.csv", index=False)
+        print(corr.to_string(index=False))
 
     plot_boxplot(df, args.out / "boxplot.png")
     print(f"\nFiguras y CSVs en {args.out}")
