@@ -32,13 +32,15 @@ una transformación acústica coherente.
 Como caso paradigmático presentamos la gota rodante, sin referente
 natural directo, construida como tren cuasi-periódico de eventos drip
 con acoplamiento modal a la superficie y variabilidad inter-evento.
-Sobre 75 mediciones, 9 de 15 pares (escena, knob) producen variación
-monotónica significativa (|ρ_Spearman| > 0,7); los pares no
-monotónicos corresponden a propiedades no aplicables al material. Un
-test perceptual piloto contrasta monotonía cuantitativa y perceptual
-frente a un baseline neural. Una contraparte diferenciable del motor
-permite recuperar parámetros físicos por descenso de gradiente desde
-grabaciones, con error inferior al 1 % en gotas e impactos modales.
+Sobre 75 mediciones (15 pares escena–knob por cinco métricas), 10 de
+15 pares producen variación monotónica significativa
+(|ρ_Spearman| > 0,7); de los cinco restantes, cuatro corresponden a
+parámetros sin efecto en su escena. Un test perceptual piloto, en
+curso, contrastará monotonía cuantitativa y perceptual frente a un
+baseline neural. Una contraparte diferenciable del motor permite
+recuperar parámetros físicos por descenso de gradiente desde
+grabaciones, con errores del orden del 1 % o inferiores en gotas e
+impactos modales.
 
 — Conteo: ≈ 220 palabras —
 
