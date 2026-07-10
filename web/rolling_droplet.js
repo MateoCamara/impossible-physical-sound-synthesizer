@@ -485,6 +485,29 @@ function renderRayleighModesLayer(sr, n, opts) {
   return out;
 }
 
+/** Legacy Layer C: heuristic sub-harmonic sloshing wobble (0.4-0.6 x Minnaert
+ *  freq) with tremolo. Superseded by renderRayleighModesLayer as the
+ *  physically exact model, but kept for backward compat with presets that
+ *  still set slosh_mix.
+ *
+ *  Port of _sloshing_layer in impossible_mix/physics/droplet.py. */
+function renderSloshingLayer(sr, n, opts) {
+  const { radius_mm, path_roughness, seed } = opts;
+  const rng = rand(seed + 7008);
+  const fM = minnaertHz(radius_mm);
+  const fSlosh = fM * (0.4 + 0.2 * rng());
+  const tremHz = 3 + 3 * rng();
+  const baseAmp = 0.3 * (0.3 + 0.7 * path_roughness);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const trem = 0.5 + 0.5 * Math.sin(2 * Math.PI * tremHz * t);
+    const phase = 2 * Math.PI * fSlosh * t;
+    out[i] = baseAmp * trem * Math.sin(phase);
+  }
+  return out;
+}
+
 /** NEW Layer G: rolling stick-slip.
  *  Even pure rolling has micro-events: surface asperities are briefly
  *  captured by capillary forces, then released. Each release is a
