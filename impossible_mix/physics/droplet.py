@@ -593,8 +593,8 @@ def _rayleigh_modes_layer(p: DropletParams, sr: int, n: int,
 
         omega_n^2 = n(n-1)(n+2) * sigma / (rho * r^3)
 
-    Para gota de 2 mm en agua (sigma=0.072 N/m, rho=1000 kg/m^3):
-        f_2 ~ 52 Hz, f_3 ~ 95 Hz, f_4 ~ 143 Hz, f_5 ~ 196 Hz, f_6 ~ 250 Hz.
+    Para gota de radio 2 mm en agua (sigma=0.072 N/m, rho=1000 kg/m^3):
+        f_2 ~ 43 Hz, f_3 ~ 83 Hz, f_4 ~ 128 Hz, f_5 ~ 179 Hz, f_6 ~ 234 Hz.
 
     Referencia: Rayleigh (1879) 'On the capillary phenomena of jets'."""
     r = max(0.1, p.droplet_radius_mm) * 1e-3

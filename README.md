@@ -60,7 +60,23 @@ scripts/
 ├── 17_analyze_perceptual.py    Analyze responses CSV
 ├── 18_compare_physics_vs_neural.py    Master table + Fig 5
 ├── 19_neural_monotonicity.py   Monotonicity of neural sweeps
-└── 20_build_interactive_demo.py    Interactive demo with sliders (135 audios)
+├── 20_build_interactive_demo.py    Interactive demo with sliders (135 audios)
+├── 21_extra_impossibles.py     Extra impossible combos (lava_footstep, boiling_water...)
+├── 22_gradio_app.py            Interactive Gradio demo (rolling droplet, impossible scenes, evolving knobs, exotic sounds)
+├── 24_download_irs.py          Download real CC-licensed IRs (OpenAIR), with synthetic fallback
+├── 25_midi_input.py            Play the physics engine live from a MIDI keyboard
+├── 26_inverse_drip_fitting.py          Inverse fitting: drip event params via differentiable DDSP
+├── 27_inverse_modal_fitting.py         Inverse fitting: modal impact (K resonant modes) via DDSP
+├── 28_inverse_granular_fitting.py      Inverse fitting: granular flow profile via DDSP
+├── 29_inverse_reverb_fitting.py        Inverse fitting: recover a room IR from dry/wet pair via DDSP
+├── 30_inverse_friction_fitting.py      Inverse fitting: friction/scrape params via DDSP
+└── 31_inverse_rolling_droplet_fitting.py   Inverse fitting: rolling droplet params via DDSP
+
+Scripts 26-31 (inverse fitting) persist each run's recovered vs.
+ground-truth params, errors and loss history to
+`results/diff_fits/<engine>/params.json` via
+`impossible_mix/utils/fit_io.py::save_fit_report`, instead of leaving
+the numbers only in stdout.
 
 perceptual_test/
 ├── stimuli/                    24 final stimuli (3 combos × 8 variants)

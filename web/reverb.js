@@ -114,8 +114,7 @@ export async function applyReverb(liveCtx, dry, ir, mix = 0.4) {
 
   drySrc.start();
   const rendered = await offline.startRendering();
-  // Trim back to dry.length for convenience (caller can still hear the tail
-  // by passing trim=false at the call site; here we keep tail to preserve
-  // natural ambience).
+  // No trimming: the returned buffer keeps the full reverb tail
+  // (dry.length + ir.length) so the natural ambience decays fully.
   return rendered;
 }
