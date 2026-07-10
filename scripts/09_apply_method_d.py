@@ -39,7 +39,9 @@ def main() -> int:
 
     df = pd.read_csv(args.metrics)
     df = df[df.method == "A"].copy()
-    df["score"] = (df["inter_mat"] - 0.5).abs() + df["d_tgt_mat"] / 50.0  # penaliza tambien d_tgt
+    # Score libre de escala: rangos percentiles en vez del /50.0 hardcodeado
+    # (el z-score de 07 cambio la escala de d_tgt_mat; los rangos sobreviven a re-normalizaciones)
+    df["score"] = (df["inter_mat"] - 0.5).abs().rank(pct=True) + df["d_tgt_mat"].rank(pct=True)
     out_dir = OUTPUTS_DIR / "method_d" / args.run_name
     manifest_path = RESULTS_DIR / "method_d" / f"{args.run_name}_manifest.csv"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
