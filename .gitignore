@@ -51,3 +51,6 @@ labels.csv.bak
 /tmp/
 *.log
 escucha_AB/
+*.aux
+*.out
+results/diff_rolling_baseline/

@@ -79,7 +79,8 @@ def _compute_errors(gt: dict, recovered: dict) -> dict:
         gt_v, rec_v = gt[k], recovered[k]
         if isinstance(gt_v, (list, tuple)) or isinstance(rec_v, (list, tuple)):
             continue
-        if gt_v is None or rec_v is None:
+        if not isinstance(gt_v, (int, float)) or not isinstance(rec_v, (int, float)) \
+                or isinstance(gt_v, bool) or isinstance(rec_v, bool):
             continue
         err = abs(rec_v - gt_v)
         pct = 100 * err / max(abs(gt_v), 1e-9)

@@ -22,8 +22,8 @@ Layers mirror impossible_mix.physics.droplet.synth_rolling_droplet:
   G) Stick-slip:        asperity events at fixed timestamps (seed),
                         amplitudes differentiable.
   H) Discrete ticks:    NOT PORTED. The numpy engine's discrete-tick layer
-                        (synth_drip_event_diff) has no differentiable
-                        counterpart here; `discrete_mix` is kept only as a
+                        (synth_drip_event) was never wired into this diff
+                        forward pass; `discrete_mix` is kept only as a
                         non-trainable placeholder (see physical_init).
 
 Random structure (microbubble radii, stick-slip schedule, shimmer LFO)

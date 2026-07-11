@@ -163,6 +163,14 @@ def knob_correlations(df: pd.DataFrame, manifest_path: Path = MANIFEST_PATH) -> 
     Defensivo: si falta el manifest, las columnas combo/variant, o no hay
     columnas de knobs reconocibles, emite un warning y devuelve un
     DataFrame vacio sin lanzar excepcion.
+
+    CAVEAT estadistico: la correlacion agrupa (pool) las respuestas de todos
+    los oyentes y variantes dentro de cada combo, ignorando la dependencia
+    por medidas repetidas del mismo oyente. Los p-valores son por tanto
+    anticonservadores: usarlos como descriptivos. Para inferencia formal,
+    agregar por variante (mediana entre oyentes) o calcular rho por oyente
+    y contrastar la distribucion. Se reporta n_listeners por fila para
+    hacer visible el grado de pooling.
     """
     if not manifest_path.exists():
         print(f"!! AVISO: no existe el manifest {manifest_path}; se omite knob_correlations.")
@@ -200,10 +208,12 @@ def knob_correlations(df: pd.DataFrame, manifest_path: Path = MANIFEST_PATH) -> 
         how="left",
     )
 
+    listener_col = next((c for c in ("listener_id", "participant", "listener") if c in merged.columns), None)
     rows = []
     for combo, sub in merged.groupby("combo"):
         for knob in knob_cols:
-            valid = sub[["impossibility_likert", knob]].dropna()
+            cols = ["impossibility_likert", knob] + ([listener_col] if listener_col else [])
+            valid = sub[cols].dropna(subset=["impossibility_likert", knob])
             if valid[knob].nunique() < 3 or len(valid) < 3:
                 continue
             try:
@@ -215,6 +225,7 @@ def knob_correlations(df: pd.DataFrame, manifest_path: Path = MANIFEST_PATH) -> 
                 continue
             rows.append(dict(
                 combo=combo, knob=knob, n=len(valid),
+                n_listeners=(int(valid[listener_col].nunique()) if listener_col else -1),
                 rho=round(float(rho), 3),
                 pval=round(float(pval), 4),
                 sig=("**" if pval < 0.05 else ""),
