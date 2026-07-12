@@ -182,6 +182,12 @@ class DropletParams:
     fusion: float | None = None         # crossfade nucleo/acentos; None = auto por velocidad
     profile_floor: float = 0.18         # suelo de e(t) en los valles (anti-aspiradora)
 
+    # --- Exploracion v5 (defaults = v4 exacta) ---
+    smoothness: float = 0.0             # 0..1: saca la AM de la zona de aspereza (15-60 Hz)
+    noise_darkness: float = 0.0         # 0..1: banda de excitacion click_color -> [80,1200] Hz
+    tonal_mix: float = 0.0              # zumbido de rodadura (resonador de cavidad driven)
+    sing_mix: float = 0.0               # canto de copa (resonador Q~60 en el modo grave)
+
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
     bubble_freq_end_hz: float | None = None
@@ -1276,7 +1282,11 @@ def _surface_profile_wave(p: DropletParams, sched: RollSchedule,
     P = _ROLL_PROFILE_GRID
     u = np.arange(P) / P
     K = len(sched.pattern_amp)
-    w_bump = 0.30 / max(K, 1)
+    s = float(np.clip(p.smoothness, 0.0, 1.0))
+    # smoothness ensancha los bumps y sube el suelo: la AM sale de la zona
+    # psicoacustica de aspereza (15-60 Hz) y queda como wow lento.
+    w_bump = (0.30 / max(K, 1)) * (1.0 + 3.0 * s)
+    floor_level = min(0.9, p.profile_floor + 0.3 * s)
     prof = np.zeros(P)
     for a, ph in zip(sched.pattern_amp, sched.pattern_phase):
         d = u - ph
@@ -1287,7 +1297,7 @@ def _surface_profile_wave(p: DropletParams, sched: RollSchedule,
     floor = np.zeros(P)
     for h in range(1, 33):
         floor += (1.0 / h) * np.sin(2 * np.pi * h * u + rng.uniform(0, 2 * np.pi))
-    floor = p.profile_floor * (0.5 + 0.5 * floor / (np.abs(floor).max() + 1e-9))
+    floor = floor_level * (0.5 + 0.5 * floor / (np.abs(floor).max() + 1e-9))
     prof = np.maximum(prof, floor)
 
     # Remuestreo temporal via theta, con drift por vuelta
@@ -1298,7 +1308,32 @@ def _surface_profile_wave(p: DropletParams, sched: RollSchedule,
     vals = np.append(prof, prof[0])           # punto de wrap: sin escalon por vuelta
     e = np.interp(u_t, grid, vals).astype(np.float32)
     e *= (0.85 + 0.30 * np.clip(0.5 + 0.25 * sched.wobble, 0.0, 1.0)).astype(np.float32)
+    if s > 0.01:
+        cutoff = max(4.0, 30.0 - 22.0 * s)
+        sos_s = signal.butter(2, cutoff, btype="low", fs=sr, output="sos")
+        e = np.maximum(signal.sosfiltfilt(sos_s, e.astype(np.float64)), 0.0).astype(np.float32)
     return e
+
+
+def _driven_resonator(x: np.ndarray, f_traj: np.ndarray, q: float,
+                      sr: int, blk: int = 256) -> np.ndarray:
+    """Resonador 2o orden DRIVEN con trayectoria de frecuencia lenta.
+
+    Coeficientes actualizados por bloques con estado zi arrastrado (la FM es
+    <25 Hz, asi que el salto de coeficientes cada ~6 ms es inaudible).
+    """
+    n = len(x)
+    out = np.zeros(n, dtype=np.float32)
+    zi = None
+    for i in range(0, n, blk):
+        f_blk = float(np.clip(f_traj[min(i + blk // 2, n - 1)], 40.0, sr / 2 - 500))
+        b, a = signal.iirpeak(f_blk, Q=q, fs=sr)
+        sos_pk = signal.tf2sos(b, a)
+        if zi is None:
+            zi = signal.sosfilt_zi(sos_pk) * 0.0
+        seg, zi = signal.sosfilt(sos_pk, x[i:i + blk], zi=zi)
+        out[i:i + blk] = seg
+    return out
 
 
 def _rolling_contact_core(p: DropletParams, surf: SurfaceProfile, sr: int,
@@ -1313,12 +1348,17 @@ def _rolling_contact_core(p: DropletParams, surf: SurfaceProfile, sr: int,
     """
     n = len(e)
     voicing = MATERIAL_VOICING.get(surf.name, _DEFAULT_VOICING)
+    s = float(np.clip(p.smoothness, 0.0, 1.0))
+    d = float(np.clip(p.noise_darkness, 0.0, 1.0))
 
-    # Excitacion: ruido bandpass del material x perfil de vuelta
+    # Excitacion: ruido bandpass x perfil de vuelta. noise_darkness interpola
+    # la banda desde click_color hasta [80, 1200] Hz (cuerpo mojado, no tela).
     noise = rng.standard_normal(n).astype(np.float32)
     cl_lo, cl_hi = surf.click_color_hz
-    cl_hi_safe = min(cl_hi, sr / 2 - 200)
-    sos = signal.butter(4, [cl_lo, cl_hi_safe], btype="band", fs=sr, output="sos")
+    lo_eff = cl_lo * (1 - d) + 80.0 * d
+    hi_eff = cl_hi * (1 - d) + 1200.0 * d
+    hi_eff = min(max(hi_eff, lo_eff + 100), sr / 2 - 200)
+    sos = signal.butter(4, [lo_eff, hi_eff], btype="band", fs=sr, output="sos")
     excited = signal.sosfiltfilt(sos, noise).astype(np.float32) * e
 
     # (a) Tono acuoso driven: resonador en f_M con FM por e(t) suavizada
@@ -1328,17 +1368,7 @@ def _rolling_contact_core(p: DropletParams, surf: SurfaceProfile, sr: int,
     e_s = signal.sosfiltfilt(sos_lp, e.astype(np.float64)).astype(np.float32)
     fm_depth = 0.04 + 0.04 * p.path_roughness
     f_traj = f_M * (1.0 + fm_depth * (e_s - float(e_s.mean())))
-    water = np.zeros(n, dtype=np.float32)
-    blk = 256
-    zi = None
-    for i in range(0, n, blk):
-        f_blk = float(np.clip(f_traj[min(i + blk // 2, n - 1)], 40.0, sr / 2 - 500))
-        b, a = signal.iirpeak(f_blk, Q=12.0, fs=sr)
-        sos_pk = signal.tf2sos(b, a)
-        if zi is None:
-            zi = signal.sosfilt_zi(sos_pk) * 0.0
-        seg, zi = signal.sosfilt(sos_pk, excited[i:i + blk], zi=zi)
-        water[i:i + blk] = seg
+    water = _driven_resonator(excited, f_traj, 12.0, sr)
     water *= 0.9 * (1.0 - 0.6 * p.viscosity) * p.body_resonance_mix * voicing["body_mul"]
 
     # (b) Voz del material driven y oscurecida (bandpass por modo)
@@ -1360,7 +1390,32 @@ def _rolling_contact_core(p: DropletParams, surf: SurfaceProfile, sr: int,
             continue
     material *= p.surface_ring_mix * voicing["ring_mul"] * 0.6
 
-    return (0.30 * excited + water + material).astype(np.float32)
+    core = (0.30 * (1.0 - 0.8 * s)) * excited + water + material
+
+    # (c) Zumbido de rodadura (v5): resonador de cavidad driven por ruido
+    # grave — el "hum" continuo de una canica, no hiss.
+    if p.tonal_mix > 0.01:
+        min_mode = min(surf.modes_hz) if surf.modes_hz else 1000
+        f_cav = max(120.0, min(1200.0, min_mode * 0.6))
+        sos_dark = signal.butter(2, 400.0, btype="low", fs=sr, output="sos")
+        drive = signal.sosfilt(sos_dark, rng.standard_normal(n).astype(np.float32)) * e_s
+        wob_lp = e_s / (float(e_s.max()) + 1e-9)
+        f_cav_traj = f_cav * (1.0 + 0.03 * (wob_lp - float(wob_lp.mean())))
+        hum = _driven_resonator(drive.astype(np.float32), f_cav_traj, 30.0, sr)
+        peak_h = float(np.abs(hum).max() + 1e-9)
+        core = core + p.tonal_mix * 0.9 * (hum / peak_h) * e_s
+
+    # (d) Canto de copa (v5): resonador Q~60 en el modo grave del surface —
+    # la canica que "canta" en un cuenco.
+    if p.sing_mix > 0.01:
+        f_sing = min(surf.modes_hz) if surf.modes_hz else 800.0
+        f_sing = min(f_sing, sr / 2 - 500)
+        f_sing_traj = f_sing * (1.0 + 0.015 * (e_s - float(e_s.mean())))
+        sing = _driven_resonator(excited, f_sing_traj, 60.0, sr)
+        peak_s = float(np.abs(sing).max() + 1e-9)
+        core = core + p.sing_mix * 0.8 * (sing / peak_s) * e_s
+
+    return core.astype(np.float32)
 
 
 def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
@@ -1402,6 +1457,7 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
             p, surf, sr, n_total, sched_top, rng,
             event_kwargs=dict(modal_tail_gain=0.3, click_ms=0.8, dark_tail=True))
         accents *= (p.accent_gain * (1.4 - 0.9 * fusion)
+                    * (1.0 - 0.7 * float(np.clip(p.smoothness, 0.0, 1.0)))
                     * max(p.discrete_mix, 0.5) * voicing["discrete_mul"])
         out += accents
 
