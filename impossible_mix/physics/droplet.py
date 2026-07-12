@@ -173,6 +173,15 @@ class DropletParams:
     contact_density_mul: float = 2.0    # contactos/s = roll_velocity_hz * este factor
     pattern_drift: float = 0.05         # precesion lenta del patron de asperezas
 
+    # --- Motor v4 (nucleo continuo de contacto + acentos incrustados) ---
+    # En v4: body_resonance_mix -> gain del tono acuoso DRIVEN del nucleo (y
+    # del chirp en acentos); surface_ring_mix -> voz del material driven (y
+    # cola modal x0.3 en acentos); continuous_layer_mix -> rumor gated por e(t).
+    continuous_core_mix: float = 0.8    # gain del nucleo rodante (0 => suena ~v3)
+    accent_gain: float = 0.35           # gain de los acentos discretos vs nucleo
+    fusion: float | None = None         # crossfade nucleo/acentos; None = auto por velocidad
+    profile_floor: float = 0.18         # suelo de e(t) en los valles (anti-aspiradora)
+
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None
     bubble_freq_end_hz: float | None = None
@@ -809,13 +818,20 @@ _ROLL_BURST_VISC_N = 8          # contactos extra entre rafagas por viscosidad
 
 @dataclass
 class RollSchedule:
-    """Agenda de contactos de una rodadura (privado del motor v3)."""
+    """Agenda de contactos de una rodadura (privado de los motores v3/v4)."""
     starts: np.ndarray          # sample de cada contacto (int64, ordenado)
     amps: np.ndarray            # amplitud por contacto
     vels: np.ndarray            # velocity_factor por contacto
     radius_scales: np.ndarray   # jitter de radio por contacto (lognormal)
     wobble: np.ndarray          # envolvente lenta de velocidad (n_total, std~1)
     slosh_starts: np.ndarray    # samples de los minimos del wobble (frenazos)
+    # --- v4: estado compartido entre acentos discretos y perfil continuo ---
+    theta: np.ndarray           # revoluciones acumuladas (float64, n_total)
+    pattern_amp: np.ndarray     # (K,) fuerza fija de cada aspereza
+    pattern_phase: np.ndarray   # (K,) fase angular fija de cada aspereza
+    asp_idx: np.ndarray         # (n_contactos,) indice k de la aspereza del contacto
+    rev_drifts: np.ndarray      # (n_revs,) drift acumulado al inicio de cada vuelta
+    f_rev_nominal: float        # rev/s nominales
 
 
 def _roll_schedule(p: DropletParams, sr: int, n_total: int,
@@ -831,6 +847,10 @@ def _roll_schedule(p: DropletParams, sr: int, n_total: int,
         vels=np.zeros(0), radius_scales=np.zeros(0),
         wobble=np.zeros(n_total, dtype=np.float32),
         slosh_starts=np.zeros(0, dtype=np.int64),
+        theta=np.zeros(n_total, dtype=np.float64),
+        pattern_amp=np.ones(1), pattern_phase=np.zeros(1),
+        asp_idx=np.zeros(0, dtype=np.int64),
+        rev_drifts=np.zeros(1), f_rev_nominal=1.0,
     )
     if n_total < 100:
         return empty
@@ -857,10 +877,12 @@ def _roll_schedule(p: DropletParams, sr: int, n_total: int,
     amp_sigma = 0.10 + 0.25 * p.path_roughness
     rad_sigma = 0.10 + 0.15 * p.inter_event_variability
 
-    starts, amps, vels, rads = [], [], [], []
+    starts, amps, vels, rads, asps = [], [], [], [], []
     n_revs = int(np.ceil(theta[-1]))
     drift = 0.0
+    rev_drifts = []
     for m in range(n_revs):
+        rev_drifts.append(drift)
         for k in range(K):
             target = m + (pattern_phase[k] + drift) % 1.0
             idx = int(np.searchsorted(theta, target))
@@ -879,6 +901,7 @@ def _roll_schedule(p: DropletParams, sr: int, n_total: int,
             amps.append(amp)
             vels.append(vel)
             rads.append(float(np.exp(rng.normal(0.0, rad_sigma))))
+            asps.append(k)
         drift += p.pattern_drift * float(rng.normal(0.0, 1.0)) / K
 
     if not starts:
@@ -903,18 +926,31 @@ def _roll_schedule(p: DropletParams, sr: int, n_total: int,
         radius_scales=np.asarray(rads)[order],
         wobble=wobble,
         slosh_starts=np.asarray(slosh, dtype=np.int64),
+        theta=theta,
+        pattern_amp=pattern_amp,
+        pattern_phase=pattern_phase,
+        asp_idx=np.asarray(asps, dtype=np.int64)[order],
+        rev_drifts=np.asarray(rev_drifts) if rev_drifts else np.zeros(1),
+        f_rev_nominal=float(f_rev_nominal),
     )
 
 
 def _wet_contact_event(p: DropletParams, surf: SurfaceProfile, sr: int,
                        velocity_factor: float = 1.0,
                        radius_scale: float = 1.0,
-                       seed: int = 0) -> np.ndarray:
+                       seed: int = 0, *,
+                       modal_tail_gain: float = 1.0,
+                       click_ms: float = 1.5,
+                       dark_tail: bool = False) -> np.ndarray:
     """UN micro-contacto acuoso de rodadura (derivado de synth_drip_event).
 
     Conserva: chirp Minnaert (mas corto), click de material, capillary
     ringing reducido y cola modal del surface. Elimina: cadena de bounces
     y pop final (leen como rebote; el pop migra a los acentos de slosh).
+
+    Los kwargs (defaults = comportamiento v3) permiten al motor v4 matar el
+    "plink de planchita": modal_tail_gain baja la cola modal, click_ms la
+    acorta, dark_tail acorta el t60 y atenua los modos >4 kHz.
     """
     rng = np.random.default_rng(seed)
 
@@ -922,7 +958,8 @@ def _wet_contact_event(p: DropletParams, surf: SurfaceProfile, sr: int,
     chirp_dur_ms = p.chirp_duration_ms * 0.55 * (0.7 + 0.6 / max(velocity_factor, 0.3))
     chirp_n = max(8, int(chirp_dur_ms / 1000.0 * sr))
     decay_n = int(p.decay_ms / 1000.0 * sr * 0.6)
-    tail_n = int(min(0.06, 2.5 * surf.t60_ms / 1000.0) * sr)
+    tail_t60_ms = surf.t60_ms * (0.5 if dark_tail else 1.0)
+    tail_n = int(min(0.06, 2.5 * tail_t60_ms / 1000.0) * sr)
     total_n = chirp_n + decay_n + max(tail_n, int(0.02 * sr))
 
     f_scale = 1.0 / max(radius_scale, 0.2)
@@ -948,7 +985,7 @@ def _wet_contact_event(p: DropletParams, surf: SurfaceProfile, sr: int,
     out[:chirp_n] = chirp * env * 0.7 * (p.body_resonance_mix / 0.7)
 
     # --- Click de material (stickslip_mix reinterpretado: su gain) ---
-    click_n = max(4, int(0.0015 * sr))
+    click_n = max(4, int(click_ms / 1000.0 * sr))
     click = rng.standard_normal(click_n).astype(np.float32)
     cl_lo, cl_hi = surf.click_color_hz
     cl_hi_safe = min(cl_hi, sr / 2 - 200)
@@ -973,13 +1010,15 @@ def _wet_contact_event(p: DropletParams, surf: SurfaceProfile, sr: int,
     impulse_n = max(2, int(0.001 * sr))
     impulse = np.zeros(total_n, dtype=np.float32)
     impulse[:impulse_n] = rng.standard_normal(impulse_n).astype(np.float32) * 0.3
-    t60_s = surf.t60_ms / 1000.0
+    t60_s = tail_t60_ms / 1000.0
     surf_gain = (0.18 + 0.35 * p.surface_hardness * velocity_factor) * 0.6
-    surf_gain *= (p.surface_ring_mix / 0.7)
+    surf_gain *= (p.surface_ring_mix / 0.7) * modal_tail_gain
     surf_response = np.zeros(total_n, dtype=np.float32)
     for fc, mg in zip(surf.modes_hz, surf.mode_gains):
         if fc <= 0 or fc >= sr / 2 - 100:
             continue
+        if dark_tail and fc > 4000:
+            mg = mg * (4000.0 / fc) ** 2
         fc_j = fc * (1 + surf.inharmonicity * rng.uniform(-1, 1))
         r = float(np.exp(-6.91 / max(t60_s * sr, 1e-3)))
         th = 2 * np.pi * fc_j / sr
@@ -997,16 +1036,19 @@ def _wet_contact_event(p: DropletParams, surf: SurfaceProfile, sr: int,
 
 def _render_contact_bus(p: DropletParams, surf: SurfaceProfile, sr: int,
                         n_total: int, sched: RollSchedule,
-                        rng: np.random.Generator) -> np.ndarray:
+                        rng: np.random.Generator,
+                        event_kwargs: dict | None = None) -> np.ndarray:
     """Suma de micro-contactos con pool anti-clones.
 
     Pool de >=8 variantes pre-renderizadas en bins de radius_scale; cada
     evento usa la variante de radio mas cercano, y solo los outliers de
-    velocidad (|vel-1| > 0.3) se renderizan a medida.
+    velocidad (|vel-1| > 0.3) se renderizan a medida. event_kwargs se
+    reenvia a _wet_contact_event (el motor v4 lo usa para matar el plink).
     """
     bus = np.zeros(n_total, dtype=np.float32)
     if len(sched.starts) == 0:
         return bus
+    ekw = event_kwargs or {}
     n_variants = max(8, 1 + int(round(p.inter_event_variability * 8)))
     # Bins de radio: cuantiles de la lognormal usada en el schedule.
     rad_sigma = 0.10 + 0.15 * p.inter_event_variability
@@ -1016,7 +1058,7 @@ def _render_contact_bus(p: DropletParams, surf: SurfaceProfile, sr: int,
                        np.array([_erfinv_approx(2 * q - 1) for q in qs]))
     pool = [
         _wet_contact_event(p, surf, sr, velocity_factor=1.0,
-                           radius_scale=float(r), seed=p.seed + 300 + k)
+                           radius_scale=float(r), seed=p.seed + 300 + k, **ekw)
         for k, r in enumerate(pool_rads)
     ]
     for i, start in enumerate(sched.starts):
@@ -1025,7 +1067,7 @@ def _render_contact_bus(p: DropletParams, surf: SurfaceProfile, sr: int,
             evt = _wet_contact_event(
                 p, surf, sr, velocity_factor=vel,
                 radius_scale=float(sched.radius_scales[i]),
-                seed=p.seed + 900 + int(start))
+                seed=p.seed + 900 + int(start), **ekw)
         else:
             j = int(np.argmin(np.abs(pool_rads - sched.radius_scales[i])))
             evt = pool[j]
@@ -1121,10 +1163,12 @@ def _microbubble_burst(p: DropletParams, sr: int,
 
 def _gated_rumble(p: DropletParams, surf: SurfaceProfile, sr: int,
                   contact_bus: np.ndarray,
-                  rng: np.random.Generator) -> np.ndarray:
+                  rng: np.random.Generator,
+                  gate_env: np.ndarray | None = None) -> np.ndarray:
     """Rumor grave de rodadura GATED por la envolvente RMS del bus de
-    contactos: cero senal sin eventos por construccion. Banda deliberadamente
-    mas grave que el click (cuerpo, no aire)."""
+    contactos (o por gate_env si se pasa — el motor v4 usa el perfil de
+    vuelta e(t), suave y continuo): cero senal sin eventos por construccion.
+    Banda deliberadamente mas grave que el click (cuerpo, no aire)."""
     n = len(contact_bus)
     if n < 100 or p.continuous_layer_mix < 0.01:
         return np.zeros(n, dtype=np.float32)
@@ -1136,28 +1180,28 @@ def _gated_rumble(p: DropletParams, surf: SurfaceProfile, sr: int,
     sos = signal.butter(4, [lo, hi], btype="band", fs=sr, output="sos")
     noise = signal.sosfilt(sos, rng.standard_normal(n).astype(np.float32)).astype(np.float32)
 
-    rate = max(p.roll_velocity_hz, 0.1) * max(p.contact_density_mul, 0.1)
-    win_s = float(np.clip(_ROLL_RMS_WIN_S * 28.0 / max(rate, 1.0),
-                          _ROLL_RMS_WIN_S, 0.15))
-    win_n = max(8, int(win_s * sr))
-    kernel = np.ones(win_n, dtype=np.float32) / win_n
-    env = np.sqrt(np.convolve(contact_bus.astype(np.float64) ** 2, kernel,
-                              mode="same")).astype(np.float32)
-    env_peak = float(env.max() + 1e-9)
-    env = env / env_peak
+    if gate_env is not None:
+        env = (gate_env / (float(gate_env.max()) + 1e-9)).astype(np.float32)
+    else:
+        rate = max(p.roll_velocity_hz, 0.1) * max(p.contact_density_mul, 0.1)
+        win_s = float(np.clip(_ROLL_RMS_WIN_S * 28.0 / max(rate, 1.0),
+                              _ROLL_RMS_WIN_S, 0.15))
+        win_n = max(8, int(win_s * sr))
+        kernel = np.ones(win_n, dtype=np.float32) / win_n
+        env = np.sqrt(np.convolve(contact_bus.astype(np.float64) ** 2, kernel,
+                                  mode="same")).astype(np.float32)
+        env_peak = float(env.max() + 1e-9)
+        env = env / env_peak
     gain = _ROLL_RUMBLE_GAIN * p.continuous_layer_mix * (1 - 0.5 * p.viscosity)
     return (gain * env * noise).astype(np.float32)
 
 
-def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
-    """Rolling droplet v3 "canica mojada".
+def synth_rolling_droplet_v3(p: DropletParams, sr: int = 44_100) -> np.ndarray:
+    """[v3, conservado para A/B] Rolling droplet de eventos discretos puros.
 
-    Ritmo de rodadura tipo canica: micro-contactos cuasi-periodicos con un
-    patron de asperezas fijo que se repite cada vuelta, donde CADA contacto
-    es un chirp de burbuja Minnaert con cola modal del material. El agua
-    entre contactos son acentos de slosh en los frenazos del wobble y
-    rafagas cortas de microburbujas. El unico rumor continuo esta gated
-    por la envolvente de los propios eventos.
+    Feedback de oido: a 28 eventos/s los blips se segregan ("ti ti ti",
+    goteo sobre planchita) en vez de fusionarse en rodadura. Sustituido por
+    el motor v4 (nucleo continuo, ver synth_rolling_droplet).
     """
     p = _derive_params(p)
     n_total = int(p.duration_s * sr)
@@ -1188,6 +1232,197 @@ def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
     out = bus + _gated_rumble(p, surf, sr, bus, rng)
 
     # Drying tail / fades / normalizacion: igual que el motor legacy.
+    if p.drying_factor > 0.05:
+        half = n_total // 2
+        dry_env = np.ones(n_total, dtype=np.float32)
+        ramp = np.linspace(0, 1, n_total - half).astype(np.float32)
+        dry_env[half:] = 1.0 - p.drying_factor * (1 - np.exp(-3 * ramp))
+        out = out * dry_env
+    fade_n = min(int(0.02 * sr), n_total // 8)
+    if fade_n > 4:
+        fade = 0.5 * (1 - np.cos(np.linspace(0, np.pi, fade_n))).astype(np.float32)
+        out[:fade_n] *= fade
+        out[-fade_n:] *= fade[::-1]
+    peak = float(np.max(np.abs(out)) + 1e-9)
+    if peak > 0.95:
+        out = out * (0.95 / peak)
+    return out.astype(np.float32)
+
+
+# ====================================================================
+# Motor v4: nucleo continuo de contacto + acentos incrustados
+# ====================================================================
+# La rodadura real es contacto CONTINUO: la canica nunca deja la
+# superficie. El sonido base es ruido de contacto del material modulado
+# por el perfil de rugosidad de la vuelta e(t) (continuo, con periodicidad
+# exacta de 1 revolucion y valles profundos), que excita un resonador de
+# Minnaert driven (agua continua) y el banco modal oscurecido. Los blips
+# discretos quedan como acentos incrustados en las asperezas grandes.
+
+_ROLL_ACCENT_THR = 0.7          # solo asperezas con pattern_amp > THR acentuan
+_ROLL_PROFILE_GRID = 4096       # rejilla de fase de una vuelta
+
+
+def _surface_profile_wave(p: DropletParams, sched: RollSchedule,
+                          sr: int, n_total: int,
+                          rng: np.random.Generator) -> np.ndarray:
+    """Perfil de rugosidad e(t) >= 0, continuo, con periodicidad de vuelta.
+
+    Una forma de onda de UNA revolucion (K bumps gaussianos en las fases del
+    patron + suelo 1/f PERIODICO de armonicos de la vuelta) remuestreada en
+    el tiempo via theta con interpolacion circular, y modulada por el wobble
+    igual que las amplitudes de los contactos.
+    """
+    P = _ROLL_PROFILE_GRID
+    u = np.arange(P) / P
+    K = len(sched.pattern_amp)
+    w_bump = 0.30 / max(K, 1)
+    prof = np.zeros(P)
+    for a, ph in zip(sched.pattern_amp, sched.pattern_phase):
+        d = u - ph
+        d -= np.round(d)                      # distancia circular [-0.5, 0.5)
+        prof += a * np.exp(-0.5 * (d / w_bump) ** 2)
+    prof /= prof.max() + 1e-9
+    # Suelo 1/f periodico (armonicos de la vuelta, fijo por seed)
+    floor = np.zeros(P)
+    for h in range(1, 33):
+        floor += (1.0 / h) * np.sin(2 * np.pi * h * u + rng.uniform(0, 2 * np.pi))
+    floor = p.profile_floor * (0.5 + 0.5 * floor / (np.abs(floor).max() + 1e-9))
+    prof = np.maximum(prof, floor)
+
+    # Remuestreo temporal via theta, con drift por vuelta
+    m = np.floor(sched.theta).astype(np.int64)
+    drift_off = sched.rev_drifts[np.clip(m, 0, len(sched.rev_drifts) - 1)]
+    u_t = (sched.theta - m - drift_off) % 1.0
+    grid = np.append(u, 1.0)
+    vals = np.append(prof, prof[0])           # punto de wrap: sin escalon por vuelta
+    e = np.interp(u_t, grid, vals).astype(np.float32)
+    e *= (0.85 + 0.30 * np.clip(0.5 + 0.25 * sched.wobble, 0.0, 1.0)).astype(np.float32)
+    return e
+
+
+def _rolling_contact_core(p: DropletParams, surf: SurfaceProfile, sr: int,
+                          e: np.ndarray,
+                          rng: np.random.Generator) -> np.ndarray:
+    """Nucleo continuo de contacto rodante (plantilla friction.synth_scrape).
+
+    Ruido bandpass del material x e(t) ->
+      (a) tono acuoso DRIVEN: resonador 2o orden en f_M excitado por el
+          ruido de contacto, con FM leve por e(t) (deformacion);
+      (b) voz del material driven y OSCURECIDA (t60 x0.5, HF>4k atenuada).
+    """
+    n = len(e)
+    voicing = MATERIAL_VOICING.get(surf.name, _DEFAULT_VOICING)
+
+    # Excitacion: ruido bandpass del material x perfil de vuelta
+    noise = rng.standard_normal(n).astype(np.float32)
+    cl_lo, cl_hi = surf.click_color_hz
+    cl_hi_safe = min(cl_hi, sr / 2 - 200)
+    sos = signal.butter(4, [cl_lo, cl_hi_safe], btype="band", fs=sr, output="sos")
+    excited = signal.sosfiltfilt(sos, noise).astype(np.float32) * e
+
+    # (a) Tono acuoso driven: resonador en f_M con FM por e(t) suavizada
+    f_M = _bubble_freq_from_radius(p.droplet_radius_mm)
+    f_M = min(f_M, sr / 2 - 500)
+    sos_lp = signal.butter(2, 25.0, btype="low", fs=sr, output="sos")
+    e_s = signal.sosfiltfilt(sos_lp, e.astype(np.float64)).astype(np.float32)
+    fm_depth = 0.04 + 0.04 * p.path_roughness
+    f_traj = f_M * (1.0 + fm_depth * (e_s - float(e_s.mean())))
+    water = np.zeros(n, dtype=np.float32)
+    blk = 256
+    zi = None
+    for i in range(0, n, blk):
+        f_blk = float(np.clip(f_traj[min(i + blk // 2, n - 1)], 40.0, sr / 2 - 500))
+        b, a = signal.iirpeak(f_blk, Q=12.0, fs=sr)
+        sos_pk = signal.tf2sos(b, a)
+        if zi is None:
+            zi = signal.sosfilt_zi(sos_pk) * 0.0
+        seg, zi = signal.sosfilt(sos_pk, excited[i:i + blk], zi=zi)
+        water[i:i + blk] = seg
+    water *= 0.9 * (1.0 - 0.6 * p.viscosity) * p.body_resonance_mix * voicing["body_mul"]
+
+    # (b) Voz del material driven y oscurecida (bandpass por modo)
+    material = np.zeros(n, dtype=np.float32)
+    t60_eff_s = surf.t60_ms * 0.5 / 1000.0
+    for fc, mg in zip(surf.modes_hz, surf.mode_gains):
+        if fc <= 0 or fc >= sr / 2 - 100:
+            continue
+        mg_eff = mg * min(1.0, (4000.0 / fc) ** 2) if fc > 4000 else mg
+        q_m = float(np.clip(0.455 * fc * t60_eff_s, 2.0, 25.0))
+        bw = fc / q_m
+        f_lo, f_hi = max(50.0, fc - bw / 2), min(sr / 2 - 100, fc + bw / 2)
+        if f_lo >= f_hi:
+            continue
+        try:
+            sos_m = signal.butter(2, [f_lo, f_hi], btype="band", fs=sr, output="sos")
+            material += mg_eff * signal.sosfiltfilt(sos_m, excited).astype(np.float32)
+        except ValueError:
+            continue
+    material *= p.surface_ring_mix * voicing["ring_mul"] * 0.6
+
+    return (0.30 * excited + water + material).astype(np.float32)
+
+
+def synth_rolling_droplet(p: DropletParams, sr: int = 44_100) -> np.ndarray:
+    """Rolling droplet v4 "canica continua mojada".
+
+    Nucleo continuo de contacto (perfil de vuelta e(t) excitando resonador
+    Minnaert driven + banco modal oscurecido) con acentos acuosos discretos
+    incrustados solo en las asperezas grandes, crossfade nucleo/acentos por
+    velocidad (fusion), slosh en frenazos, microburbujas ocasionales y
+    rumor grave gated por e(t).
+    """
+    p = _derive_params(p)
+    n_total = int(p.duration_s * sr)
+    rng = np.random.default_rng(p.seed)
+    surf = _get_surface(p)
+    voicing = MATERIAL_VOICING.get(surf.name, _DEFAULT_VOICING)
+
+    sched = _roll_schedule(p, sr, n_total, rng)
+    e = _surface_profile_wave(p, sched, sr, n_total, rng)
+
+    fusion = p.fusion if p.fusion is not None else float(
+        np.clip((p.roll_velocity_hz - 6.0) / 18.0, 0.0, 1.0))
+
+    core = _rolling_contact_core(p, surf, sr, e, rng)
+    out = core * p.continuous_core_mix * (0.55 + 0.45 * fusion)
+
+    # Acentos: solo asperezas top (siempre >=1 por vuelta: el argmax)
+    accents = np.zeros(n_total, dtype=np.float32)
+    if len(sched.starts) and p.accent_gain > 0.005:
+        thr_mask = sched.pattern_amp[sched.asp_idx] > _ROLL_ACCENT_THR
+        thr_mask |= sched.asp_idx == int(np.argmax(sched.pattern_amp))
+        from dataclasses import replace as _dc_replace
+        sched_top = _dc_replace(
+            sched, starts=sched.starts[thr_mask], amps=sched.amps[thr_mask],
+            vels=sched.vels[thr_mask],
+            radius_scales=sched.radius_scales[thr_mask],
+            asp_idx=sched.asp_idx[thr_mask])
+        accents = _render_contact_bus(
+            p, surf, sr, n_total, sched_top, rng,
+            event_kwargs=dict(modal_tail_gain=0.3, click_ms=0.8, dark_tail=True))
+        accents *= (p.accent_gain * (1.4 - 0.9 * fusion)
+                    * max(p.discrete_mix, 0.5) * voicing["discrete_mul"])
+        out += accents
+
+        # Rafagas de microburbujas cada 9 acentos (menos frecuentes que v3)
+        if p.microbubble_mix > 0.01 and len(sched_top.starts):
+            for s in sched_top.starts[::9]:
+                evt = _microbubble_burst(p, sr, rng)
+                end = min(n_total, int(s) + len(evt))
+                out[s:end] += p.microbubble_mix * evt[: end - int(s)]
+
+    # Acentos de slosh en los frenazos (igual que v3)
+    if p.rayleigh_mix > 0.01:
+        for s in sched.slosh_starts:
+            evt = _slosh_accent_event(p, surf, sr, rng)
+            end = min(n_total, int(s) + len(evt))
+            out[s:end] += p.rayleigh_mix * evt[: end - int(s)]
+
+    out = _apply_shimmer(out, sr, p.shimmer_depth * 0.5, rng)
+    out = out + _gated_rumble(p, surf, sr, out, rng, gate_env=e)
+
+    # Drying / fades / normalizacion: igual que los motores anteriores.
     if p.drying_factor > 0.05:
         half = n_total // 2
         dry_env = np.ones(n_total, dtype=np.float32)
