@@ -135,12 +135,28 @@ def _synth_single_grain(profile: GrainProfile, sr: int, velocity: float,
     return (out * (0.7 / peak)).astype(np.float32) if peak > 0 else out
 
 
-def synth_granular_flow(p: GranularParams, sr: int = 44_100) -> np.ndarray:
-    """Flujo granular completo con cluster bursts, velocity per grain y
-    surface coupling."""
-    n_total = int(p.duration_s * sr)
-    out = np.zeros(n_total, dtype=np.float32)
-    rng = np.random.default_rng(p.seed)
+def _grain_schedule(p: GranularParams, sr: int, n_total: int,
+                     rng: np.random.Generator):
+    """Extrae el while-loop de granos de `synth_granular_flow` (posicion,
+    velocidad, amplitud, seed por grano) sin renderizar audio.
+
+    CRITICO para bit-identidad: el orden de draws del `rng` compartido se
+    conserva exactamente -- jitter de cluster (si `anchor_widths > 0` y
+    `cluster_factor > 0.05`) -> velocity -> amp -> avance de `t`. `rng` se
+    muta in-place (mismo patron que `droplet._roll_schedule`): el llamador
+    debe seguir usando el MISMO objeto `rng` despues de esta llamada para
+    que el resto de la funcion (surface coupling, bed) continue la
+    secuencia de draws sin desalinearse.
+
+    `starts` queda en orden de GENERACION, no de tiempo: con
+    `cluster_factor` alto la posicion salta a la ancla mas cercana + jitter,
+    lo que puede producir starts no monotonos con eventos solapados (ver
+    docstring de impossible_mix.physics.blend). Reordenar por tiempo aqui
+    cambiaria el orden de acumulacion float32 del render y romperia el
+    checksum dorado -- por eso se preserva el orden crudo del bucle.
+    """
+    from impossible_mix.physics.blend import EventSchedule
+
     profile = _resolve_profile(p)
     energy_mean = float(p.energy if p.energy is not None else p.energy_mean)
     period_samples = sr / max(p.density_hz, 0.5)
@@ -151,6 +167,11 @@ def synth_granular_flow(p: GranularParams, sr: int = 44_100) -> np.ndarray:
     anchors = np.linspace(0, n_total, n_anchors)
     anchor_widths = (period_samples * 3) * (1 - p.cluster_factor)  # ancho de cluster
 
+    starts: list[int] = []
+    amps: list[float] = []
+    vels: list[float] = []
+    durs: list[float] = []
+    seeds: list[int] = []
     grain_count = 0
     t = 0.0
     while t < n_total:
@@ -166,14 +187,51 @@ def synth_granular_flow(p: GranularParams, sr: int = 44_100) -> np.ndarray:
         velocity = float(np.clip(rng.normal(1.0, 0.3 + 0.4 * p.energy_jitter), 0.3, 2.0))
         # Energia por grano
         amp = velocity * energy_mean * rng.uniform(0.5, 1.3)
-        # Generar grano
-        evt = _synth_single_grain(profile, sr, velocity, seed=p.seed + grain_count * 7 + 11)
-        # Mezclar
-        end = min(n_total, sample_pos + len(evt))
-        out[sample_pos:end] += amp * evt[: end - sample_pos]
+        seed = p.seed + grain_count * 7 + 11
+        dur_ms = profile.damping_ms * (0.7 + 0.6 / max(0.2, velocity))
+
+        starts.append(sample_pos)
+        amps.append(amp)
+        vels.append(velocity)
+        durs.append(dur_ms / 1000.0)
+        seeds.append(seed)
+
         # Avanzar tiempo
         t += period_samples * (1 + p.density_jitter * rng.uniform(-0.85, 0.85))
         grain_count += 1
+
+    return EventSchedule(
+        starts=np.asarray(starts, dtype=np.int64),
+        amps=np.asarray(amps, dtype=np.float64),
+        vels=np.asarray(vels, dtype=np.float64),
+        dur_hint=np.asarray(durs, dtype=np.float64),
+        radii_mm=None,
+        meta={"grain_seeds": np.asarray(seeds, dtype=np.int64), "profile": profile.name},
+    )
+
+
+def synth_granular_flow(p: GranularParams, sr: int = 44_100) -> np.ndarray:
+    """Flujo granular completo con cluster bursts, velocity per grain y
+    surface coupling."""
+    n_total = int(p.duration_s * sr)
+    out = np.zeros(n_total, dtype=np.float32)
+    rng = np.random.default_rng(p.seed)
+    profile = _resolve_profile(p)
+
+    sched = _grain_schedule(p, sr, n_total, rng)
+    seeds = sched.meta["grain_seeds"]
+    for i in range(len(sched.starts)):
+        sample_pos = int(sched.starts[i])
+        velocity = float(sched.vels[i])
+        # amp se recupera como float() (Python, precision debil) a proposito:
+        # asi es como se genera en el bucle original (rng.uniform sin size
+        # ya devuelve float de Python) y asi promueve igual al multiplicar
+        # contra el array float32 del grano (ver blend.py, docstring de
+        # modulo).
+        amp = float(sched.amps[i])
+        evt = _synth_single_grain(profile, sr, velocity, seed=int(seeds[i]))
+        end = min(n_total, sample_pos + len(evt))
+        out[sample_pos:end] += amp * evt[: end - sample_pos]
 
     # Surface coupling: cuando los granos caen sobre una superficie, hay una
     # cola modal de la superficie excitada por toda la nube
