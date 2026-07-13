@@ -315,7 +315,11 @@ def synth_burning_water(duration_s: float = 5.0, intensity: float = 0.7,
                           surface_hardness=0.0, roll_velocity_hz=1, path_roughness=0,
                           duration_s=0.12, seed=seed + k)
         evt = synth_drip_event(d, sr, velocity_factor=vel, seed_override=seed + 5000 + k)
-        amp = rng.uniform(0.3, 0.8) * intensity
+        # Nota: synth_drip_event ya normaliza el evento a pico ~0.7, asi que
+        # este rango de amp esta calibrado para dar al burning_water un pico
+        # global comparable al resto de synth_* de este modulo (fire ~0.73,
+        # rain ~0.86, thunder/glass_break ~0.95), no solo peak<=0.95.
+        amp = rng.uniform(0.6, 1.5) * intensity
         start = int(t)
         end = min(n, start + len(evt))
         out[start:end] += amp * evt[: end - start]
