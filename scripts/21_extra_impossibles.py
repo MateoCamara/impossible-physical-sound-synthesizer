@@ -26,6 +26,12 @@ from impossible_mix.physics.composer import (
     compose_impossible,
 )
 from impossible_mix.physics.droplet import DropletParams, synth_rolling_droplet
+from impossible_mix.physics.exotic import (
+    synth_burning_water,
+    synth_fabric_bell,
+    synth_glass_thunder,
+    synth_mercury_rain,
+)
 from impossible_mix.physics.granular import GranularParams, synth_granular_flow
 from impossible_mix.physics.modal import (
     MaterialModalProfile,
@@ -119,7 +125,12 @@ def glass_avalanche(duration_s=5.0, seed=42) -> np.ndarray:
     # Ramp de densidad: empieza poco, crece, se desvanece
     for chunk_i, density in enumerate([5, 15, 40, 80, 60, 25, 10]):
         chunk_n = n // 7
-        gran = GranularParams(grain_material="glass" if hasattr(__import__("impossible_mix.physics.modal", fromlist=["PROFILES"]).PROFILES, "get") else "metal",
+        # Bug fix: el hasattr(PROFILES, "get") anterior era una tautologia
+        # (PROFILES es un dict, siempre tiene .get) y ademas comprobaba el
+        # modulo equivocado (modal.PROFILES, no granular.GRAIN_PROFILES).
+        # grain_material="glass" es lo que queremos (resuelve via
+        # LEGACY_MATERIAL_TO_PROFILE a "crushed_glass" en granular.py).
+        gran = GranularParams(grain_material="glass",
                               density_hz=density, density_jitter=0.5,
                               grain_size_mm=4, size_variance=0.6, energy=0.5,
                               duration_s=duration_s / 7, seed=seed + chunk_i)
@@ -146,6 +157,15 @@ GENERATORS = {
     "wooden_wind":     wooden_wind,
     "glass_avalanche": glass_avalanche,
     "mercury_drip":    mercury_drip,
+    # --- v6: cuatro fenomenos imposibles nuevos (impossible_mix.physics.exotic) ---
+    "burning_water":   lambda duration_s=5.0, seed=42: synth_burning_water(
+        duration_s=duration_s, intensity=0.7, drip_rate_hz=8.0, seed=seed),
+    "glass_thunder":   lambda duration_s=6.0, seed=42: synth_glass_thunder(
+        duration_s=duration_s, distance=0.4, ring_gain=0.6, seed=seed),
+    "mercury_rain":    lambda duration_s=5.0, seed=42: synth_mercury_rain(
+        duration_s=duration_s, intensity=0.6, drop_radius_mm=0.9, seed=seed),
+    "fabric_bell":     lambda duration_s=5.0, seed=42: synth_fabric_bell(
+        duration_s=duration_s, size=0.5, softness=0.7, seed=seed),
 }
 
 
