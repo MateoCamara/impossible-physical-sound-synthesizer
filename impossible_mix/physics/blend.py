@@ -666,3 +666,152 @@ def synth_rolling_droplet_morphed(p, morph: dict[str, np.ndarray],
             e=e, f_traj=f_traj, sched=sched, drip_starts=drip_starts,
         )
     return out
+
+
+# ====================================================================
+# v8: trasplante de ley por modo/evento (hibridos de identidad)
+# ====================================================================
+# Un banco modal donde cada modo, al ser excitado, NO mantiene su
+# frecuencia: sigue la ley de OTRO fenomeno (p.ej. el glide ascendente de
+# Minnaert del drip) y su amortiguamiento puede seguir la ley de van den
+# Doel evaluada en la frecuencia INSTANTANEA (el decay se acelera mientras
+# el modo sube) -- imposible en un biquad de Q fijo, trivial en sintesis
+# aditiva por evento. Esta es la pieza que convierte "dos cuerpos
+# acoplados" en UN objeto con fisica interna contradictoria.
+
+_LN1000 = 6.907755
+
+
+@dataclass
+class ChirpLaw:
+    """Ley de trayectoria de frecuencia trasplantada a cada modo."""
+    start_ratio: float = 0.45   # f inicial relativa al modo (ley del drip)
+    end_ratio: float = 1.0      # 1.0 aterriza EN el modo (conserva material);
+                                # 1.6 = ley Minnaert literal (detuning deliberado)
+    glide_ms: float = 30.0      # duracion del glide en f_ref
+    f_ref_hz: float = 1800.0
+    per_mode_scale: str = "sqrt"  # "sqrt": los modos altos chirpean mas rapido
+    stagger_ms: float = 3.0     # retardo de onset creciente por modo
+
+
+@dataclass
+class DampingLaw:
+    """Ley de amortiguamiento trasplantada.
+
+    "vdd": van den Doel puro d(f) (los modos agudos se evaporan);
+    "vdd_shape": conserva el t60 del material en f_ref pero con la FORMA
+    f-dependiente de vdd (identidad material + comportamiento agua);
+    "material": t60 fijo clasico.
+    """
+    kind: str = "vdd_shape"
+    t60_ref_ms: float | None = None
+    f_ref_hz: float = 1800.0
+    scale: float = 1.0
+
+
+def vdd_damping_rate(f_hz: np.ndarray) -> np.ndarray:
+    """d(f) = 0.043 f_kHz + 0.0014 f_kHz^1.5 [ms^-1] (van den Doel 2005),
+    identica a droplet._bubble_t60_ms pero vectorizada sobre trayectorias."""
+    f_khz = np.asarray(f_hz, dtype=np.float64) / 1000.0
+    return 0.043 * f_khz + 0.0014 * f_khz ** 1.5
+
+
+def _damping_fn(damping: DampingLaw):
+    if damping.kind == "vdd":
+        return lambda f: vdd_damping_rate(f) / max(damping.scale, 1e-6)
+    if damping.kind == "vdd_shape":
+        t60 = damping.t60_ref_ms or 300.0
+        ref = float(vdd_damping_rate(np.array([damping.f_ref_hz]))[0])
+        k = (_LN1000 / t60) / max(ref, 1e-9)
+        return lambda f: vdd_damping_rate(f) * k / max(damping.scale, 1e-6)
+    t60 = damping.t60_ref_ms or 300.0
+    return lambda f: np.full_like(np.asarray(f, dtype=np.float64),
+                                  (_LN1000 / t60) / max(damping.scale, 1e-6))
+
+
+def chirping_modal_bank(sched: EventSchedule, modes_hz, mode_gains, sr: int,
+                        n_total: int, *, chirp: ChirpLaw, damping: DampingLaw,
+                        inharmonicity: float = 0.0, seed: int = 0,
+                        attack_ms: float = 0.8, max_event_s: float = 4.0,
+                        exc_click: tuple[float, float] | None = None) -> np.ndarray:
+    """Banco modal con ley de frecuencia y amortiguamiento TRASPLANTADAS.
+
+    Sintesis aditiva por evento: cada (evento, modo) es una sinusoide con
+    f(t) geometrica start->end y envolvente exp(-integral d(f(t)) dt) con
+    d evaluada en la frecuencia instantanea.
+    """
+    rng = np.random.default_rng(seed)
+    out = np.zeros(n_total, dtype=np.float32)
+    d_of = _damping_fn(damping)
+    n_att = max(2, int(attack_ms / 1000.0 * sr))
+
+    for i, s in enumerate(sched.starts):
+        a_i = float(sched.amps[i]) * float(sched.vels[i])
+        for k, (f0, g) in enumerate(zip(modes_hz, mode_gains)):
+            if f0 <= 0 or f0 >= sr / 2 - 200:
+                continue
+            f0k = f0 * (1.0 + inharmonicity * rng.uniform(-1, 1))
+            f_start = f0k * chirp.start_ratio
+            f_end = min(f0k * chirp.end_ratio, sr / 2 - 200)
+            glide_ms_k = chirp.glide_ms
+            if chirp.per_mode_scale == "sqrt":
+                glide_ms_k = chirp.glide_ms * float(np.sqrt(chirp.f_ref_hz / f0k))
+            glide_n = max(8, int(glide_ms_k / 1000.0 * sr))
+            d_end = float(d_of(np.array([f_end]))[0])          # ms^-1
+            tail_n = int(min(_LN1000 / max(d_end, 1e-6) / 1000.0, max_event_s) * sr)
+            s_k = int(s) + int(k * chirp.stagger_ms / 1000.0 * sr)
+            n_evt = min(glide_n + tail_n, n_total - s_k)
+            if n_evt <= n_att:
+                continue
+            t_g = np.arange(glide_n) / glide_n
+            f_glide = f_start * (f_end / max(f_start, 1e-6)) ** t_g
+            f_t = np.concatenate([f_glide,
+                                  np.full(n_evt - glide_n, f_end)])[:n_evt]
+            # Envolvente con amortiguamiento instantaneo integrado (d en ms^-1)
+            env = np.exp(-np.cumsum(d_of(f_t)) * (1000.0 / sr) / 1000.0 * 1000.0)
+            env = env.astype(np.float32)
+            env[:n_att] *= (np.linspace(0, 1, n_att) ** 0.7).astype(np.float32)
+            phase = 2 * np.pi * np.cumsum(f_t) / sr + 2 * np.pi * rng.random()
+            out[s_k:s_k + n_evt] += (a_i * g * env
+                                     * np.sin(phase).astype(np.float32))
+    if exc_click is not None:
+        out += 0.3 * excitation_from_schedule(sched, sr, n_total, seed + 1,
+                                              color_hz=exc_click)
+    return out
+
+
+def f_traj_from_schedule(sched: EventSchedule, sr: int, n_total: int, *,
+                         chirp: ChirpLaw, f_floor_hz: float,
+                         relax_tau_ms: float = 80.0) -> np.ndarray:
+    """Contorno de pitch por muestra desde un schedule conocido (sin
+    pitch-tracking): en cada start, glide 0.45->end_ratio de f_M(r_i);
+    entre eventos, relajacion exponencial hacia f_floor_hz."""
+    f = np.full(n_total, float(f_floor_hz), dtype=np.float64)
+    alpha = float(np.exp(-1.0 / (relax_tau_ms / 1000.0 * sr)))
+    events = []
+    for i, s in enumerate(sched.starts):
+        r_mm = float(sched.radii_mm[i]) if sched.radii_mm is not None else 2.0
+        f_m = 3.26 / max(r_mm * 1e-3, 1e-4)
+        glide_n = max(8, int(chirp.glide_ms / 1000.0 * sr))
+        events.append((int(s), f_m, glide_n))
+    cur = float(f_floor_hz)
+    ev_idx = 0
+    active = None  # (start, f_m, glide_n)
+    for n in range(n_total):
+        if ev_idx < len(events) and n >= events[ev_idx][0]:
+            active = events[ev_idx]
+            ev_idx += 1
+        if active is not None:
+            s0, f_m, glide_n = active
+            k = n - s0
+            if k < glide_n:
+                t = k / glide_n
+                cur = (f_m * chirp.start_ratio
+                       * (chirp.end_ratio / chirp.start_ratio) ** t)
+            else:
+                active = None
+                cur = f_m * chirp.end_ratio
+        else:
+            cur = f_floor_hz + (cur - f_floor_hz) * alpha
+        f[n] = cur
+    return np.clip(f, 30.0, sr / 2 - 500).astype(np.float32)
