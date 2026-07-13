@@ -182,11 +182,14 @@ class DropletParams:
     fusion: float | None = None         # crossfade nucleo/acentos; None = auto por velocidad
     profile_floor: float = 0.18         # suelo de e(t) en los valles (anti-aspiradora)
 
-    # --- Exploracion v5 (defaults = v4 exacta) ---
-    smoothness: float = 0.0             # 0..1: saca la AM de la zona de aspereza (15-60 Hz)
-    noise_darkness: float = 0.0         # 0..1: banda de excitacion click_color -> [80,1200] Hz
-    tonal_mix: float = 0.0              # zumbido de rodadura (resonador de cavidad driven)
-    sing_mix: float = 0.0               # canto de copa (resonador Q~60 en el modo grave)
+    # --- v5: receta 41 consolidada tras validacion de oido del usuario ---
+    # (smoothness saca la AM de la zona de aspereza 15-60 Hz; darkness lleva
+    # el ruido a banda grave; tonal/sing son el zumbido de canica y el canto
+    # de copa. El zumbido va a la mitad de la receta original a peticion.)
+    smoothness: float = 0.7             # 0..1: saca la AM de la zona de aspereza (15-60 Hz)
+    noise_darkness: float = 0.7         # 0..1: banda de excitacion click_color -> [80,1200] Hz
+    tonal_mix: float = 0.4              # zumbido de rodadura (resonador de cavidad driven)
+    sing_mix: float = 0.4               # canto de copa (resonador Q~60 en el modo grave)
 
     # Parametros derivables (auto-completados):
     bubble_freq_start_hz: float | None = None

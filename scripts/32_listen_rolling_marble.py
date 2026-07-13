@@ -194,25 +194,35 @@ def run_checks() -> int:
             f"acentos audibles {measured:.1f}/s fuera de [0.5,1.6]x{accent_rate:.1f} "
             f"(enterrados en el nucleo o duplicados)")
 
-    # 3. Anti-aspiradora v4 (tres condiciones obligatorias)
+    # 3. Anti-aspiradora (recalibrado para la receta suave consolidada v5:
+    # la suavidad es DESEADA, asi que los discriminadores son la
+    # periodicidad de vuelta audible, la oscuridad espectral y un suelo
+    # laxo de modulacion — no los valles profundos de la v4 afilada).
     w_legacy = synth_rolling_droplet_legacy(_canonical(), SR)
     mi_v4 = _mod_index(w, SR)
     mi_legacy = _mod_index(w_legacy, SR)
-    if not (mi_v4 > 0.20 and mi_v4 > 1.15 * mi_legacy):
-        failures.append(
-            f"modulacion v4 {mi_v4:.2f} insuficiente (legacy {mi_legacy:.2f}; "
-            f"se exige >0.20 y >1.15x)")
+    if not mi_v4 > 0.22:
+        failures.append(f"modulacion {mi_v4:.2f} <= 0.22 (drone plano)")
     pk_v4 = _rev_periodicity_peak(w, SR, t_rev)
     pk_legacy = _rev_periodicity_peak(w_legacy, SR, t_rev)
-    if not (pk_v4 >= 0.12 and pk_v4 >= 2.0 * pk_legacy):
+    if not (pk_v4 >= 0.25 and pk_v4 >= 4.0 * pk_legacy):
         failures.append(
             f"sin periodicidad de vuelta audible (pico env-AC {pk_v4:.2f}, "
-            f"legacy {pk_legacy:.2f}; se exige >=0.12 y >=2x legacy)")
+            f"legacy {pk_legacy:.2f}; se exige >=0.25 y >=4x legacy)")
+    from scipy import signal as _sg
+    def _hf_share(x):
+        f, P = _sg.welch(x.astype(np.float64), SR, nperseg=4096)
+        return float(P[f > 3000].sum() / (P.sum() + 1e-18))
+    hf = _hf_share(w)
+    hf_leg = _hf_share(w_legacy)
+    if not (hf < 0.15 and hf < 0.7 * hf_leg):
+        failures.append(
+            f"demasiada energia >3 kHz ({hf:.2f}; legacy {hf_leg:.2f}) — zona 'tela/aspiradora'")
     env = _smooth_env(w, SR)
     valley_ratio = float(np.percentile(env, 10) / (np.percentile(env, 50) + 1e-12))
-    if valley_ratio > 0.55:
+    if valley_ratio > 0.80:
         failures.append(
-            f"valles poco profundos p10/p50={valley_ratio:.2f} > 0.55 (zona aspiradora)")
+            f"envolvente plana p10/p50={valley_ratio:.2f} > 0.80 (drone)")
 
     # 4. Periodicidad del patron en el schedule (igual que v3)
     if len(sched.amps) > 30:
@@ -223,23 +233,36 @@ def run_checks() -> int:
             failures.append(
                 f"sin periodicidad de vuelta en el schedule (ac[K={K}]={ac[K]:.2f})")
 
-    # 5. Monotonia de los knobs v4 (renders cortos)
-    mi_f0 = _mod_index(synth_rolling_droplet(_canonical(fusion=0.0), SR), SR)
-    mi_f1 = _mod_index(synth_rolling_droplet(_canonical(fusion=1.0), SR), SR)
+    # 5. Monotonia de la MECANICA de los knobs v4/v5, medida con
+    # smoothness=0 (la receta suave por defecto amortigua estos efectos
+    # a proposito; aqui se verifica que el knob funciona, no la receta).
+    mi_f0 = _mod_index(synth_rolling_droplet(_canonical(smoothness=0.0, fusion=0.0), SR), SR)
+    mi_f1 = _mod_index(synth_rolling_droplet(_canonical(smoothness=0.0, fusion=1.0), SR), SR)
     if not mi_f0 > mi_f1:
         failures.append(f"fusion no monotona (mi(f=0)={mi_f0:.2f} <= mi(f=1)={mi_f1:.2f})")
-    # accent_gain: mas acentos => mas modulacion (el conteo de onsets no
-    # discrimina porque el propio nucleo es "bacheado" al mismo ritmo).
-    mi_acc_hi = _mod_index(synth_rolling_droplet(_canonical(accent_gain=0.7), SR), SR)
-    mi_acc_off = _mod_index(synth_rolling_droplet(_canonical(accent_gain=0.0), SR), SR)
+    mi_acc_hi = _mod_index(synth_rolling_droplet(_canonical(smoothness=0.0, accent_gain=0.7), SR), SR)
+    mi_acc_off = _mod_index(synth_rolling_droplet(_canonical(smoothness=0.0, accent_gain=0.0), SR), SR)
     if not mi_acc_hi > mi_acc_off:
         failures.append(
             f"accent_gain no monotono (mod 0.7={mi_acc_hi:.2f} <= 0.0={mi_acc_off:.2f})")
-    env_c0 = _smooth_env(synth_rolling_droplet(_canonical(continuous_core_mix=0.0), SR), SR)
-    vr_c0 = float(np.percentile(env_c0, 10) / (np.percentile(env_c0, 50) + 1e-12))
-    if not vr_c0 < valley_ratio:
+    # core: sin nucleo la salida son acentos dispersos => mas modulacion
+    mi_c0 = _mod_index(synth_rolling_droplet(_canonical(smoothness=0.0, continuous_core_mix=0.0), SR), SR)
+    mi_c8 = _mod_index(synth_rolling_droplet(_canonical(smoothness=0.0), SR), SR)
+    if not mi_c0 > mi_c8:
         failures.append(
-            f"core no monotono en valles (p10/p50 core=0 {vr_c0:.2f} >= core=0.8 {valley_ratio:.2f})")
+            f"core no monotono (mod core=0 {mi_c0:.2f} <= core=0.8 {mi_c8:.2f})")
+    # smoothness: reduce la aspereza (energia de la envolvente en 15-60 Hz)
+    def _rough(x):
+        envx = np.abs(_sg.hilbert(x.astype(np.float64)))
+        envx = envx - envx.mean()
+        sos_r = _sg.butter(2, [15.0, 60.0], btype="band", fs=SR, output="sos")
+        r = _sg.sosfiltfilt(sos_r, envx)
+        return float(np.sqrt(np.mean(r ** 2)) / (np.sqrt(np.mean(envx ** 2)) + 1e-12))
+    rg_s0 = _rough(synth_rolling_droplet(_canonical(smoothness=0.0), SR))
+    rg_def = _rough(w)
+    if not rg_def < rg_s0:
+        failures.append(
+            f"smoothness no reduce aspereza (def {rg_def:.2f} >= s=0 {rg_s0:.2f})")
 
     if failures:
         print("SMOKES FALLIDOS:")
