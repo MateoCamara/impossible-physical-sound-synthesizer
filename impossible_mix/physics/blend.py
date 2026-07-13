@@ -134,6 +134,40 @@ def schedule_from_drips(sched, p) -> EventSchedule:
     )
 
 
+def schedule_from_crackles(events, sr: int = 44_100) -> EventSchedule:
+    """Adapta una lista de `exotic.CracklePop` (pops de synth_fire) al
+    `EventSchedule` comun. `sr` solo se usa para convertir `pop_n`
+    (muestras) a `dur_hint` (segundos); por defecto usa la SR estandar del
+    proyecto ya que `CracklePop` no la guarda. `vels` no aplica (siempre
+    1.0). `meta` conserva fc1/fc2/t60 por si una fase posterior quiere
+    reconstruir el timbre exacto de cada pop.
+    """
+    n = len(events)
+    if n == 0:
+        return EventSchedule(
+            starts=np.zeros(0, dtype=np.int64),
+            amps=np.zeros(0, dtype=np.float64),
+            vels=np.zeros(0, dtype=np.float64),
+            dur_hint=np.zeros(0, dtype=np.float64),
+            meta={"source": "crackles"},
+        )
+    starts = np.asarray([e.idx for e in events], dtype=np.int64)
+    amps = np.asarray([e.amp for e in events], dtype=np.float64)
+    dur_hint = np.asarray([e.pop_n / sr for e in events], dtype=np.float64)
+    return EventSchedule(
+        starts=starts,
+        amps=amps,
+        vels=np.ones(n, dtype=np.float64),
+        dur_hint=dur_hint,
+        meta={
+            "source": "crackles",
+            "fc1": np.asarray([e.fc1 for e in events], dtype=np.float64),
+            "fc2": np.asarray([e.fc2 for e in events], dtype=np.float64),
+            "t60": np.asarray([e.t60 for e in events], dtype=np.float64),
+        },
+    )
+
+
 def schedule_from_audio(w: np.ndarray, sr: int, expected_rate: float) -> EventSchedule:
     """Fallback universal: detecta eventos en audio ya renderizado via
     onset-picking (analysis.detect_onsets) y usa la envolvente suavizada

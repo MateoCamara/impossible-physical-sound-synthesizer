@@ -96,6 +96,99 @@ def synth_rain(duration_s: float = 5.0, intensity: float = 0.6,
     return (out / peak * 0.95).astype(np.float32) if peak > 0.95 else out
 
 
+def _fire_bed(rng: np.random.Generator, sr: int, n: int,
+              intensity: float) -> tuple[np.ndarray, np.ndarray]:
+    """Extrae el bed de `synth_fire` (ruido marron bandpass modulado por
+    doble AM). Devuelve (bed, am_env): `am_env` es la envolvente cruda
+    (float64, sin el cast a float32 que ocurre inline al multiplicar) --
+    no se usa en `synth_fire` (que sigue calculando `bed` identico), se
+    expone para que fases posteriores del blend puedan reusar la
+    respiracion de la combustion como gate de otras capas.
+
+    CRITICO para bit-identidad: el orden de draws se conserva -- ruido
+    del bed (array) -> am_freq1 -> am_freq2.
+    """
+    bed = rng.standard_normal(n).astype(np.float32) * 0.15
+    sos = signal.butter(4, [80, 1500], btype="band", fs=sr, output="sos")
+    bed = signal.sosfiltfilt(sos, bed).astype(np.float32)
+    t_n = np.arange(n) / sr
+    am_freq1 = 1.5 + rng.random() * 2
+    am_freq2 = 0.4 + 0.6 * rng.random()
+    am = (0.5 + 0.3 * np.sin(2 * np.pi * am_freq1 * t_n)
+              + 0.2 * np.sin(2 * np.pi * am_freq2 * t_n + 1.0))
+    bed = bed * am.astype(np.float32) * intensity
+    return bed, am
+
+
+@dataclass
+class CracklePop:
+    """Descriptor crudo de UN pop de fuego (privado de exotic.py; usar
+    `blend.schedule_from_crackles` para el `EventSchedule` comun).
+
+    Guarda solo los draws del rng -- toda la parte deterministica (filtros,
+    normalizacion de pico) se rehace en `_render_crackle`. `amp` es el
+    draw crudo `rng.uniform(0.3, 1.0)` (ANTES de dividir por peak_p, que es
+    un artefacto del renderizado, no un draw)."""
+    idx: int
+    pop_n: int
+    impulse_noise: np.ndarray   # standard_normal crudo, float64, len=max(2, pop_n//20)
+    fc1: float
+    fc2: float
+    t60: float
+    amp: float
+
+
+def _fire_crackle_events(rng: np.random.Generator, sr: int, n: int,
+                          n_pops: int) -> list[CracklePop]:
+    """Extrae el for-loop de crackles de `synth_fire` (idx/pop_n/impulso/
+    modos/t60/amp por pop) sin renderizar audio.
+
+    CRITICO para bit-identidad: el orden de draws por pop se conserva --
+    idx -> pop_n -> impulse_noise (standard_normal, INTERCALADO entre los
+    demas draws) -> fc1 -> fc2 -> t60 -> amp. El `amp` final se dibuja
+    incondicionalmente en el original (`peak_p + 1e-9` siempre > 0), asi
+    que no hace falta rehacer el filtrado aqui solo para decidir si se
+    dibuja: el draw siempre ocurre.
+    """
+    events: list[CracklePop] = []
+    for _ in range(n_pops):
+        idx = int(rng.uniform(0, n - 200))
+        pop_n = int(rng.uniform(0.005, 0.025) * sr)
+        imp_len = max(2, pop_n // 20)
+        impulse_noise = rng.standard_normal(imp_len)
+        fc1 = rng.uniform(2500, 5500)
+        fc2 = rng.uniform(700, 1800)
+        t60 = rng.uniform(0.003, 0.012)
+        amp = rng.uniform(0.3, 1.0)
+        events.append(CracklePop(idx=idx, pop_n=pop_n, impulse_noise=impulse_noise,
+                                  fc1=fc1, fc2=fc2, t60=t60, amp=amp))
+    return events
+
+
+def _render_crackle(pop: CracklePop, sr: int) -> np.ndarray:
+    """Renderer puro de UN pop (dos resonancias excitadas por el impulso
+    guardado, normalizadas a `pop.amp`). NO aplica `intensity` -- eso lo
+    hace el llamador (`synth_fire`) sobre el resultado ya recortado, igual
+    orden de multiplicaciones que el original (`pop*(draw/peak_p)*intensity`
+    es left-to-right: primero el escalado por peak_p aqui, luego intensity
+    fuera; el recorte por indices no afecta el valor por elemento)."""
+    impulse = np.zeros(pop.pop_n, dtype=np.float32)
+    imp_len = len(pop.impulse_noise)
+    impulse[:imp_len] = pop.impulse_noise.astype(np.float32) * 0.7
+    r1 = float(np.exp(-6.91 / max(pop.t60 * sr, 1e-3)))
+    r2 = float(np.exp(-6.91 / max(pop.t60 * 1.4 * sr, 1e-3)))
+    a1 = np.array([1.0, -2 * r1 * np.cos(2 * np.pi * pop.fc1 / sr), r1 * r1])
+    a2 = np.array([1.0, -2 * r2 * np.cos(2 * np.pi * pop.fc2 / sr), r2 * r2])
+    b = np.array([1.0, 0.0, -1.0])
+    y1 = signal.lfilter(b, a1, impulse).astype(np.float32)
+    y2 = signal.lfilter(b, a2, impulse).astype(np.float32)
+    out = 0.6 * y1 + 0.4 * y2
+    peak_p = float(np.max(np.abs(out)) + 1e-9)
+    if peak_p > 0:
+        out = out * (pop.amp / peak_p)
+    return out
+
+
 def synth_fire(duration_s: float = 5.0, intensity: float = 0.7,
                crackle_density: float = 0.5, sr: int = 44_100, seed: int = 0) -> np.ndarray:
     """Fuego mejorado: bed caotico bandpass + crackles que son
@@ -111,48 +204,47 @@ def synth_fire(duration_s: float = 5.0, intensity: float = 0.7,
     """
     n = int(duration_s * sr)
     rng = np.random.default_rng(seed)
-    # Bed: ruido marrón modulado por dos AM
-    bed = rng.standard_normal(n).astype(np.float32) * 0.15
-    sos = signal.butter(4, [80, 1500], btype="band", fs=sr, output="sos")
-    bed = signal.sosfiltfilt(sos, bed).astype(np.float32)
-    t_n = np.arange(n) / sr
-    am_freq1 = 1.5 + rng.random() * 2
-    am_freq2 = 0.4 + 0.6 * rng.random()
-    am = (0.5 + 0.3 * np.sin(2 * np.pi * am_freq1 * t_n)
-              + 0.2 * np.sin(2 * np.pi * am_freq2 * t_n + 1.0))
-    bed = bed * am.astype(np.float32) * intensity
+    bed, _am_env = _fire_bed(rng, sr, n, intensity)
 
     # Crackles: micro-impactos modales de madera o cristal cuando seco
     out = bed.copy()
     pop_rate = 4 + 25 * crackle_density
     n_pops = int(duration_s * pop_rate)
-    # Mini perfil modal para los pops (mas rapido que synth_modal_impact)
-    for _ in range(n_pops):
-        idx = int(rng.uniform(0, n - 200))
-        # Cada pop: pulso corto + dos resonancias (madera con micro-fractura)
-        pop_n = int(rng.uniform(0.005, 0.025) * sr)
-        impulse = np.zeros(pop_n, dtype=np.float32)
-        impulse[:max(2, pop_n // 20)] = rng.standard_normal(max(2, pop_n // 20)).astype(np.float32) * 0.7
-        # Dos modos: alto (fractura aguda) y medio (cuerpo de la fibra)
-        fc1 = rng.uniform(2500, 5500)
-        fc2 = rng.uniform(700, 1800)
-        t60 = rng.uniform(0.003, 0.012)
-        r1 = float(np.exp(-6.91 / max(t60 * sr, 1e-3)))
-        r2 = float(np.exp(-6.91 / max(t60 * 1.4 * sr, 1e-3)))
-        a1 = np.array([1.0, -2 * r1 * np.cos(2 * np.pi * fc1 / sr), r1 * r1])
-        a2 = np.array([1.0, -2 * r2 * np.cos(2 * np.pi * fc2 / sr), r2 * r2])
-        b = np.array([1.0, 0.0, -1.0])
-        y1 = signal.lfilter(b, a1, impulse).astype(np.float32)
-        y2 = signal.lfilter(b, a2, impulse).astype(np.float32)
-        pop = 0.6 * y1 + 0.4 * y2
-        peak_p = float(np.max(np.abs(pop)) + 1e-9)
-        if peak_p > 0:
-            pop = pop * (rng.uniform(0.3, 1.0) / peak_p) * intensity
-        end = min(n, idx + len(pop))
-        out[idx:end] += pop[: end - idx]
+    events = _fire_crackle_events(rng, sr, n, n_pops)
+    for pop in events:
+        rendered = _render_crackle(pop, sr)
+        end = min(n, pop.idx + len(rendered))
+        out[pop.idx:end] += intensity * rendered[: end - pop.idx]
 
     peak = float(np.max(np.abs(out)) + 1e-9)
     return (out / peak * 0.95).astype(np.float32) if peak > 0.95 else out
+
+
+def _thunder_rumble(rng: np.random.Generator, sr: int, n: int, distance: float,
+                     intensity: float) -> tuple[np.ndarray, np.ndarray]:
+    """Extrae el rumble grave de `synth_thunder` (decay exponencial 3-5s).
+    Devuelve (rumble, rumble_env): `rumble_env` es una envolvente LPF 12 Hz
+    NUEVA (no existia en synth_thunder original, que no la usa), pensada
+    para que fases posteriores del blend puedan usarla como gate de otras
+    capas -- no consume rng, asi que anadirla no desalinea nada.
+
+    NOTA: `synth_glass_thunder` calcula su PROPIA envolvente LPF 12 Hz
+    local (linea ~382-384 de este fichero) sobre SU PROPIO rumble (rng/
+    distance distintos); se deja intacta a proposito -- reusar esta
+    funcion alli arriesgaba resultados distintos si algun detalle no
+    calzaba exactamente y habria roto el checksum 'glass_thunder' sin
+    necesidad (glass_thunder no forma parte de esta extraccion).
+    """
+    rumble = rng.standard_normal(n).astype(np.float32)
+    f_high = 600 - 400 * distance
+    sos = signal.butter(4, [30, max(80, f_high)], btype="band", fs=sr, output="sos")
+    rumble = signal.sosfiltfilt(sos, rumble).astype(np.float32)
+    decay = np.exp(-np.linspace(0, 4 - 2 * distance, n)).astype(np.float32)
+    rumble = rumble * decay * (0.4 + 0.6 * (1 - distance * 0.5)) * intensity
+    rumble_env = np.abs(rumble)
+    sos_env = signal.butter(2, 12, btype="low", fs=sr, output="sos")
+    rumble_env = signal.sosfiltfilt(sos_env, rumble_env).astype(np.float32)
+    return rumble, rumble_env
 
 
 def synth_thunder(duration_s: float = 6.0, distance: float = 0.5,
@@ -171,13 +263,7 @@ def synth_thunder(duration_s: float = 6.0, distance: float = 0.5,
         crack = signal.sosfiltfilt(sos, crack).astype(np.float32)
         out[: crack_n] += crack * 0.8
     # 2) Rumble grave largo (decay exponencial 3-5s)
-    rumble = rng.standard_normal(n).astype(np.float32)
-    # Lowpass progresivamente mas oscuro con la distancia
-    f_high = 600 - 400 * distance
-    sos = signal.butter(4, [30, max(80, f_high)], btype="band", fs=sr, output="sos")
-    rumble = signal.sosfiltfilt(sos, rumble).astype(np.float32)
-    decay = np.exp(-np.linspace(0, 4 - 2 * distance, n)).astype(np.float32)
-    rumble = rumble * decay * (0.4 + 0.6 * (1 - distance * 0.5)) * intensity
+    rumble, _rumble_env = _thunder_rumble(rng, sr, n, distance, intensity)
     out = out + rumble
     # 3) Reverberacion via convolucion con impulso exponencial corto
     ir_n = int(0.4 * sr)
