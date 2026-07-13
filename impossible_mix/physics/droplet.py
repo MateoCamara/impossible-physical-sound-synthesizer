@@ -1319,18 +1319,26 @@ def _surface_profile_wave(p: DropletParams, sched: RollSchedule,
 
 
 def _driven_resonator(x: np.ndarray, f_traj: np.ndarray, q: float,
-                      sr: int, blk: int = 256) -> np.ndarray:
+                      sr: int, blk: int = 256,
+                      q_traj: np.ndarray | None = None) -> np.ndarray:
     """Resonador 2o orden DRIVEN con trayectoria de frecuencia lenta.
 
     Coeficientes actualizados por bloques con estado zi arrastrado (la FM es
     <25 Hz, asi que el salto de coeficientes cada ~6 ms es inaudible).
+
+    `q_traj` (opcional) permite que el Q tambien varie por bloque (mismo
+    muestreo por-bloque que `f_traj`, tomado del centro del bloque). Si es
+    None (default), el camino es identico al original (usa `q` fijo) --
+    esto es lo que verifica el checksum dorado de rolling_droplet.
     """
     n = len(x)
     out = np.zeros(n, dtype=np.float32)
     zi = None
     for i in range(0, n, blk):
-        f_blk = float(np.clip(f_traj[min(i + blk // 2, n - 1)], 40.0, sr / 2 - 500))
-        b, a = signal.iirpeak(f_blk, Q=q, fs=sr)
+        center = min(i + blk // 2, n - 1)
+        f_blk = float(np.clip(f_traj[center], 40.0, sr / 2 - 500))
+        q_blk = float(q_traj[center]) if q_traj is not None else q
+        b, a = signal.iirpeak(f_blk, Q=q_blk, fs=sr)
         sos_pk = signal.tf2sos(b, a)
         if zi is None:
             zi = signal.sosfilt_zi(sos_pk) * 0.0
