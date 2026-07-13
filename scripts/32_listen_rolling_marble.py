@@ -105,42 +105,18 @@ Di el NOMBRE DE FICHERO de lo que suene mal y que le sobra/falta.
 # ------------------------------------------------------------------
 # Smokes
 # ------------------------------------------------------------------
-def _detect_onsets(w: np.ndarray, sr: int, expected_rate: float) -> np.ndarray:
-    """Onsets por pico de envolvente HP>1kHz (indices de sample).
-
-    La distancia minima entre picos se liga a la tasa esperada (0.5/rate)
-    para no contar doble el click y el pico del chirp de un mismo contacto.
-    """
-    from scipy import signal as sg
-    sos = sg.butter(4, 1000, btype="high", fs=sr, output="sos")
-    hp = sg.sosfilt(sos, w.astype(np.float64))
-    env = np.abs(hp)
-    win = max(8, int(0.005 * sr))
-    env = np.convolve(env, np.ones(win) / win, mode="same")
-    thr = 0.35 * env.max()
-    min_dist = max(int(0.008 * sr), int(0.5 / max(expected_rate, 1.0) * sr))
-    peaks, _ = sg.find_peaks(env, height=thr, distance=min_dist)
-    return peaks
-
-
-def _mod_index(w: np.ndarray, sr: int) -> float:
-    """Indice de modulacion de envolvente (std/mean). Una 'aspiradora'
-    (ruido continuo) da valores bajos; una rodadura de eventos, altos."""
-    from scipy import signal as sg
-    env = np.abs(sg.hilbert(w.astype(np.float64)))
-    win = max(8, int(0.005 * sr))
-    env = np.convolve(env, np.ones(win) / win, mode="same")
-    return float(env.std() / (env.mean() + 1e-12))
+# Subidas al paquete (impossible_mix.physics.analysis); wrappers finos para
+# mantener las firmas locales historicas de este script.
+from impossible_mix.physics.analysis import (  # noqa: E402
+    detect_onsets as _detect_onsets,
+    mod_index as _mod_index,
+    smooth_env as _analysis_smooth_env,
+)
 
 
 def _smooth_env(w: np.ndarray, sr: int) -> np.ndarray:
     """Envolvente |hilbert| suavizada 5 ms, decimada a ~400 Hz."""
-    from scipy import signal as sg
-    env = np.abs(sg.hilbert(w.astype(np.float64)))
-    win = max(8, int(0.005 * sr))
-    env = np.convolve(env, np.ones(win) / win, mode="same")
-    hop = max(1, sr // 400)
-    return env[::hop]
+    return _analysis_smooth_env(w, sr, win_ms=5.0, fs_out=400)
 
 
 def _rev_periodicity_peak(w: np.ndarray, sr: int, t_rev: float) -> float:
