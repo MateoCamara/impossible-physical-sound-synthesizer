@@ -488,3 +488,181 @@ def physical_vocoder(articulator: np.ndarray, sr: int, body: BodySpec,
     if peak > 0:
         out = out * (0.95 / peak)
     return out.astype(np.float32)
+
+
+# ====================================================================
+# (c) Morphing de fisica: interpolar las LEYES, no las salidas
+# ====================================================================
+@dataclass
+class HandoffSpec:
+    """Traspaso rodadura -> goteo al final del clip (la canica se derrite).
+
+    A partir de t_norm la excitacion de rodadura decae (rate -> 0) mientras
+    un tren creciente de gotas inyecta su excitacion EN EL MISMO resonador
+    de agua (mismo estado zi): el cuerpo liquido nunca se corta, solo
+    cambia quien lo excita. Cero crossfade de renders.
+    """
+    t_norm: float = 0.7
+    rate_end_hz: float = 18.0
+    drip_gain: float = 0.8
+
+
+def synth_rolling_droplet_morphed(p, morph: dict[str, np.ndarray],
+                                  sr: int = 44_100,
+                                  surface_pair: tuple[str, str] = ("metal", "water"),
+                                  handoff: HandoffSpec | None = None,
+                                  return_debug: bool = False):
+    """Gota rodante con TRAYECTORIAS de parametros fisicos (morphing).
+
+    morph: claves opcionales {"radius_mm", "viscosity", "roll_velocity_hz",
+    "hardness_x"} con arrays a cualquier resolucion (se upsamplean con
+    interp lineal). hardness_x en [0,1] cruza equal-power entre los DOS
+    bancos de material de surface_pair — ambos oyen la MISMA excitacion:
+    no son dos capas, son dos coloraciones del mismo contacto.
+
+    UN solo render continuo: theta = cumsum(rate) mantiene la fase de
+    revolucion; el resonador Minnaert recibe f(t)=3.26/r(t) y Q(t) de la
+    viscosidad; el handoff inyecta las gotas en su mismo estado.
+    """
+    from dataclasses import replace as _dc_replace
+
+    from impossible_mix.physics.droplet import (
+        SURFACE_PROFILES, _derive_params, _driven_resonator, _get_surface,
+        _roll_schedule, _surface_profile_wave, synth_drip_event,
+    )
+
+    p = _derive_params(_dc_replace(p))
+    n = int(p.duration_s * sr)
+    rng = np.random.default_rng(p.seed)
+
+    def _up(key: str, default: float) -> np.ndarray:
+        arr = morph.get(key)
+        if arr is None:
+            return np.full(n, float(default))
+        arr = np.asarray(arr, dtype=np.float64)
+        return np.interp(np.linspace(0, 1, n), np.linspace(0, 1, len(arr)), arr)
+
+    r_traj = np.maximum(_up("radius_mm", p.droplet_radius_mm), 0.2)
+    visc_traj = np.clip(_up("viscosity", p.viscosity), 0.0, 1.0)
+    rate_traj = np.maximum(
+        _up("roll_velocity_hz", p.roll_velocity_hz), 0.0) * max(p.contact_density_mul, 0.1)
+    x_traj = np.clip(_up("hardness_x", 0.0), 0.0, 1.0)
+
+    surf_a = SURFACE_PROFILES[surface_pair[0]]
+    surf_b = SURFACE_PROFILES[surface_pair[1]]
+
+    # Agenda + perfil de vuelta con tasa variable (fase continua via cumsum)
+    sched = _roll_schedule(p, sr, n, rng, rate_traj=rate_traj)
+    e = _surface_profile_wave(p, sched, sr, n, rng)
+    rate_ref = max(float(rate_traj.max()), 1e-6)
+    e = (e * np.sqrt(np.clip(rate_traj / rate_ref, 0.0, 1.0))).astype(np.float32)
+
+    # Excitacion: MISMO ruido por dos bandas de material, crossfade equal-power
+    noise = rng.standard_normal(n).astype(np.float32)
+
+    def _bp(surf) -> np.ndarray:
+        lo, hi = surf.click_color_hz
+        hi = min(hi, sr / 2 - 200)
+        sos = signal.butter(4, [lo, hi], btype="band", fs=sr, output="sos")
+        return signal.sosfiltfilt(sos, noise).astype(np.float32)
+
+    xa = np.cos(0.5 * np.pi * x_traj).astype(np.float32)
+    xb = np.sin(0.5 * np.pi * x_traj).astype(np.float32)
+    excited = (_bp(surf_a) * xa + _bp(surf_b) * xb) * e
+
+    # Resonador de agua CONTINUO: f de r(t), Q de viscosidad(t)
+    sos_lp = signal.butter(2, 25.0, btype="low", fs=sr, output="sos")
+    e_s = signal.sosfiltfilt(sos_lp, e.astype(np.float64)).astype(np.float32)
+    fm_depth = 0.04 + 0.04 * p.path_roughness
+    f_traj = (3.26 / (r_traj * 1e-3)) * (1.0 + fm_depth * (e_s - float(e_s.mean())))
+    f_traj = np.clip(f_traj, 40.0, sr / 2 - 500).astype(np.float32)
+    q_traj = (14.0 - 10.0 * visc_traj).astype(np.float32)
+
+    water_exc = excited.copy()
+    drips_detail = np.zeros(n, dtype=np.float32)
+    drip_starts = np.zeros(0, dtype=np.int64)
+    if handoff is not None:
+        i0 = int(np.clip(handoff.t_norm, 0.0, 0.95) * n)
+        drip_rate = np.zeros(n)
+        drip_rate[i0:] = np.linspace(0.0, handoff.rate_end_hz, n - i0)
+        dsched = schedule_from_rate(drip_rate, sr, p.seed + 7,
+                                    radius_traj=r_traj)
+        if len(dsched.starts):
+            drip_starts = dsched.starts
+            water_exc += 1.2 * excitation_from_schedule(
+                dsched, sr, n, p.seed + 11, click_ms=1.2, color_hz=(300, 4000))
+            for i, s in enumerate(dsched.starts):
+                pd = _dc_replace(
+                    p, droplet_radius_mm=float(dsched.radii_mm[i]),
+                    bubble_freq_start_hz=None, bubble_freq_end_hz=None,
+                    chirp_duration_ms=None, decay_ms=None,
+                    bounce_amount=0.0)
+                evt = synth_drip_event(pd, sr, velocity_factor=1.0,
+                                       seed_override=p.seed + 1000 + int(s))
+                end = min(n, int(s) + len(evt))
+                drips_detail[s:end] += (handoff.drip_gain
+                                        * float(dsched.amps[i])
+                                        * evt[: end - int(s)])
+
+    water = _driven_resonator(water_exc, f_traj, 12.0, sr, q_traj=q_traj)
+    water = water * (0.9 * (1.0 - 0.6 * visc_traj)
+                     * p.body_resonance_mix).astype(np.float32)
+
+    # Bancos de material A y B sobre la MISMA excitacion, cruzados x(t)
+    def _bank(surf) -> np.ndarray:
+        out = np.zeros(n, dtype=np.float32)
+        t60_s = surf.t60_ms * 0.5 / 1000.0
+        for fc, mg in zip(surf.modes_hz, surf.mode_gains):
+            if fc <= 0 or fc >= sr / 2 - 100:
+                continue
+            mg_eff = mg * min(1.0, (4000.0 / fc) ** 2) if fc > 4000 else mg
+            q_m = float(np.clip(0.455 * fc * t60_s, 2.0, 25.0))
+            bw = fc / q_m
+            f_lo, f_hi = max(50.0, fc - bw / 2), min(sr / 2 - 100, fc + bw / 2)
+            if f_lo >= f_hi:
+                continue
+            try:
+                sos_m = signal.butter(2, [f_lo, f_hi], btype="band", fs=sr,
+                                      output="sos")
+                out += mg_eff * signal.sosfiltfilt(sos_m, excited).astype(np.float32)
+            except ValueError:
+                continue
+        return out
+
+    material = (_bank(surf_a) * xa + _bank(surf_b) * xb) * (
+        p.surface_ring_mix * 0.6)
+
+    s = float(np.clip(p.smoothness, 0.0, 1.0))
+    out = (0.30 * (1.0 - 0.8 * s)) * excited + water + material + drips_detail
+
+    # Rumor grave gated por e(t) (banda interpolada por el punto medio del morph)
+    if p.continuous_layer_mix > 0.01:
+        x_mid = float(x_traj.mean())
+        cl_lo = surf_a.click_color_hz[0] * (1 - x_mid) + surf_b.click_color_hz[0] * x_mid
+        cl_hi = surf_a.click_color_hz[1] * (1 - x_mid) + surf_b.click_color_hz[1] * x_mid
+        lo, hi = max(120.0, cl_lo * 0.4), min(cl_hi * 0.5, 3000.0)
+        if lo >= hi:
+            lo, hi = 120.0, 1200.0
+        sos_r = signal.butter(4, [lo, hi], btype="band", fs=sr, output="sos")
+        rumble_noise = signal.sosfilt(
+            sos_r, rng.standard_normal(n).astype(np.float32)).astype(np.float32)
+        gate = e / (float(e.max()) + 1e-9)
+        out = out + (0.35 * p.continuous_layer_mix
+                     * (1.0 - 0.5 * visc_traj).astype(np.float32)) * gate * rumble_noise
+
+    fade_n = min(int(0.02 * sr), n // 8)
+    if fade_n > 4:
+        fade = 0.5 * (1 - np.cos(np.linspace(0, np.pi, fade_n))).astype(np.float32)
+        out[:fade_n] *= fade
+        out[-fade_n:] *= fade[::-1]
+    peak = float(np.max(np.abs(out)) + 1e-9)
+    scale = (0.95 / peak) if peak > 0.95 else 1.0
+    out = (out * scale).astype(np.float32)
+    if return_debug:
+        return out, dict(
+            water=(water * scale).astype(np.float32),
+            material=(material * scale).astype(np.float32),
+            drips=(drips_detail * scale).astype(np.float32),
+            e=e, f_traj=f_traj, sched=sched, drip_starts=drip_starts,
+        )
+    return out

@@ -844,12 +844,18 @@ class RollSchedule:
 
 
 def _roll_schedule(p: DropletParams, sr: int, n_total: int,
-                   rng: np.random.Generator) -> RollSchedule:
+                   rng: np.random.Generator,
+                   rate_traj: np.ndarray | None = None) -> RollSchedule:
     """Genera la agenda de contactos por revolucion.
 
     K asperezas con amplitud y fase angular FIJAS por seed se recorren una
     vez por vuelta; la velocidad de revolucion respira con un wobble lento
     y el patron precesa lentamente (pattern_drift).
+
+    rate_traj (opcional, per-sample, contactos/s) sustituye a la tasa
+    constante para el morphing de fisica: theta sigue siendo cumsum, asi
+    que la fase de revolucion es continua ante velocidad variable.
+    Default None = camino bit-identico al historico.
     """
     empty = RollSchedule(
         starts=np.zeros(0, dtype=np.int64), amps=np.zeros(0),
@@ -878,8 +884,11 @@ def _roll_schedule(p: DropletParams, sr: int, n_total: int,
     f_rev_nominal = rate / K
 
     wobble = _slow_lfo(n_total, sr, p.rev_wobble_hz, rng)
-    f_rev_inst = f_rev_nominal * np.clip(
-        1.0 + p.rev_wobble_depth * wobble, 0.3, None)
+    wob_factor = np.clip(1.0 + p.rev_wobble_depth * wobble, 0.3, None)
+    if rate_traj is None:
+        f_rev_inst = f_rev_nominal * wob_factor
+    else:
+        f_rev_inst = (np.maximum(rate_traj, 0.0) / K) * wob_factor
     theta = np.cumsum(f_rev_inst.astype(np.float64)) / sr  # revoluciones
 
     jitter_ms = _ROLL_JITTER_BASE_MS + _ROLL_JITTER_ROUGH_MS * p.path_roughness
@@ -1046,33 +1055,39 @@ def _wet_contact_event(p: DropletParams, surf: SurfaceProfile, sr: int,
 def _render_contact_bus(p: DropletParams, surf: SurfaceProfile, sr: int,
                         n_total: int, sched: RollSchedule,
                         rng: np.random.Generator,
-                        event_kwargs: dict | None = None) -> np.ndarray:
+                        event_kwargs: dict | None = None,
+                        force_per_event: bool = False) -> np.ndarray:
     """Suma de micro-contactos con pool anti-clones.
 
     Pool de >=8 variantes pre-renderizadas en bins de radius_scale; cada
     evento usa la variante de radio mas cercano, y solo los outliers de
     velocidad (|vel-1| > 0.3) se renderizan a medida. event_kwargs se
     reenvia a _wet_contact_event (el motor v4 lo usa para matar el plink).
+
+    force_per_event=True desactiva el pool y renderiza CADA contacto a
+    medida (necesario cuando radius_scale codifica una trayectoria de radio
+    del morphing: el pool asume radio estadisticamente estacionario).
     """
     bus = np.zeros(n_total, dtype=np.float32)
     if len(sched.starts) == 0:
         return bus
     ekw = event_kwargs or {}
-    n_variants = max(8, 1 + int(round(p.inter_event_variability * 8)))
-    # Bins de radio: cuantiles de la lognormal usada en el schedule.
-    rad_sigma = 0.10 + 0.15 * p.inter_event_variability
-    qs = (np.arange(n_variants) + 0.5) / n_variants
-    # Aproximacion de ppf normal via numpy (evita dependencia scipy.stats).
-    pool_rads = np.exp(np.sqrt(2) * rad_sigma *
-                       np.array([_erfinv_approx(2 * q - 1) for q in qs]))
-    pool = [
-        _wet_contact_event(p, surf, sr, velocity_factor=1.0,
-                           radius_scale=float(r), seed=p.seed + 300 + k, **ekw)
-        for k, r in enumerate(pool_rads)
-    ]
+    if not force_per_event:
+        n_variants = max(8, 1 + int(round(p.inter_event_variability * 8)))
+        # Bins de radio: cuantiles de la lognormal usada en el schedule.
+        rad_sigma = 0.10 + 0.15 * p.inter_event_variability
+        qs = (np.arange(n_variants) + 0.5) / n_variants
+        # Aproximacion de ppf normal via numpy (evita dependencia scipy.stats).
+        pool_rads = np.exp(np.sqrt(2) * rad_sigma *
+                           np.array([_erfinv_approx(2 * q - 1) for q in qs]))
+        pool = [
+            _wet_contact_event(p, surf, sr, velocity_factor=1.0,
+                               radius_scale=float(r), seed=p.seed + 300 + k, **ekw)
+            for k, r in enumerate(pool_rads)
+        ]
     for i, start in enumerate(sched.starts):
         vel = float(sched.vels[i])
-        if abs(vel - 1.0) > 0.3:
+        if force_per_event or abs(vel - 1.0) > 0.3:
             evt = _wet_contact_event(
                 p, surf, sr, velocity_factor=vel,
                 radius_scale=float(sched.radius_scales[i]),
