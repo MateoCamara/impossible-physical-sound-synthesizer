@@ -84,6 +84,56 @@ def schedule_from_grains(sched: EventSchedule) -> EventSchedule:
     return sched
 
 
+def schedule_from_splash(sched, p) -> EventSchedule:
+    """Adapta un `liquid.SplashSchedule` (cascada de burbujas de synth_splash)
+    al `EventSchedule` comun. `dur_hint` se estima con la fisica de Minnaert
+    de droplet.py (chirp+decay) para el radio de cada burbuja -- no se usa
+    en el render real de synth_splash, que sigue viviendo en liquid.py.
+    """
+    from impossible_mix.physics.droplet import DropletParams, _derive_params
+
+    n = len(sched.offsets)
+    dur_hint = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        dp = _derive_params(DropletParams(droplet_radius_mm=float(sched.radii_mm[i]),
+                                           viscosity=p.viscosity))
+        dur_hint[i] = (float(dp.chirp_duration_ms or 0.0) + float(dp.decay_ms or 0.0)) / 1000.0
+
+    return EventSchedule(
+        starts=sched.offsets.astype(np.int64),
+        amps=np.asarray(sched.amps, dtype=np.float64),
+        vels=np.asarray(sched.vels, dtype=np.float64),
+        dur_hint=dur_hint,
+        radii_mm=np.asarray(sched.radii_mm, dtype=np.float64),
+        meta={"seeds": sched.seeds, "source": "splash"},
+    )
+
+
+def schedule_from_drips(sched, p) -> EventSchedule:
+    """Adapta un `liquid.DripSchedule` (loop de synth_pour) al
+    `EventSchedule` comun. `vels` no existe en el pour original (no hay
+    velocity_factor por gota); se rellena a 1.0. `dur_hint` estimado igual
+    que en `schedule_from_splash`.
+    """
+    from impossible_mix.physics.droplet import DropletParams, _derive_params
+
+    n = len(sched.starts)
+    dur_hint = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        dp = _derive_params(DropletParams(droplet_radius_mm=float(sched.radii_mm[i]),
+                                           viscosity=p.viscosity))
+        dur_hint[i] = (float(dp.chirp_duration_ms or 0.0) + float(dp.decay_ms or 0.0)) / 1000.0
+
+    return EventSchedule(
+        starts=sched.starts.astype(np.int64),
+        amps=np.asarray(sched.amps, dtype=np.float64),
+        vels=np.ones(n, dtype=np.float64),
+        dur_hint=dur_hint,
+        radii_mm=np.asarray(sched.radii_mm, dtype=np.float64),
+        meta={"seeds": sched.seeds, "source": "pour"},
+    )
+
+
 def schedule_from_audio(w: np.ndarray, sr: int, expected_rate: float) -> EventSchedule:
     """Fallback universal: detecta eventos en audio ya renderizado via
     onset-picking (analysis.detect_onsets) y usa la envolvente suavizada
