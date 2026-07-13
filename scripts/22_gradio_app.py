@@ -28,6 +28,8 @@ from impossible_mix.physics.modulation import KnobCurve, compose_evolving
 from impossible_mix.physics.exotic import (
     synth_rain, synth_fire, synth_thunder,
     synth_glass_break, synth_ocean_wave,
+    synth_burning_water, synth_glass_thunder,
+    synth_mercury_rain, synth_fabric_bell,
 )
 from impossible_mix.physics.sequences import (
     droplet_story, mercury_drama, lava_step_into_water, parse_dsl,
@@ -46,6 +48,75 @@ def to_gradio_audio(wav: np.ndarray, sr: int = SAMPLE_RATE):
 # ====================================================================
 # Tab 1: Rolling droplet with physical knobs + preset selector
 # ====================================================================
+def render_v5_live(radius_mm, viscosity, surface_hardness, roll_velocity_hz,
+                   path_roughness, rev_wobble_depth, asperities, density_mul,
+                   pattern_drift, core_mix, accent_gain, fusion_auto, fusion,
+                   profile_floor, smoothness, noise_darkness, tonal_mix,
+                   sing_mix, duration_s, seed):
+    """Render on-release de la pestana Rolling v5 (live): todos los dials."""
+    from impossible_mix.physics.droplet import DropletParams
+    p = DropletParams(
+        droplet_radius_mm=radius_mm, viscosity=viscosity,
+        surface_hardness=surface_hardness, roll_velocity_hz=roll_velocity_hz,
+        path_roughness=path_roughness,
+        rev_wobble_depth=rev_wobble_depth,
+        asperities_per_rev=(None if int(asperities) == 0 else int(asperities)),
+        contact_density_mul=density_mul, pattern_drift=pattern_drift,
+        continuous_core_mix=core_mix, accent_gain=accent_gain,
+        fusion=(None if fusion_auto else fusion),
+        profile_floor=profile_floor, smoothness=smoothness,
+        noise_darkness=noise_darkness, tonal_mix=tonal_mix, sing_mix=sing_mix,
+        duration_s=duration_s, seed=int(seed))
+    return to_gradio_audio(synth_rolling_droplet(p, SAMPLE_RATE))
+
+
+_UI_CAPTURE_DIR = Path("escucha_AB/ui_capturas")
+
+
+def save_v5_capture(*args):
+    """Guarda el render actual de la pestana v5 como wav numerado."""
+    import time
+    from impossible_mix.utils import save_wav
+    sr, wav = render_v5_live(*args)
+    _UI_CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+    n = len(list(_UI_CAPTURE_DIR.glob("*.wav")))
+    path = _UI_CAPTURE_DIR / f"{n:03d}_{int(time.time())}.wav"
+    save_wav(path, wav, sr)
+    return str(path)
+
+
+# --- Nuevos imposibles v6: (funcion, etiqueta_p1, (min,max,def), etiqueta_p2, (min,max,def)) ---
+_V6_FX = {
+    "burning_water (agua ardiendo)": (
+        lambda d, p1, p2, s: synth_burning_water(duration_s=d, intensity=p1,
+                                                 drip_rate_hz=p2, seed=s),
+        "Intensidad", (0.1, 1.0, 0.7), "Gotas/s", (2.0, 20.0, 8.0)),
+    "glass_thunder (trueno de cristal)": (
+        lambda d, p1, p2, s: synth_glass_thunder(duration_s=d, distance=p1,
+                                                 ring_gain=p2, seed=s),
+        "Distancia", (0.0, 1.0, 0.4), "Resonancia vidrio", (0.0, 1.2, 0.6)),
+    "mercury_rain (lluvia de mercurio)": (
+        lambda d, p1, p2, s: synth_mercury_rain(duration_s=d, intensity=p1,
+                                                drop_radius_mm=p2, seed=s),
+        "Intensidad", (0.1, 1.0, 0.6), "Radio gota (mm)", (0.4, 2.0, 0.9)),
+    "fabric_bell (campana de tela)": (
+        lambda d, p1, p2, s: synth_fabric_bell(duration_s=d, size=p1,
+                                               softness=p2, seed=s),
+        "Tamaño campana", (0.1, 1.0, 0.5), "Suavidad (tela)", (0.0, 1.0, 0.7)),
+}
+
+
+def render_v6_fx(effect: str, p1: float, p2: float, duration_s: float, seed: int):
+    fn, *_ = _V6_FX[effect]
+    return to_gradio_audio(fn(duration_s, p1, p2, int(seed)))
+
+
+def _v6_slider_labels(effect: str):
+    _, l1, r1, l2, r2 = _V6_FX[effect]
+    return (gr.update(label=l1, minimum=r1[0], maximum=r1[1], value=r1[2]),
+            gr.update(label=l2, minimum=r2[0], maximum=r2[1], value=r2[2]))
+
+
 def render_droplet(preset: str, radius_mm: float, viscosity: float,
                    surface_hardness: float, roll_velocity_hz: float,
                    path_roughness: float, duration_s: float, seed: int):
@@ -193,6 +264,82 @@ with gr.Blocks(title="How does a rolling droplet sound?") as app:
         btn_d.click(render_droplet,
                     inputs=[preset, radius, viscosity, surface_hard, velocity, rough, duration_d, seed_d],
                     outputs=audio_d)
+
+    # ------- Tab 1b: Rolling v5 (live) --------
+    with gr.Tab("Rolling v5 (live)"):
+        gr.Markdown(
+            "**Motor v5 completo, casi tiempo real.** Cada slider re-renderiza "
+            "al soltarlo (~0,5 s) y reproduce. Los defaults son la receta "
+            "consolidada (canica continua mojada). *Asperezas/vuelta = 0* usa "
+            "el auto (4 + 4·rugosidad); *fusion auto* la deriva de la velocidad."
+        )
+        with gr.Row():
+            v5_radius = gr.Slider(0.3, 6.0, value=2.2, step=0.1, label="Radio gota (mm)")
+            v5_visc = gr.Slider(0.0, 1.0, value=0.15, step=0.05, label="Viscosidad")
+            v5_hard = gr.Slider(0.0, 1.0, value=0.5, step=0.05, label="Dureza superficie")
+            v5_vel = gr.Slider(2.0, 40.0, value=14.0, step=1.0, label="Velocidad (rev-contactos/s)")
+            v5_rough = gr.Slider(0.0, 1.0, value=0.35, step=0.05, label="Rugosidad trayectoria")
+        with gr.Row():
+            v5_wob = gr.Slider(0.0, 0.6, value=0.22, step=0.02, label="Wobble por vuelta")
+            v5_asp = gr.Slider(0, 12, value=0, step=1, label="Asperezas/vuelta (0=auto)")
+            v5_dens = gr.Slider(0.5, 4.0, value=2.0, step=0.25, label="Densidad de contactos ×")
+            v5_drift = gr.Slider(0.0, 0.3, value=0.05, step=0.01, label="Precesión del patrón")
+        with gr.Row():
+            v5_core = gr.Slider(0.0, 1.5, value=0.8, step=0.05, label="Núcleo continuo")
+            v5_acc = gr.Slider(0.0, 1.0, value=0.35, step=0.05, label="Acentos discretos")
+            v5_fauto = gr.Checkbox(value=True, label="Fusión auto (por velocidad)")
+            v5_fus = gr.Slider(0.0, 1.0, value=0.5, step=0.05, label="Fusión manual")
+            v5_floor = gr.Slider(0.0, 0.6, value=0.18, step=0.02, label="Suelo del perfil")
+        with gr.Row():
+            v5_smooth = gr.Slider(0.0, 1.0, value=0.7, step=0.05, label="Suavidad (anti-aspereza)")
+            v5_dark = gr.Slider(0.0, 1.0, value=0.7, step=0.05, label="Oscuridad del ruido")
+            v5_tonal = gr.Slider(0.0, 1.2, value=0.4, step=0.05, label="Zumbido de canica")
+            v5_sing = gr.Slider(0.0, 1.2, value=0.4, step=0.05, label="Canto de copa")
+        with gr.Row():
+            v5_dur = gr.Slider(1.0, 8.0, value=3.0, step=0.5, label="Duración (s)")
+            v5_seed = gr.Number(value=42, label="Seed", precision=0)
+            v5_btn = gr.Button("Render", variant="primary")
+            v5_save = gr.Button("Guardar wav")
+        v5_audio = gr.Audio(label="Output", autoplay=True)
+        v5_saved = gr.Textbox(label="Último guardado", interactive=False)
+
+        _v5_inputs = [v5_radius, v5_visc, v5_hard, v5_vel, v5_rough, v5_wob,
+                      v5_asp, v5_dens, v5_drift, v5_core, v5_acc, v5_fauto,
+                      v5_fus, v5_floor, v5_smooth, v5_dark, v5_tonal, v5_sing,
+                      v5_dur, v5_seed]
+        for _c in _v5_inputs[:-2]:
+            if hasattr(_c, "release"):
+                _c.release(render_v5_live, inputs=_v5_inputs, outputs=v5_audio)
+            else:
+                _c.change(render_v5_live, inputs=_v5_inputs, outputs=v5_audio)
+        v5_btn.click(render_v5_live, inputs=_v5_inputs, outputs=v5_audio)
+        v5_save.click(save_v5_capture, inputs=_v5_inputs, outputs=v5_saved)
+
+    # ------- Tab 1c: Nuevos imposibles (v6) --------
+    with gr.Tab("Nuevos imposibles"):
+        gr.Markdown(
+            "**Cuatro fenómenos físicamente imposibles nuevos**: fuego cuyas "
+            "chispas son gotas, cielo de vidrio que truena, llovizna metálica "
+            "que tintinea, y una campana de metal con amortiguamiento de tela. "
+            "Los sliders se re-etiquetan según el efecto; re-render al soltar."
+        )
+        with gr.Row():
+            fx_sel = gr.Dropdown(list(_V6_FX.keys()),
+                                 value=list(_V6_FX.keys())[0], label="Efecto")
+            fx_dur = gr.Slider(2.0, 10.0, value=5.0, step=0.5, label="Duración (s)")
+            fx_seed = gr.Number(value=42, label="Seed", precision=0)
+        with gr.Row():
+            fx_p1 = gr.Slider(0.1, 1.0, value=0.7, step=0.05, label="Intensidad")
+            fx_p2 = gr.Slider(2.0, 20.0, value=8.0, step=0.5, label="Gotas/s")
+        fx_btn = gr.Button("Render", variant="primary")
+        fx_audio = gr.Audio(label="Output", autoplay=True)
+
+        fx_sel.change(_v6_slider_labels, inputs=fx_sel, outputs=[fx_p1, fx_p2])
+        _fx_inputs = [fx_sel, fx_p1, fx_p2, fx_dur, fx_seed]
+        for _c in (fx_p1, fx_p2):
+            _c.release(render_v6_fx, inputs=_fx_inputs, outputs=fx_audio)
+        fx_sel.change(render_v6_fx, inputs=_fx_inputs, outputs=fx_audio)
+        fx_btn.click(render_v6_fx, inputs=_fx_inputs, outputs=fx_audio)
 
     # ------- Tab 2: Impossible scenes --------
     with gr.Tab("Impossible scenes"):
