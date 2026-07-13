@@ -765,8 +765,10 @@ def chirping_modal_bank(sched: EventSchedule, modes_hz, mode_gains, sr: int,
                 continue
             t_g = np.arange(glide_n) / glide_n
             f_glide = f_start * (f_end / max(f_start, 1e-6)) ** t_g
-            f_t = np.concatenate([f_glide,
-                                  np.full(n_evt - glide_n, f_end)])[:n_evt]
+            if n_evt > glide_n:
+                f_t = np.concatenate([f_glide, np.full(n_evt - glide_n, f_end)])
+            else:
+                f_t = f_glide[:n_evt]
             # Envolvente con amortiguamiento instantaneo integrado (d en ms^-1)
             env = np.exp(-np.cumsum(d_of(f_t)) * (1000.0 / sr) / 1000.0 * 1000.0)
             env = env.astype(np.float32)

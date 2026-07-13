@@ -1349,12 +1349,20 @@ def _driven_resonator(x: np.ndarray, f_traj: np.ndarray, q: float,
     n = len(x)
     out = np.zeros(n, dtype=np.float32)
     zi = None
+    # Memoizacion de coeficientes por (f, q) EXACTOS: bit-identico al camino
+    # sin cache (mismo iirpeak para los mismos floats), pero evita recomputar
+    # el diseno del filtro en cada bloque durante holds/FM lenta.
+    sos_cache: dict[tuple[float, float], np.ndarray] = {}
     for i in range(0, n, blk):
         center = min(i + blk // 2, n - 1)
         f_blk = float(np.clip(f_traj[center], 40.0, sr / 2 - 500))
         q_blk = float(q_traj[center]) if q_traj is not None else q
-        b, a = signal.iirpeak(f_blk, Q=q_blk, fs=sr)
-        sos_pk = signal.tf2sos(b, a)
+        key = (f_blk, q_blk)
+        sos_pk = sos_cache.get(key)
+        if sos_pk is None:
+            b, a = signal.iirpeak(f_blk, Q=q_blk, fs=sr)
+            sos_pk = signal.tf2sos(b, a)
+            sos_cache[key] = sos_pk
         if zi is None:
             zi = signal.sosfilt_zi(sos_pk) * 0.0
         seg, zi = signal.sosfilt(sos_pk, x[i:i + blk], zi=zi)
