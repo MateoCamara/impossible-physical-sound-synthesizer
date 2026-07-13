@@ -171,3 +171,45 @@ def fusion_index(w: np.ndarray, sr: int,
     p = float((np.sum(fi_perm >= fi) + 1) / (n_perm + 1))
     return FusionReport(rho=float(rho), onset_f1=float(f1_corr),
                         fi=float(fi), p_value=p)
+
+
+@dataclass
+class UnityReport:
+    """Indice de unicidad de stream entre las bandas ACTIVAS de un render."""
+    mean_rho: float
+    min_rho: float
+    usi: float
+    n_bands_active: int
+
+
+def stream_unity_index(w: np.ndarray, sr: int, n_bands: int = 8,
+                       lo: float = 150.0, hi: float = 6000.0,
+                       fs_env: float = 200.0,
+                       active_floor_db: float = -30.0) -> UnityReport:
+    """Unicidad de stream: correlaciones de envolvente entre pares de
+    bandas ACTIVAS. UNA corriente => todas las bandas respiran juntas
+    (mean_rho alto y min_rho alto); DOS corrientes => algun par cruzado
+    cae (~0), y min_rho lo castiga.
+
+    Complemento del fusion_index: FI detecta que dos cuerpos se ACOPLAN;
+    USI detecta que ya no hay dos cuerpos. ORIENTATIVO y honesto: un burst
+    unico o un gating global tambien puntuan alto -- la escucha manda.
+    """
+    envs, _ = band_envelopes(w, sr, n_bands=n_bands, lo=lo, hi=hi)
+    hop = max(1, int(sr // fs_env))
+    envs = envs[:, ::hop]
+    rms = np.sqrt((envs ** 2).mean(axis=1))
+    floor = rms.max() * 10 ** (active_floor_db / 20.0)
+    active = np.where(rms >= floor)[0]
+    if len(active) < 2:
+        return UnityReport(1.0, 1.0, 1.0, int(len(active)))
+    max_lag = int(0.010 * fs_env)
+    rhos = []
+    for ii in range(len(active)):
+        for jj in range(ii + 1, len(active)):
+            rhos.append(_max_corr(envs[active[ii]].astype(np.float64),
+                                  envs[active[jj]].astype(np.float64), max_lag))
+    mean_rho = float(np.mean(rhos))
+    min_rho = float(np.min(rhos))
+    usi = 0.5 * mean_rho + 0.5 * max(min_rho, 0.0)
+    return UnityReport(mean_rho, min_rho, usi, int(len(active)))
