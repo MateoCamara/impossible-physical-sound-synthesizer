@@ -869,3 +869,47 @@ def align_droplet_radius_to_hz(target_hz: float) -> float:
     parametrico la alineacion es fisica exacta: f_M = 3.26/r => r = 3.26/f.
     """
     return float(3.26 / max(target_hz, 1.0) * 1000.0)
+
+
+def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
+                             n_bands: int = 16, lo: float = 80.0,
+                             hi: float = 8820.0,
+                             color_from: str = "b") -> np.ndarray:
+    """Chimera con balance espectral heredado de un padre (anti-estridencia).
+
+    La chimera plana da a todas las bandas el peso de la envolvente de A,
+    lo que puede sonar estridente cuando la materia (B) tiene agudos
+    intensos. Aqui cada banda se pondera ademas por la energia RELATIVA
+    natural del padre elegido (color_from="b": la materia impone tambien
+    su color espectral de largo plazo; "a": lo impone la dinamica).
+    """
+    n = min(len(a), len(b))
+    a4 = a[:n].astype(np.float64)
+    b4 = b[:n].astype(np.float64)
+    hi = min(hi, sr / 2 - 200)
+    edges = np.geomspace(lo, hi, n_bands + 1)
+    ref = b4 if color_from == "b" else a4
+    out = np.zeros(n, dtype=np.float64)
+    band_w = []
+    parts = []
+    for k in range(n_bands):
+        sos = signal.butter(4, [edges[k], edges[k + 1]], btype="band",
+                            fs=sr, output="sos")
+        band_a = signal.sosfiltfilt(sos, a4)
+        band_b = signal.sosfiltfilt(sos, b4)
+        band_ref = band_a if color_from == "a" else band_b
+        env_a = np.abs(signal.hilbert(band_a))
+        fine_b = np.cos(np.angle(signal.hilbert(band_b)))
+        # normalizar la envolvente de A por banda y recolorear con la
+        # energia del padre de referencia
+        e_norm = env_a / (env_a.mean() + 1e-12)
+        parts.append(e_norm * fine_b)
+        band_w.append(float(np.sqrt((band_ref ** 2).mean())))
+    band_w = np.asarray(band_w)
+    band_w = band_w / (band_w.max() + 1e-12)
+    for k in range(n_bands):
+        out += band_w[k] * parts[k]
+    peak = float(np.abs(out).max() + 1e-9)
+    if peak > 0.95:
+        out = out * (0.95 / peak)
+    return out.astype(np.float32)

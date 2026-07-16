@@ -381,3 +381,38 @@ def render_chimera_pair(name: str, duration_s: float = 8.0, seed: int = 42,
             wb = chimera_parent(b, duration_s, seed + 17, sr)
             return auditory_chimera(wa, wb, sr, n_bands=n_bands or nb)
     raise ValueError(f"pareja desconocida: {name}")
+
+
+def _chimera_parent_extra(name: str, duration_s: float, seed: int,
+                          sr: int) -> np.ndarray | None:
+    """Padres adicionales v10b (grava y vertido)."""
+    if name == "grava":
+        from impossible_mix.physics.granular import GranularParams, synth_granular_flow
+        return synth_granular_flow(GranularParams(grain_material="gravel",
+                                                  density_hz=90.0,
+                                                  duration_s=duration_s,
+                                                  seed=seed), sr)
+    if name == "vertido":
+        from impossible_mix.physics.liquid import PourParams, synth_pour
+        return synth_pour(PourParams(duration_s=duration_s, seed=seed), sr)
+    return None
+
+
+def chimera_parent_v2(name: str, duration_s: float = 8.0, seed: int = 42,
+                      sr: int = 44_100) -> np.ndarray:
+    extra = _chimera_parent_extra(name, duration_s, seed, sr)
+    if extra is not None:
+        return extra
+    return chimera_parent(name, duration_s, seed, sr)
+
+
+CHIMERA_PARENTS_V2 = CHIMERA_PARENTS + ("grava", "vertido")
+
+# Heuristica de bandas validada de oido: padres de dinamica DENSA (textura
+# continua) -> mas bandas (la envolvente manda); padres de dinamica
+# IMPULSIVA -> pocas bandas (la materia respira).
+_DENSE_PARENTS = {"fuego", "lluvia", "oceano", "canica", "grava", "vertido"}
+
+
+def chimera_bands_heuristic(env_parent: str) -> int:
+    return 16 if env_parent in _DENSE_PARENTS else 6
