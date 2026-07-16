@@ -307,3 +307,77 @@ def blend_glass_fire_aligned(duration_s: float = 8.0, seed: int = 42,
     glass = render_body(exc, BodySpec("surface", "glass"), sr, seed + 9)
     glass = glass / (float(np.abs(glass).max()) + 1e-9)
     return _norm(0.3 * bed + water_gain * water + glass_gain * glass)
+
+
+# ====================================================================
+# v10: banco de padres y parejas de CHIMERA curadas (el metodo ganador)
+# ====================================================================
+# Validado de oido por el usuario: trueno(env) x goteo(fina) a 4 bandas y
+# fuego(env) x vidrio(fina) a 16 bandas. La chimera (Smith/Delgutte/
+# Oxenham, Nature 2002) es el mecanismo de fusion de identidad del paper:
+# el padre A pone la dinamica (envolvente), el padre B pone la materia
+# (estructura fina), y la salida es UNA senal por construccion.
+
+def chimera_parent(name: str, duration_s: float = 8.0, seed: int = 42,
+                   sr: int = 44_100) -> np.ndarray:
+    """Banco de padres parametricos para chimeras (deterministas)."""
+    n = int(duration_s * sr)
+    rng = np.random.default_rng(seed)
+    if name == "trueno":
+        w, _ = _thunder_rumble(rng, sr, n, distance=0.5, intensity=0.9)
+        return w
+    if name == "fuego":
+        from impossible_mix.physics.exotic import synth_fire
+        return synth_fire(duration_s=duration_s, intensity=0.7, sr=sr, seed=seed)
+    if name == "lluvia":
+        from impossible_mix.physics.exotic import synth_rain
+        return synth_rain(duration_s=duration_s, intensity=0.7, sr=sr, seed=seed)
+    if name == "oceano":
+        from impossible_mix.physics.exotic import synth_ocean_wave
+        return synth_ocean_wave(duration_s=duration_s, breaking_intensity=0.7,
+                                sr=sr, seed=seed)
+    if name == "vidrio":
+        from impossible_mix.physics.exotic import synth_glass_break
+        return synth_glass_break(duration_s=duration_s, n_shards=60, sr=sr, seed=seed)
+    if name == "goteo":
+        sched = schedule_from_rate(np.full(n, 10.0), sr, seed + 3,
+                                   radius_traj=np.full(n, 2.2))
+        return _render_drips(sched, sr, n, seed + 3)
+    if name == "canica":
+        from impossible_mix.physics.droplet import synth_rolling_droplet
+        return synth_rolling_droplet(get_preset("water", duration_s=duration_s,
+                                                seed=seed), sr)
+    if name == "campana_tela":
+        from impossible_mix.physics.exotic import synth_fabric_bell
+        return synth_fabric_bell(duration_s=duration_s, size=0.5, softness=0.7,
+                                 seed=seed, sr=sr)
+    raise ValueError(f"padre desconocido: {name}")
+
+
+CHIMERA_PARENTS = ("trueno", "fuego", "lluvia", "oceano", "vidrio", "goteo",
+                   "canica", "campana_tela")
+
+# (nombre, padre_envolvente, padre_estructura_fina, n_bands afinado)
+CHIMERA_PAIRS = [
+    ("trueno_hecho_de_agua", "trueno", "goteo", 4),      # el 01 validado
+    ("fuego_hecho_de_vidrio", "fuego", "vidrio", 16),    # el 10 validado
+    ("fuego_hecho_de_agua", "fuego", "goteo", 8),
+    ("lluvia_hecha_de_vidrio", "lluvia", "vidrio", 16),
+    ("trueno_hecho_de_vidrio", "trueno", "vidrio", 6),
+    ("oceano_hecho_de_campana", "oceano", "campana_tela", 12),
+    ("canica_hecha_de_fuego", "canica", "fuego", 12),
+    ("goteo_hecho_de_campana", "goteo", "campana_tela", 8),
+]
+
+
+def render_chimera_pair(name: str, duration_s: float = 8.0, seed: int = 42,
+                        n_bands: int | None = None,
+                        sr: int = 44_100) -> np.ndarray:
+    """Renderiza una pareja curada del catalogo (n_bands opcional override)."""
+    from impossible_mix.physics.blend import auditory_chimera
+    for pname, a, b, nb in CHIMERA_PAIRS:
+        if pname == name:
+            wa = chimera_parent(a, duration_s, seed, sr)
+            wb = chimera_parent(b, duration_s, seed + 17, sr)
+            return auditory_chimera(wa, wb, sr, n_bands=n_bands or nb)
+    raise ValueError(f"pareja desconocida: {name}")

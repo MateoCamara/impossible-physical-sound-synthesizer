@@ -341,6 +341,57 @@ with gr.Blocks(title="How does a rolling droplet sound?") as app:
         fx_sel.change(render_v6_fx, inputs=_fx_inputs, outputs=fx_audio)
         fx_btn.click(render_v6_fx, inputs=_fx_inputs, outputs=fx_audio)
 
+    # ------- Tab 1d: Chimera lab (v10, el metodo de fusion ganador) --------
+    with gr.Tab("Chimera lab"):
+        gr.Markdown(
+            "**Fusión de identidad por chimera auditiva** (Smith, Delgutte & "
+            "Oxenham, *Nature* 2002): el padre A pone la **dinámica** "
+            "(envolvente), el padre B pone la **materia** (estructura fina) — "
+            "una sola señal por construcción. El nº de bandas es el dial de "
+            "identidad: pocas → domina la materia; muchas → domina la dinámica."
+        )
+        from impossible_mix.physics.blend import auditory_chimera as _chimera
+        from impossible_mix.physics.blend_recipes import (
+            CHIMERA_PAIRS as _PAIRS, CHIMERA_PARENTS as _PARENTS,
+            chimera_parent as _parent)
+
+        def render_chimera_ui(a, b, n_bands, duration_s, seed):
+            wa = _parent(a, duration_s, int(seed))
+            wb = _parent(b, duration_s, int(seed) + 17)
+            w = _chimera(wa, wb, SAMPLE_RATE, n_bands=int(n_bands))
+            peak = float(np.abs(w).max() + 1e-9)
+            return to_gradio_audio((w * (0.9 / peak)).astype(np.float32))
+
+        with gr.Row():
+            ch_a = gr.Dropdown(list(_PARENTS), value="fuego",
+                               label="Padre A (dinámica / envolvente)")
+            ch_b = gr.Dropdown(list(_PARENTS), value="vidrio",
+                               label="Padre B (materia / estructura fina)")
+            ch_nb = gr.Slider(1, 32, value=16, step=1, label="Bandas (dial de identidad)")
+        with gr.Row():
+            ch_dur = gr.Slider(2.0, 10.0, value=6.0, step=0.5, label="Duración (s)")
+            ch_seed = gr.Number(value=42, label="Seed", precision=0)
+            ch_btn = gr.Button("Render", variant="primary")
+        with gr.Row():
+            _pair_names = [p[0] for p in _PAIRS]
+            ch_preset = gr.Dropdown(_pair_names, value=_pair_names[1],
+                                    label="Parejas curadas (cargan A/B/bandas)")
+        ch_audio = gr.Audio(label="Output", autoplay=True)
+
+        def _load_pair(name):
+            for pname, a, b, nb in _PAIRS:
+                if pname == name:
+                    return a, b, nb
+            return "fuego", "vidrio", 16
+
+        _ch_inputs = [ch_a, ch_b, ch_nb, ch_dur, ch_seed]
+        ch_preset.change(_load_pair, inputs=ch_preset, outputs=[ch_a, ch_b, ch_nb])
+        ch_preset.change(render_chimera_ui, inputs=_ch_inputs, outputs=ch_audio)
+        ch_nb.release(render_chimera_ui, inputs=_ch_inputs, outputs=ch_audio)
+        for _c in (ch_a, ch_b):
+            _c.change(render_chimera_ui, inputs=_ch_inputs, outputs=ch_audio)
+        ch_btn.click(render_chimera_ui, inputs=_ch_inputs, outputs=ch_audio)
+
     # ------- Tab 2: Impossible scenes --------
     with gr.Tab("Impossible scenes"):
         gr.Markdown(
