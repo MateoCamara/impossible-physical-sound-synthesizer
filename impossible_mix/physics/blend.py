@@ -817,3 +817,55 @@ def f_traj_from_schedule(sched: EventSchedule, sr: int, n_total: int, *,
             cur = f_floor_hz + (cur - f_floor_hz) * alpha
         f[n] = cur
     return np.clip(f, 30.0, sr / 2 - 500).astype(np.float32)
+
+
+# ====================================================================
+# v9-M1: chimeras auditivas (Smith, Delgutte & Oxenham, Nature 2002)
+# ====================================================================
+def auditory_chimera(a: np.ndarray, b: np.ndarray, sr: int,
+                     n_bands: int = 16, lo: float = 80.0,
+                     hi: float = 8820.0) -> np.ndarray:
+    """Chimera auditiva: envolvente temporal de A x estructura fina de B.
+
+    Receta de Smith, Delgutte & Oxenham (2002, Nature 416:87-90): filterbank
+    pasa-banda (1-64 bandas, 80-8820 Hz), por banda se factoriza cada sonido
+    en envolvente y estructura fina via Hilbert, y se multiplica la
+    envolvente de A por la estructura fina (cos de la fase) de B; la suma es
+    UNA senal fusionada. El numero de bandas gobierna que padre domina la
+    identidad percibida: pocas bandas -> gana la estructura fina (B);
+    muchas (~16+) -> gana la envolvente (A).
+    """
+    n = min(len(a), len(b))
+    a = a[:n].astype(np.float64)
+    b = b[:n].astype(np.float64)
+    hi = min(hi, sr / 2 - 200)
+    edges = np.geomspace(lo, hi, n_bands + 1)
+    out = np.zeros(n, dtype=np.float64)
+    for k in range(n_bands):
+        f_lo, f_hi = edges[k], edges[k + 1]
+        if n_bands == 1:
+            f_lo, f_hi = lo, hi
+        sos = signal.butter(4, [f_lo, f_hi], btype="band", fs=sr, output="sos")
+        band_a = signal.sosfiltfilt(sos, a)
+        band_b = signal.sosfiltfilt(sos, b)
+        env_a = np.abs(signal.hilbert(band_a))
+        fine_b = np.cos(np.angle(signal.hilbert(band_b)))
+        out += env_a * fine_b
+    peak = float(np.abs(out).max() + 1e-9)
+    if peak > 0.95:
+        out = out * (0.95 / peak)
+    return out.astype(np.float32)
+
+
+# ====================================================================
+# v9-M2: alineacion de registro antes de fundir (Slaney et al., 1996)
+# ====================================================================
+def align_droplet_radius_to_hz(target_hz: float) -> float:
+    """Radio de gota (mm) cuyo f_M de Minnaert cae EN target_hz.
+
+    Slaney, Covell & Lassiter (ICASSP 1996): el crossfade de dos sonidos con
+    pitch distinto se percibe como DOS objetos; alinear las estructuras
+    armonicas ANTES de fundir colapsa la percepcion en UNO. En un motor
+    parametrico la alineacion es fisica exacta: f_M = 3.26/r => r = 3.26/f.
+    """
+    return float(3.26 / max(target_hz, 1.0) * 1000.0)

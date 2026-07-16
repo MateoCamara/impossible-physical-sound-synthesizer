@@ -246,3 +246,64 @@ def sum_thunder_speaks_water(duration_s: float = 8.0, seed: int = 42,
                                radius_traj=np.full(n, 2.2))
     drips = _render_drips(sched, sr, n, seed + 500)
     return _norm(0.9 * rumble + 0.5 * drips)
+
+
+# ====================================================================
+# v9-M2: versiones ALINEADAS en registro (Slaney et al., ICASSP 1996)
+# ====================================================================
+def blend_thunder_drips_aligned(duration_s: float = 8.0, seed: int = 42,
+                                glass_gain: float = 0.35,
+                                sr: int = 44_100) -> np.ndarray:
+    """trueno_gotea con los registros ALINEADOS: las gotas se retunan a
+    radios gigantes (20-34 mm) para que su f_M de Minnaert viva EN la banda
+    del rumble (96-163 Hz). Slaney 1996: alinear las estructuras antes de
+    fundir colapsa la percepcion en UN objeto."""
+    from impossible_mix.physics.blend import align_droplet_radius_to_hz
+    n = int(duration_s * sr)
+    rng = np.random.default_rng(seed)
+    rumble, _ = _thunder_rumble(rng, sr, n, distance=0.5, intensity=0.9)
+
+    rate_traj = cross_drive(rumble, sr, out_range=(1.5, 10.0), smoothing_hz=6.0)
+    # radios alineados: f_M dentro de la banda del rumble
+    r_lo = align_droplet_radius_to_hz(163.0)   # ~20 mm
+    r_hi = align_droplet_radius_to_hz(96.0)    # ~34 mm
+    radius_traj = cross_drive(rumble, sr, out_range=(r_lo, r_hi), smoothing_hz=4.0)
+    amp_traj = 0.4 + 0.6 * cross_drive(rumble, sr, out_range=(0.0, 1.0))
+    sched = schedule_from_rate(rate_traj, sr, seed + 3, amp_traj=amp_traj,
+                               radius_traj=radius_traj)
+    drips = _render_drips(sched, sr, n, seed)
+    out = 0.9 * rumble + 1.0 * drips
+    if glass_gain > 0.01:
+        exc = excitation_from_schedule(sched, sr, n, seed + 5, click_ms=2.0,
+                                       color_hz=(60, 800))  # vidrio transpuesto abajo
+        glass = render_body(exc, BodySpec("surface", "glass", t60_scale=1.0), sr, seed + 9)
+        glass = glass / (float(np.abs(glass).max()) + 1e-9)
+        out = out + glass_gain * glass
+    return _norm(out)
+
+
+def blend_glass_fire_aligned(duration_s: float = 8.0, seed: int = 42,
+                             water_gain: float = 0.8, glass_gain: float = 0.6,
+                             sr: int = 44_100) -> np.ndarray:
+    """fuego_cristal con el agua RETUNADA al modo fundamental del vidrio
+    (1800 Hz => radio 1.81 mm): la resonancia acuosa y el modo del vidrio
+    comparten frecuencia — un solo pitch, un solo objeto."""
+    from impossible_mix.physics.blend import align_droplet_radius_to_hz
+    from impossible_mix.physics.droplet import SURFACE_PROFILES, _driven_resonator
+    n = int(duration_s * sr)
+    rng = np.random.default_rng(seed)
+    bed, _ = _fire_bed(rng, sr, n, intensity=0.7)
+    n_pops = int(40 * 0.5 * duration_s)
+    pops = _fire_crackle_events(rng, sr, n, n_pops)
+    sched = schedule_from_crackles(pops, sr)
+    exc = excitation_from_schedule(sched, sr, n, seed + 5, click_ms=1.0,
+                                   color_hz=(800, 6000))
+    f_glass = float(min(SURFACE_PROFILES["glass"].modes_hz))     # 1800 Hz
+    visc_traj = cross_drive(bed, sr, out_range=(0.05, 0.7), smoothing_hz=3.0)
+    water = _driven_resonator(exc, np.full(n, f_glass, dtype=np.float32), 12.0, sr,
+                              q_traj=(14.0 - 10.0 * visc_traj).astype(np.float32))
+    water = water / (float(np.abs(water).max()) + 1e-9)
+    water = water * (1.0 - 0.6 * visc_traj).astype(np.float32)
+    glass = render_body(exc, BodySpec("surface", "glass"), sr, seed + 9)
+    glass = glass / (float(np.abs(glass).max()) + 1e-9)
+    return _norm(0.3 * bed + water_gain * water + glass_gain * glass)
