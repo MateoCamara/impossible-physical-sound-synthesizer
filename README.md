@@ -174,6 +174,21 @@ steps = ctrl.sweep("wetness", [0.0, 0.25, 0.5, 0.75, 1.0])
   --more wetness --from 0 --to 1 --steps 7
 ```
 
+## Demo del congreso (chimeras)
+
+La fusión de identidad por chimera auditiva (Smith, Delgutte & Oxenham,
+*Nature* 2002) es el mecanismo de mezcla imposible del proyecto: un
+fenómeno pone la dinámica (envolvente), otro la materia (estructura fina).
+
+```bash
+# Generar el paquete de demo (audio + página navegable)
+PYTHONPATH=. .venv/bin/python scripts/38_demo_congreso.py
+python -m http.server -d demo_congreso 8000   # -> http://localhost:8000
+
+# Laboratorio en vivo (16 padres x 16, dial de bandas en tiempo casi-real)
+PYTHONPATH=. .venv/bin/python scripts/22_gradio_app.py  # pestaña "Chimera lab"
+```
+
 ## Re-running the neural baseline (optional)
 
 The neural baselines (A, B) require the EnCodec embeddings on a curated

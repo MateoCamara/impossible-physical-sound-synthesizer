@@ -350,10 +350,10 @@ with gr.Blocks(title="How does a rolling droplet sound?") as app:
             "una sola señal por construcción. El nº de bandas es el dial de "
             "identidad: pocas → domina la materia; muchas → domina la dinámica."
         )
-        from impossible_mix.physics.blend import auditory_chimera as _chimera
+        from impossible_mix.physics.blend import auditory_chimera_colored as _chimera
         from impossible_mix.physics.blend_recipes import (
-            CHIMERA_PAIRS as _PAIRS, CHIMERA_PARENTS as _PARENTS,
-            chimera_parent as _parent)
+            CHIMERA_PAIRS as _PAIRS, CHIMERA_PARENTS_V3 as _PARENTS,
+            chimera_parent_v3 as _parent)
 
         def render_chimera_ui(a, b, n_bands, duration_s, seed):
             wa = _parent(a, duration_s, int(seed))

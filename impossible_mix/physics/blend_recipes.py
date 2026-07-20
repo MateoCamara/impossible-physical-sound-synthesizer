@@ -416,3 +416,70 @@ _DENSE_PARENTS = {"fuego", "lluvia", "oceano", "canica", "grava", "vertido"}
 
 def chimera_bands_heuristic(env_parent: str) -> int:
     return 16 if env_parent in _DENSE_PARENTS else 6
+
+
+# ====================================================================
+# v11: banco de padres ampliado para la demo del congreso
+# ====================================================================
+def _chimera_parent_v11(name: str, duration_s: float, seed: int,
+                        sr: int) -> np.ndarray | None:
+    if name == "salpicadura":
+        from impossible_mix.physics.liquid import SplashParams, synth_splash
+        return synth_splash(SplashParams(duration_s=duration_s, seed=seed), sr)
+    if name == "burbujeo":
+        # Receta boiling_water del script 21: pour denso + mini-drips ~25/s
+        from impossible_mix.physics.liquid import PourParams, synth_pour
+        n = int(duration_s * sr)
+        base = synth_pour(PourParams(duration_s=duration_s, seed=seed), sr)[:n]
+        rng = np.random.default_rng(seed + 5)
+        out = np.zeros(n, dtype=np.float32)
+        out[:len(base)] += 0.8 * base
+        t = 0.0
+        while t < duration_s:
+            s = int(t * sr)
+            r = float(rng.uniform(0.6, 1.4))
+            pd = DropletParams(droplet_radius_mm=r, surface_profile="water",
+                               bounce_amount=0.0, seed=seed)
+            evt = synth_drip_event(pd, sr, velocity_factor=1.0,
+                                   seed_override=seed + 900 + s)
+            end = min(n, s + len(evt))
+            out[s:end] += 0.5 * float(rng.uniform(0.5, 1.0)) * evt[: end - s]
+            t += float(rng.exponential(1.0 / 25.0))
+        peak = float(np.abs(out).max() + 1e-9)
+        return (out * (0.95 / peak if peak > 0.95 else 1.0)).astype(np.float32)
+    if name == "agua_ardiendo":
+        from impossible_mix.physics.exotic import synth_burning_water
+        return synth_burning_water(duration_s=duration_s, intensity=0.7,
+                                   seed=seed, sr=sr)
+    if name == "trueno_cristal":
+        from impossible_mix.physics.exotic import synth_glass_thunder
+        return synth_glass_thunder(duration_s=duration_s, distance=0.4,
+                                   seed=seed, sr=sr)
+    if name == "lluvia_mercurio":
+        from impossible_mix.physics.exotic import synth_mercury_rain
+        return synth_mercury_rain(duration_s=duration_s, intensity=0.6,
+                                  seed=seed, sr=sr)
+    if name == "trueno_gota":
+        from impossible_mix.physics.identity_hybrids import hybrid_thunder_is_droplet
+        return hybrid_thunder_is_droplet(duration_s=duration_s, seed=seed, sr=sr)
+    return None
+
+
+def chimera_parent_v3(name: str, duration_s: float = 8.0, seed: int = 42,
+                      sr: int = 44_100) -> np.ndarray:
+    """Banco completo v11 (16 padres)."""
+    extra = _chimera_parent_v11(name, duration_s, seed, sr)
+    if extra is not None:
+        return extra
+    return chimera_parent_v2(name, duration_s, seed, sr)
+
+
+CHIMERA_PARENTS_V3 = CHIMERA_PARENTS_V2 + (
+    "salpicadura", "burbujeo", "agua_ardiendo", "trueno_cristal",
+    "lluvia_mercurio", "trueno_gota")
+
+# Afinidad de rol (curacion del producto cartesiano para la demo)
+GOOD_ENV = ("trueno", "fuego", "lluvia", "oceano", "canica", "grava",
+            "vertido", "burbujeo", "agua_ardiendo", "trueno_gota")
+GOOD_FINE = ("vidrio", "goteo", "campana_tela", "canica", "lluvia_mercurio",
+             "trueno_cristal", "salpicadura", "grava")
