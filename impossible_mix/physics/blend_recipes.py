@@ -532,11 +532,35 @@ def _v4_vidrio(duration_s: float, seed: int, sr: int,
     """vidrio v4: pitch_mul (derivado del fundamental real de
     MODAL_PROFILES["glass"], no hardcodeado) reescala el registro modal de
     cada shard; n_shards (redondeado, minimo 1) escala con density_mul la
-    densidad de la cascada de impactos."""
+    densidad de la cascada de impactos.
+
+    pitch_mul se recorta a un rango seguro derivado de sr (no hardcodeado
+    a 44100): synth_glass_break calcula la banda del crack inicial como
+    [2000*pitch_mul, min(8000*pitch_mul, sr/2-200)], y si pitch_mul es
+    demasiado grande esa banda se invierte (crack_lo >= crack_hi) y
+    scipy.signal.butter revienta con ValueError -- reproducido en vivo con
+    register_hz ~19700 Hz (pitch_mul ~10.94) a sr=44100. El limite superior
+    deja un ancho de banda MINIMA de 200 Hz en crack_hi=sr/2-200 (el peor
+    caso, a 44100 Hz: pitch_mul_max = (sr/2 - 400)/2000 ~= 10.83, banda
+    final [21650, 21850] Hz -- valida, no revienta, pero extremadamente
+    estrecha en relativo, pegada a Nyquist; no es un margen comodo, es el
+    limite de "sigue siendo un filtro valido"). El limite inferior
+    (pitch_mul_min = 0.01, crack_lo >= 20 Hz) SI esta verificado contra un
+    fallo real: pitch_mul=0.0 (equivalente a register_hz=0) revienta con
+    "ValueError: filter critical frequencies must be greater than 0"
+    (Wn=0 no es valido para butter) -- reproducido en vivo llamando a
+    synth_glass_break(pitch_mul=0.0) directamente. Con esto la garantia de
+    chimera_parent_v4 ("fuera de rango se recorta, no revienta") es cierta
+    tambien aqui."""
     from impossible_mix.physics.exotic import synth_glass_break
     from impossible_mix.physics.modal import PROFILES as MODAL_PROFILES
-    pitch_mul = (register_hz / MODAL_PROFILES["glass"].fundamental_hz
-                if register_hz is not None else 1.0)
+    if register_hz is not None:
+        pitch_mul = register_hz / MODAL_PROFILES["glass"].fundamental_hz
+        pitch_mul_max = (sr / 2 - 400) / 2000.0
+        pitch_mul_min = 20.0 / 2000.0
+        pitch_mul = float(np.clip(pitch_mul, pitch_mul_min, pitch_mul_max))
+    else:
+        pitch_mul = 1.0
     n_shards = max(1, round(60 * density_mul))
     return synth_glass_break(duration_s=duration_s, n_shards=n_shards,
                              sr=sr, seed=seed, pitch_mul=pitch_mul)
@@ -578,9 +602,14 @@ _V4_REGISTER = {
     "campana_tela": _v4_campana_tela,
 }
 # Dos fuentes de verdad para el mismo conjunto (PARENT_MOVABLE es la que se
-# exporta y documenta; _V4_REGISTER es el detalle de implementacion) -- este
-# assert evita que se desincronicen en silencio.
-assert frozenset(_V4_REGISTER) == PARENT_MOVABLE
+# exporta y documenta; _V4_REGISTER es el detalle de implementacion) -- esta
+# comprobacion evita que se desincronicen en silencio. Es un `if`+`raise` y
+# no un `assert` a proposito: un `assert` desaparece con `python -O` y esto
+# tiene que sobrevivir incluso con optimizaciones activadas.
+if frozenset(_V4_REGISTER) != PARENT_MOVABLE:
+    raise RuntimeError(
+        "_V4_REGISTER y PARENT_MOVABLE se han desincronizado: "
+        f"{frozenset(_V4_REGISTER)!r} != {PARENT_MOVABLE!r}")
 
 
 def chimera_parent_v4(name: str, duration_s: float = 8.0, seed: int = 42,
@@ -607,10 +636,27 @@ def chimera_parent_v4(name: str, duration_s: float = 8.0, seed: int = 42,
     tarea.
 
     Si register_hz cae fuera del rango de registro alcanzable de un padre
-    (el caso claro es campana_tela, acotado por el clip de size) NO es un
-    error: se aplica el clip fisico del padre y se sigue: quien llama se
-    entera del recorte por otra via (comparando el registro pedido contra
-    el efectivamente alcanzado), no por una excepcion.
+    (campana_tela, acotado por el clip de size; vidrio, acotado por el
+    clip de pitch_mul) NO es un error: se aplica el clip fisico del padre
+    y se sigue: quien llama se entera del recorte por otra via (comparando
+    el registro pedido contra el efectivamente alcanzado), no por una
+    excepcion. Verificado en vivo para vidrio y campana_tela con un
+    barrido amplio de register_hz (hasta sr/2): ninguno revienta (antes
+    del clip de pitch_mul, vidrio si lo hacia con register_hz >~19700 Hz
+    a sr=44100).
+
+    ADVERTENCIA (goteo, canica): esta garantia NO cubre el extremo bajo de
+    register_hz para estos dos. align_droplet_radius_to_hz no recorta el
+    radio, asi que un register_hz muy bajo (probado: 1-5 Hz) pide un
+    radio de gota enorme y el sintetizador de gotas se CUELGA (no
+    revienta con excepcion; tarda mas de 15 s donde el resto del barrido
+    tarda bajo 1 s) en vez de fallar limpio o recortar. Se deja FUERA de
+    alcance de esta tarea a proposito: el brief de la Tarea 2
+    (fusion_chain.py) ya pide comprobar explicitamente si el sintetizador
+    de gotas recorta el radio por arriba y reportarlo, asi que investigar
+    y decidir el recorte correcto es su responsabilidad, no de esta
+    funcion -- aqui solo se deja constancia de que el riesgo existe para
+    que no se descubra a mitad de un barrido de parametros largo.
     """
     if register_hz is None and density_mul == 1.0:
         return chimera_parent_v3(name, duration_s, seed, sr)

@@ -894,7 +894,10 @@ def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
     color_from (bit-identico); cuando se da, color_from se ignora. NOTA:
     el color resultante es constante en el tiempo (una unica mezcla para
     todo el clip); variarlo en el tiempo queda fuera de alcance de esta
-    version (ver v12).
+    version (ver v12). color_mix NO se valida ni se recorta a [0,1]: un
+    valor fuera de ese rango extrapola la interpolacion geometrica en vez
+    de fallar (queda finito por el termino +eps, pero deja de ser una
+    interpolacion real entre A y B).
 
     a_floor_db (solo aplica si color_mix no es None): suelo de presencia de
     A. Diagnostico medido en trueno(env) x vidrio(fina) @ 6 bandas: A
@@ -916,6 +919,20 @@ def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
     multiplicado sobre band_w tras normalizar. Se deja como parametro (no
     una constante fija) porque el barrido de parametros posterior lo va a
     explorar.
+
+    HONESTIDAD sobre el extremo color_mix=1.0 ("100% color de B" segun la
+    formula de arriba): el suelo esta activo SIEMPRE que color_mix no es
+    None, tambien en ese extremo, porque atten depende solo de rms_a (no
+    de color_mix). Eso rompe la pureza del extremo -- la salida en
+    color_mix=1.0 NO es identica a auditory_chimera_colored(...,
+    color_from="a") ni a una version sin suelo: en pruebas con trueno(A) x
+    vidrio(B), n_bands=16 (el valor por defecto), la RMS de salida cambia
+    del orden de 4 dB frente a tener el suelo desactivado (a_floor_db muy
+    negativo). Ademas, tras multiplicar por atten, band_w YA NO queda
+    normalizado a maximo 1 (en ese mismo caso el maximo cae a ~0.09-0.13):
+    la frase "normalizado por el maximo como siempre" de mas arriba solo
+    describe el paso anterior al suelo, no el estado final de band_w
+    cuando color_mix no es None.
     """
     n = min(len(a), len(b))
     a4 = a[:n].astype(np.float64)
