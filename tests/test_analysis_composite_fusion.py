@@ -37,7 +37,7 @@ def _norm(w: np.ndarray, peak: float = 0.9) -> np.ndarray:
 
 
 def _pulse_train(times: np.ndarray, sr: int, n: int, freq: float,
-                 dur_ms: float = 15.0) -> np.ndarray:
+                 amp: float = 1.0, dur_ms: float = 15.0) -> np.ndarray:
     """Tren de golpes tonales cortos (envolvente Hann) en 'times' (s)."""
     w = np.zeros(n)
     dur_s = dur_ms / 1000.0
@@ -48,7 +48,7 @@ def _pulse_train(times: np.ndarray, sr: int, n: int, freq: float,
             continue
         seg_t = np.arange(i1 - i0) / sr
         env = np.hanning(2 * len(seg_t))[: len(seg_t)]
-        w[i0:i1] += np.sin(2 * np.pi * freq * seg_t) * env
+        w[i0:i1] += amp * np.sin(2 * np.pi * freq * seg_t) * env
     return w
 
 
@@ -124,6 +124,39 @@ def test_dop_low_when_onsets_coincide_high_when_orphaned() -> None:
     assert dop_orphan > 0.8, f"DOP con onsets huerfanos deberia ser alto, dio {dop_orphan}"
 
 
+# --- Test de regresion del bug critico de revision (ronda 1/5): _dop      ---
+# --- pasaba la banda grave por detect_onsets, que aplica un paso-alto de  ---
+# --- 1kHz interno y aplasta el contenido grave genuino, dejando que la    ---
+# --- fuga de la banda aguda domine -- "fusion perfecta" falsa para dos    ---
+# --- capas realmente desacopladas con desbalance de energia (el caso      ---
+# --- central del proyecto: trueno grave x vidrio agudo). Estos dos casos  ---
+# --- fallaban con el codigo anterior (dop_orphan_weak salia ~0.0) y son   ---
+# --- los que guardan la regresion.                                       ---
+
+def test_dop_survives_energy_imbalance_between_bands() -> None:
+    dur = 2.0
+    n = int(dur * SR)
+    times = np.arange(0.1, 1.9, 0.2)
+    high = _pulse_train(times, SR, n, 3000.0, amp=1.0)          # sincrono
+    high_off = _pulse_train(times + 0.09, SR, n, 3000.0, amp=1.0)  # huerfano
+
+    # Grave 30 dB mas flojo que el agudo (amp=0.03): con el bug antiguo, el
+    # paso-alto interno de detect_onsets mataba este contenido y on_low
+    # terminaba seleccionando la fuga de la banda aguda -> dop ~0.0 SIEMPRE,
+    # incluso en el caso huerfano. Post-arreglo debe seguir discriminando.
+    low_weak = _pulse_train(times, SR, n, 300.0, amp=0.03)
+
+    dop_sync_weak = _dop(low_weak + high, SR)
+    dop_orphan_weak = _dop(low_weak + high_off, SR)
+
+    assert dop_sync_weak < 0.1, (
+        f"DOP sincrono con grave 30dB mas flojo deberia seguir bajo, "
+        f"dio {dop_sync_weak} (prueba que el arreglo no sobre-corrige)")
+    assert dop_orphan_weak > 0.8, (
+        f"DOP huerfano con grave 30dB mas flojo deberia ser alto, "
+        f"dio {dop_orphan_weak} (esto fallaba antes del arreglo: ~0.0)")
+
+
 # --- Test extra: BRI ~0 cuando el blend sigue a A, alto cuando sigue a ---
 # --- B_original sin alinear.                                          ---
 
@@ -191,6 +224,7 @@ ALL_TESTS = [
     test_mci_high_when_bands_in_phase_low_when_independent,
     test_sso_low_when_disjoint_high_when_same_range,
     test_dop_low_when_onsets_coincide_high_when_orphaned,
+    test_dop_survives_energy_imbalance_between_bands,
     test_bri_zero_when_blend_follows_a_positive_when_follows_b,
     test_composite_fusion_is_deterministic,
 ]

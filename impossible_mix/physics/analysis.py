@@ -237,10 +237,10 @@ def crest_factor_db(w: np.ndarray) -> float:
 class CompositeFusionReport:
     """Metrica compuesta de fusion (FCI) y sus 4 componentes por separado."""
     mci: float   # coherencia de modulacion 2-16 Hz ponderada por energia
-    sso: float   # solape espectral de los PADRES post-alineacion
+    sso: float   # solape espectral de los PADRES post-alineacion (NO en fci: ver composite_fusion)
     dop: float   # tasa de onsets huerfanos grave<->agudo
     bri: float   # identidad residual del padre B original
-    fci: float   # 0.4*mci + 0.3*sso - 0.2*dop - 0.1*bri
+    fci: float   # 0.55*mci - 0.30*dop - 0.15*bri
 
 
 # Registro compartido por MCI y SSO: mismo rango audible que usa
@@ -263,6 +263,12 @@ def _mci(blend: np.ndarray, sr: int, n_bands: int) -> float:
     antes del filtro 2-16 Hz) reemplaza al min_rho/floor binario del USI:
     una banda casi muda (el padre A a -90 dB del contexto del brief) pesa
     ~1e-4 en vez de contar igual o vetar todo el indice.
+
+    Devuelve NaN (no 0.0) si el clip decimado es demasiado corto para
+    filtrar 2-16 Hz de forma fiable (ver guarda de longitud abajo): 0.0
+    seria indistinguible de una incoherencia real medida; NaN marca un
+    fallo de computo, no una medicion, y se propaga a fci en
+    composite_fusion para que el fallo sea visible en vez de silencioso.
     """
     envs, _ = band_envelopes(blend, sr, n_bands=n_bands, lo=_FUSION_LO_HZ,
                              hi=_FUSION_HI_HZ)
@@ -270,9 +276,10 @@ def _mci(blend: np.ndarray, sr: int, n_bands: int) -> float:
     envs = envs[:, ::hop].astype(np.float64)
     # Guarda de longitud: sosfiltfilt necesita mas muestras que el padlen
     # del filtro; con clips muy cortos (<~150 ms decimados) no hay banda de
-    # modulacion 2-16 Hz que extraer de forma fiable.
+    # modulacion 2-16 Hz que extraer de forma fiable. NaN, no 0.0: ver
+    # docstring.
     if envs.shape[1] < 32:
-        return 0.0
+        return float("nan")
     rms = np.sqrt((envs ** 2).mean(axis=1))
     sos = signal.butter(4, [2.0, 16.0], btype="band", fs=_FUSION_FS_ENV,
                         output="sos")
@@ -282,10 +289,10 @@ def _mci(blend: np.ndarray, sr: int, n_bands: int) -> float:
     den = 0.0
     for i in range(n_bands):
         for j in range(i + 1, n_bands):
-            w = float(rms[i] * rms[j])
+            weight = float(rms[i] * rms[j])
             rho = _max_corr(mod[i], mod[j], max_lag)
-            num += w * rho
-            den += w
+            num += weight * rho
+            den += weight
     return float(num / den) if den > 1e-18 else 0.0
 
 
@@ -333,6 +340,45 @@ def _count_orphans(on_a: np.ndarray, on_b: np.ndarray, tol: int) -> int:
     return orphans
 
 
+def _band_onsets(w: np.ndarray, sr: int, expected_rate: float) -> np.ndarray:
+    """Onsets por pico de envolvente sobre una senal YA aislada en banda
+    (via _band), SIN el paso-alto de 1kHz interno de detect_onsets.
+
+    Bug encontrado en revision: _dop pasaba la banda grave (<500Hz) por
+    detect_onsets, que aplica su propio paso-alto Butterworth a 1kHz por
+    dentro. Ese segundo filtro aplasta el contenido grave genuino (~-42dB a
+    300Hz, ~-80dB a 100Hz) pero apenas toca la fuga residual de la banda
+    aguda que sobrevive al primer filtrado en banda (esa fuga ya esta por
+    encima de 1kHz). Resultado: con la banda grave floja o ausente, on_low
+    terminaba enganchando los mismos instantes que on_high por la fuga, y
+    dop salia ~0 ("fusion perfecta") para dos capas realmente desacopladas
+    -- justo el caso central del proyecto (trueno grave x vidrio agudo).
+
+    Misma logica de deteccion que detect_onsets (envolvente suavizada 5ms
+    via smooth_env, umbral 0.35*max, distancia minima ligada a
+    expected_rate) pero sobre la envolvente de la banda tal cual, sin
+    re-filtrar. Privada de _dop: detect_onsets no cambia (otros llamadores,
+    p.ej. fusion_index, dependen de su paso-alto por defecto).
+
+    Limite estructural que este arreglo NO puede cerrar: si w no tiene
+    contenido propio alguno (energia cero, solo la fuga residual de _band
+    de la banda vecina), esa fuga es una copia atenuada pero perfectamente
+    sincronizada de la banda vecina -- ningun umbral aplicado solo sobre w
+    puede distinguir "contenido propio que casualmente coincide" de "cero
+    contenido propio, solo fuga". No es el bug reportado (que era la
+    supresion via el paso-alto de contenido REAL existente); es un limite
+    de identificabilidad de cualquier deteccion por envolvente sobre una
+    senal puramente filtrada. Ver _dop y el informe de la tarea.
+    """
+    env = smooth_env(w, sr, win_ms=5.0)
+    if env.max() <= 0.0:
+        return np.array([], dtype=int)
+    thr = 0.35 * env.max()
+    min_dist = max(int(0.008 * sr), int(0.5 / max(expected_rate, 1.0) * sr))
+    peaks, _ = signal.find_peaks(env, height=thr, distance=min_dist)
+    return peaks
+
+
 def _dop(blend: np.ndarray, sr: int) -> float:
     """Tasa de onsets huerfanos entre banda grave (<500 Hz) y aguda
     (>1500 Hz) del blend: dos capas con agendas temporales propias generan
@@ -340,8 +386,21 @@ def _dop(blend: np.ndarray, sr: int) -> float:
 
     expected_rate se deriva del propio blend en dos pasadas: una deteccion
     permisiva (expected_rate=50, apenas restringe la distancia minima entre
-    picos) da una cuenta de eventos que, dividida por la duracion, se usa
-    como expected_rate real para detectar onsets en cada banda.
+    picos) sobre el blend COMPLETO (banda ancha, por eso aqui si se usa
+    detect_onsets con su paso-alto de 1kHz -- es una estimacion generica de
+    tasa de eventos, no depende de la banda grave) da una cuenta de eventos
+    que, dividida por la duracion, se usa como expected_rate real. La
+    deteccion por banda usa _band_onsets (sin el paso-alto interno; ver su
+    docstring para el porque).
+
+    Limite conocido: si la banda grave NO tiene contenido propio alguno
+    (cero, no solo flojo), dop puede volver a salir bajo por la fuga
+    residual de la banda aguda a traves de _band (ver _band_onsets) --
+    distinto del bug ya arreglado (que mataba contenido REAL existente).
+    Verificado con senales sinteticas 300Hz/3000Hz, offset 90ms: 1.0 en
+    amplitud grave 1.0/0.1/0.03 (arreglado), 0.0 solo en amplitud grave
+    EXACTAMENTE 0.0 (limite estructural, no re-introducido por este
+    arreglo). Detalle completo en el informe de la tarea.
     """
     low = _band(blend, sr, (40.0, 500.0))
     high = _band(blend, sr, (1500.0, 20000.0))
@@ -350,8 +409,8 @@ def _dop(blend: np.ndarray, sr: int) -> float:
         return 0.0
     permissive = detect_onsets(blend, sr, expected_rate=50.0)
     expected_rate = max(len(permissive) / dur, 1.0)
-    on_low = detect_onsets(low, sr, expected_rate)
-    on_high = detect_onsets(high, sr, expected_rate)
+    on_low = _band_onsets(low, sr, expected_rate)
+    on_high = _band_onsets(high, sr, expected_rate)
     tol = int(0.015 * sr)
     total = len(on_low) + len(on_high)
     if total == 0:
@@ -390,20 +449,32 @@ def composite_fusion(blend: np.ndarray, parent_a: np.ndarray,
     """Indice compuesto de fusion (FCI): pre-filtro que ORDENA candidatos
     DENTRO de una misma pareja de padres, antes de la escucha humana.
 
-    NO es un gate y NO compara entre parejas distintas (SSO ya varia solo
-    por el solape natural de cada pareja de padres, no por la calidad de
-    la fusion). Nace de una leccion medida en V8: stream_unity_index (USI)
-    no discrimina -- satura igual con un gating global o un burst
-    compartido que con una fusion real, porque correlaciona envolventes de
-    banda entera con un floor binario de "banda activa". El FCI ataca eso
-    por cuatro vias que el USI no tiene: restringe la correlacion a la
-    banda de modulacion 2-16 Hz (el ritmo perceptual, no el transitorio
-    de banda ancha que domina la correlacion cruda), pondera por energia
-    (rms_i*rms_j) en vez de min_rho/floor binario, y suma dos componentes
-    ausentes del USI -- solape espectral de los padres tras la alineacion
-    de registro (SSO) e identidad residual del padre B sin alinear (BRI).
+    NO es un gate y NO compara entre parejas distintas. Nace de una leccion
+    medida en V8: stream_unity_index (USI) no discrimina -- satura igual
+    con un gating global o un burst compartido que con una fusion real,
+    porque correlaciona envolventes de banda entera con un floor binario
+    de "banda activa". El FCI ataca eso por varias vias que el USI no
+    tiene: restringe la correlacion a la banda de modulacion 2-16 Hz (el
+    ritmo perceptual, no el transitorio de banda ancha que domina la
+    correlacion cruda), pondera por energia (rms_i*rms_j) en vez de
+    min_rho/floor binario, y suma componentes ausentes del USI -- solape
+    espectral de los padres tras la alineacion de registro (SSO) e
+    identidad residual del padre B sin alinear (BRI).
 
-    Los 4 componentes se devuelven por separado a proposito: si el FCI
+    fci = 0.55*mci - 0.30*dop - 0.15*bri -- SSO SE QUEDA en el reporte pero
+    SALE del agregado (correccion de revision sobre la V12-F3 original, que
+    tenia fci = 0.4*mci + 0.3*sso - 0.2*dop - 0.1*bri). Motivo: _sso solo
+    depende de parent_a/parent_b_aligned, no del blend concreto, asi que
+    para una misma pareja de padres (n_bands y alineacion fijos) SSO da
+    SIEMPRE el mismo valor sin importar que candidato de fusion se este
+    puntuando -- un termino constante dentro de la pareja no aporta nada al
+    ranking intra-pareja, que es la unica tarea de esta metrica, y solo
+    desplaza la escala del FCI. Se queda en CompositeFusionReport porque
+    SIGUE siendo un dato util (si la alineacion de registro funciono de
+    verdad para esa pareja), solo que a nivel de pareja, no de candidato;
+    por eso no pertenece al agregado que compara candidatos.
+
+    Los componentes se devuelven por separado a proposito: si el FCI
     agregado ordena mal candidatos que el oido distingue, re-ponderar es
     cambiar la formula de fci en una linea, sin re-renderizar audio.
 
@@ -412,8 +483,14 @@ def composite_fusion(blend: np.ndarray, parent_a: np.ndarray,
     de todas las bandas), y la decimacion a ~200 Hz no tiene anti-aliasing
     (comparte esa limitacion con stream_unity_index a proposito, para no
     reinventar el pipeline). SSO toma pocos valores distintos porque solo
-    depende de los padres, no del blend concreto. Ninguno de los 4
+    depende de los padres, no del blend concreto -- exactamente el motivo
+    por el que quedo fuera del agregado. Ninguno de los componentes
     sustituye la escucha.
+
+    mci (y por tanto fci) pueden salir NaN si el blend decimado es
+    demasiado corto para filtrar 2-16 Hz de forma fiable (ver _mci): es
+    intencional, senala un fallo de computo en vez de camuflarlo como una
+    incoherencia real de valor 0.0.
 
     parent_b_aligned es el B que realmente entro en la fusion (re-renderizado
     en el registro de A si hubo alineacion); parent_b_original es el B sin
@@ -427,5 +504,5 @@ def composite_fusion(blend: np.ndarray, parent_a: np.ndarray,
     sso = _sso(parent_a, parent_b_aligned, sr, n_bands)
     dop = _dop(blend, sr)
     bri = _bri(blend, parent_a, parent_b_original, sr)
-    fci = 0.4 * mci + 0.3 * sso - 0.2 * dop - 0.1 * bri
+    fci = 0.55 * mci - 0.30 * dop - 0.15 * bri
     return CompositeFusionReport(mci=mci, sso=sso, dop=dop, bri=bri, fci=fci)
