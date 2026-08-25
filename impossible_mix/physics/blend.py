@@ -874,7 +874,9 @@ def align_droplet_radius_to_hz(target_hz: float) -> float:
 def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
                              n_bands: int = 16, lo: float = 80.0,
                              hi: float = 8820.0,
-                             color_from: str = "b") -> np.ndarray:
+                             color_from: str = "b",
+                             color_mix: float | None = None,
+                             a_floor_db: float = -40.0) -> np.ndarray:
     """Chimera con balance espectral heredado de un padre (anti-estridencia).
 
     La chimera plana da a todas las bandas el peso de la envolvente de A,
@@ -882,6 +884,38 @@ def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
     intensos. Aqui cada banda se pondera ademas por la energia RELATIVA
     natural del padre elegido (color_from="b": la materia impone tambien
     su color espectral de largo plazo; "a": lo impone la dinamica).
+
+    color_mix (0..1, opcional): en vez de heredar el color al 100% de un
+    solo padre via color_from, interpola geometricamente (en log-dominio)
+    el peso por banda entre el RMS de A (color_mix=0.0) y el de B
+    (color_mix=1.0): band_w[k] = exp((1-color_mix)*log(rms_a[k]+eps) +
+    color_mix*log(rms_b[k]+eps)), normalizado por el maximo como siempre.
+    Por defecto es None, que conserva el comportamiento previo via
+    color_from (bit-identico); cuando se da, color_from se ignora. NOTA:
+    el color resultante es constante en el tiempo (una unica mezcla para
+    todo el clip); variarlo en el tiempo queda fuera de alcance de esta
+    version (ver v12).
+
+    a_floor_db (solo aplica si color_mix no es None): suelo de presencia de
+    A. Diagnostico medido en trueno(env) x vidrio(fina) @ 6 bandas: A
+    (trueno) esta a -56, -85 y -94.6 dB en 3 de las 6 bandas -- casi
+    silencio. El bug de fondo esta en `e_norm = env_a / (env_a.mean() +
+    eps)`: en una banda donde A no tiene energia, env_a es ruido de punto
+    flotante, y dividir por su propia media (tambien ruido) INFLA ese
+    ruido a una envolvente de amplitud ~1, asi que la banda emite
+    `fine_b` (la estructura de B) a peso casi pleno -- B crudo, sin
+    modular por A. Con color_from (color_mix=None) esto sigue sin
+    arreglar: band_w ahi depende SOLO del padre de referencia elegido, no
+    de si A esta presente, y no se toca para no romper la bit-identidad.
+    En la ruta color_mix, la ponderacion geometrica ya atenua algo las
+    bandas donde A es debil, pero no basta para silenciar del todo un
+    -94 dB; este suelo, en dB relativos al pico de RMS de A entre bandas,
+    aplica una rampa continua (no un corte duro) que fuerza a 0 el peso de
+    una banda cuando A cae por debajo de threshold = max(rms_a) *
+    10**(a_floor_db/20): atten[k] = clip(rms_a[k]/threshold, 0, 1),
+    multiplicado sobre band_w tras normalizar. Se deja como parametro (no
+    una constante fija) porque el barrido de parametros posterior lo va a
+    explorar.
     """
     n = min(len(a), len(b))
     a4 = a[:n].astype(np.float64)
@@ -891,7 +925,9 @@ def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
     ref = b4 if color_from == "b" else a4
     out = np.zeros(n, dtype=np.float64)
     band_w = []
+    rms_a_list = []
     parts = []
+    eps = 1e-12
     for k in range(n_bands):
         sos = signal.butter(4, [edges[k], edges[k + 1]], btype="band",
                             fs=sr, output="sos")
@@ -904,9 +940,21 @@ def auditory_chimera_colored(a: np.ndarray, b: np.ndarray, sr: int,
         # energia del padre de referencia
         e_norm = env_a / (env_a.mean() + 1e-12)
         parts.append(e_norm * fine_b)
-        band_w.append(float(np.sqrt((band_ref ** 2).mean())))
+        if color_mix is None:
+            band_w.append(float(np.sqrt((band_ref ** 2).mean())))
+        else:
+            rms_a = float(np.sqrt((band_a ** 2).mean()))
+            rms_b = float(np.sqrt((band_b ** 2).mean()))
+            rms_a_list.append(rms_a)
+            band_w.append(float(np.exp((1.0 - color_mix) * np.log(rms_a + eps)
+                                       + color_mix * np.log(rms_b + eps))))
     band_w = np.asarray(band_w)
     band_w = band_w / (band_w.max() + 1e-12)
+    if color_mix is not None:
+        rms_a_arr = np.asarray(rms_a_list)
+        threshold = rms_a_arr.max() * (10.0 ** (a_floor_db / 20.0)) + eps
+        atten = np.clip(rms_a_arr / threshold, 0.0, 1.0)
+        band_w = band_w * atten
     for k in range(n_bands):
         out += band_w[k] * parts[k]
     peak = float(np.abs(out).max() + 1e-9)

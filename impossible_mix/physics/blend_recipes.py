@@ -483,3 +483,138 @@ GOOD_ENV = ("trueno", "fuego", "lluvia", "oceano", "canica", "grava",
             "vertido", "burbujeo", "agua_ardiendo", "trueno_gota")
 GOOD_FINE = ("vidrio", "goteo", "campana_tela", "canica", "lluvia_mercurio",
              "trueno_cristal", "salpicadura", "grava")
+
+
+# ====================================================================
+# v12 (F1): padres re-parametrizables (registro + densidad)
+# ====================================================================
+# De los 16 padres del banco v11, solo estos cuatro exponen un eje fisico
+# de "registro" (altura tonal, va atado a Minnaert o a un modo) facil de
+# invertir con una sola formula. Los otros 12 no tienen ese eje sin tocar
+# su generador interno, asi que se quedan fuera del banco movil.
+PARENT_MOVABLE = frozenset({"goteo", "canica", "vidrio", "campana_tela"})
+
+
+def _v4_goteo(duration_s: float, seed: int, sr: int,
+             register_hz: float | None, density_mul: float) -> np.ndarray:
+    """goteo v4: el radio de gota fija el registro (via Minnaert, align_
+    droplet_radius_to_hz) sustituyendo el 2.2 mm fijo; la tasa de eventos
+    (10 Hz por defecto) escala con density_mul. Reutiliza el mismo render
+    que el padre v1 (schedule_from_rate + _render_drips)."""
+    from impossible_mix.physics.blend import align_droplet_radius_to_hz
+    n = int(duration_s * sr)
+    rate = 10.0 * density_mul
+    radius = (align_droplet_radius_to_hz(register_hz) if register_hz is not None
+              else 2.2)
+    sched = schedule_from_rate(np.full(n, rate), sr, seed + 3,
+                               radius_traj=np.full(n, radius))
+    return _render_drips(sched, sr, n, seed + 3)
+
+
+def _v4_canica(duration_s: float, seed: int, sr: int,
+              register_hz: float | None, density_mul: float) -> np.ndarray:
+    """canica v4: droplet_radius_mm (via align_droplet_radius_to_hz) fija
+    el registro; roll_velocity_hz escala con density_mul (la cadencia de
+    impactos de rodadura). dataclasses.replace sobre el preset "water"."""
+    from dataclasses import replace
+    from impossible_mix.physics.droplet import synth_rolling_droplet
+    from impossible_mix.physics.blend import align_droplet_radius_to_hz
+    preset = get_preset("water", duration_s=duration_s, seed=seed)
+    if register_hz is not None:
+        preset = replace(preset,
+                         droplet_radius_mm=align_droplet_radius_to_hz(register_hz))
+    preset = replace(preset, roll_velocity_hz=preset.roll_velocity_hz * density_mul)
+    return synth_rolling_droplet(preset, sr)
+
+
+def _v4_vidrio(duration_s: float, seed: int, sr: int,
+              register_hz: float | None, density_mul: float) -> np.ndarray:
+    """vidrio v4: pitch_mul (derivado del fundamental real de
+    MODAL_PROFILES["glass"], no hardcodeado) reescala el registro modal de
+    cada shard; n_shards (redondeado, minimo 1) escala con density_mul la
+    densidad de la cascada de impactos."""
+    from impossible_mix.physics.exotic import synth_glass_break
+    from impossible_mix.physics.modal import PROFILES as MODAL_PROFILES
+    pitch_mul = (register_hz / MODAL_PROFILES["glass"].fundamental_hz
+                if register_hz is not None else 1.0)
+    n_shards = max(1, round(60 * density_mul))
+    return synth_glass_break(duration_s=duration_s, n_shards=n_shards,
+                             sr=sr, seed=seed, pitch_mul=pitch_mul)
+
+
+def _v4_campana_tela(duration_s: float, seed: int, sr: int,
+                     register_hz: float | None, density_mul: float) -> np.ndarray:
+    """campana_tela v4: invierte el mapeo fundamental_hz = metal.fundamental_hz
+    * (1.4 - 0.8*size) que ya usa synth_fabric_bell (metal derivado del
+    perfil real, no hardcodeado a 900 Hz), resolviendo size y recortando al
+    rango fisicamente alcanzable de size, [0.05, 1.3] -- si register_hz
+    pide un registro fuera de ese rango no es un error, se recorta y se
+    sigue. Con metal.fundamental_hz=900 (valor actual del perfil) ese
+    clip de size implica un registro efectivamente alcanzable de
+    ~324-1224 Hz; si metal.fundamental_hz cambia, este rango se mueve con
+    el (no esta hardcodeado en ningun sitio, solo derivado aqui para
+    documentacion). Quien llame y necesite saber si su register_hz fue
+    recortado debe repetir este calculo -- no se expone un helper para
+    ello en esta tarea (fuera de alcance F1).
+    density_mul se ignora: synth_fabric_bell no expone ningun eje de
+    densidad (los 2-3 golpes lentos son fijos por duracion), asi que no
+    hay nada sensato que escalar."""
+    from impossible_mix.physics.exotic import synth_fabric_bell
+    from impossible_mix.physics.modal import PROFILES as MODAL_PROFILES
+    metal = MODAL_PROFILES["metal"]
+    if register_hz is not None:
+        size = float(np.clip((1.4 - register_hz / metal.fundamental_hz) / 0.8,
+                             0.05, 1.3))
+    else:
+        size = 0.5
+    return synth_fabric_bell(duration_s=duration_s, size=size, softness=0.7,
+                             seed=seed, sr=sr)
+
+
+_V4_REGISTER = {
+    "goteo": _v4_goteo,
+    "canica": _v4_canica,
+    "vidrio": _v4_vidrio,
+    "campana_tela": _v4_campana_tela,
+}
+# Dos fuentes de verdad para el mismo conjunto (PARENT_MOVABLE es la que se
+# exporta y documenta; _V4_REGISTER es el detalle de implementacion) -- este
+# assert evita que se desincronicen en silencio.
+assert frozenset(_V4_REGISTER) == PARENT_MOVABLE
+
+
+def chimera_parent_v4(name: str, duration_s: float = 8.0, seed: int = 42,
+                      sr: int = 44_100,
+                      register_hz: float | None = None,
+                      density_mul: float = 1.0) -> np.ndarray:
+    """Banco de padres v12: anade dos grados de libertad opcionales sobre
+    chimera_parent_v3 -- register_hz (Hz, mueve el registro tonal) y
+    density_mul (multiplicador de la tasa/cantidad de eventos) -- SOLO
+    para los cuatro padres de PARENT_MOVABLE (goteo, canica, vidrio,
+    campana_tela): son los unicos con un eje fisico de registro explicito
+    y facil de invertir sin tocar su generador interno.
+
+    Con register_hz=None y density_mul=1.0 (los valores por defecto) el
+    resultado es LITERALMENTE chimera_parent_v3(name, duration_s, seed,
+    sr), sin excepciones: es la garantia de que los scripts que ya usan
+    v3 (37, 38) no cambian.
+
+    Para un padre que NO esta en PARENT_MOVABLE: register_hz se ignora en
+    silencio (quien llama decide a que padre mover el registro; este
+    banco no fuerza nada) y density_mul tambien se ignora -- ninguno de
+    los otros 12 generadores expone un parametro de densidad utilizable
+    sin tocar su fisica interna, lo que queda fuera de alcance de esta
+    tarea.
+
+    Si register_hz cae fuera del rango de registro alcanzable de un padre
+    (el caso claro es campana_tela, acotado por el clip de size) NO es un
+    error: se aplica el clip fisico del padre y se sigue: quien llama se
+    entera del recorte por otra via (comparando el registro pedido contra
+    el efectivamente alcanzado), no por una excepcion.
+    """
+    if register_hz is None and density_mul == 1.0:
+        return chimera_parent_v3(name, duration_s, seed, sr)
+    fn = _V4_REGISTER.get(name)
+    if fn is not None:
+        return fn(duration_s, seed, sr, register_hz, density_mul)
+    return chimera_parent_v3(name, duration_s, seed, sr)

@@ -275,15 +275,25 @@ def synth_thunder(duration_s: float = 6.0, distance: float = 0.5,
 
 
 def synth_glass_break(duration_s: float = 4.0, n_shards: int = 30,
-                      sr: int = 44_100, seed: int = 0) -> np.ndarray:
-    """Cristal rompiendose: pico modal glass + cascada granular de shards."""
+                      sr: int = 44_100, seed: int = 0,
+                      pitch_mul: float = 1.0) -> np.ndarray:
+    """Cristal rompiendose: pico modal glass + cascada granular de shards.
+
+    pitch_mul (por defecto 1.0): reescala el fundamental modal de cada
+    shard y la banda del crack inicial, para mover el registro percibido
+    del vidrio. Con pitch_mul=1.0 el resultado es bit-identico al de antes
+    de anadir este parametro (multiplicar por 1.0 no cambia el valor en
+    punto flotante).
+    """
     n = int(duration_s * sr)
     out = np.zeros(n, dtype=np.float32)
     rng = np.random.default_rng(seed)
     # 1) Crack inicial: ruido bandpass agudo corto
     crack_n = int(0.025 * sr)
     crack = rng.standard_normal(crack_n).astype(np.float32)
-    sos = signal.butter(4, [2000, 8000], btype="band", fs=sr, output="sos")
+    crack_lo = 2000 * pitch_mul
+    crack_hi = min(8000 * pitch_mul, sr / 2 - 200)
+    sos = signal.butter(4, [crack_lo, crack_hi], btype="band", fs=sr, output="sos")
     crack = signal.sosfiltfilt(sos, crack).astype(np.float32) * 0.9
     out[: crack_n] += crack
     # 2) Cascada de shards: N impactos modales glass cortos dispersos
@@ -294,7 +304,7 @@ def synth_glass_break(duration_s: float = 4.0, n_shards: int = 30,
         sub_profile = MaterialModalProfile(
             name=f"shard_{k}",
             n_modes=4,
-            fundamental_hz=glass.fundamental_hz * (0.5 + 1.5 * rng.random()),
+            fundamental_hz=glass.fundamental_hz * pitch_mul * (0.5 + 1.5 * rng.random()),
             spacing=glass.spacing,
             damping_ms=glass.damping_ms * (0.3 + 0.7 * rng.random()),
             spectrum_shape="flat",
