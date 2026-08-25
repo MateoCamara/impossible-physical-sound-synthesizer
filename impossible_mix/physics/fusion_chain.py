@@ -256,8 +256,8 @@ def _time_map(n: int, matches: list[tuple[float, float]]) -> np.ndarray:
 
 
 def warp_to_anchors(w: np.ndarray, sr: int, src_onsets: np.ndarray,
-                    dst_anchors: np.ndarray,
-                    max_shift_ms: float = 60.0) -> np.ndarray:
+                    dst_anchors: np.ndarray, max_shift_ms: float = 60.0,
+                    return_meta: bool = False):
     """Alinea temporalmente los eventos de `w` (tipicamente B) a las
     anclas `dst_anchors` (tipicamente los picos de envolvente de A): cue
     de onset comun de Bregman -- si B "respira" en el mismo instante que
@@ -274,6 +274,17 @@ def warp_to_anchors(w: np.ndarray, sr: int, src_onsets: np.ndarray,
     pequeno (<=60ms por defecto) que pide max_shift_ms; para eventos que
     haya que reagendar por completo (goteo) usar reschedule_drips_to en
     su lugar, que no tiene este efecto secundario.
+
+    `return_meta=False` (por defecto) devuelve solo el audio warpeado,
+    igual que antes. `return_meta=True` devuelve `(audio, diag)` con
+    `diag = {"n_anchors", "n_onsets_matched", "n_onsets_total",
+    "warp_max_rate_dev"}` -- los mismos diagnosticos que render_fusion
+    necesita para su meta. Esta es la UNICA implementacion del warp
+    generico del modulo: render_fusion la llama con `return_meta=True` en
+    vez de reimplementar `_monotone_match`/`_time_map`/`np.interp` por su
+    cuenta, para que `max_shift_ms` tenga una sola fuente de verdad (si
+    cambia el default aqui, cambia tambien el de render_fusion, que no le
+    pasa un valor propio).
     """
     n = len(w)
     max_shift = max_shift_ms / 1000.0 * sr
@@ -281,8 +292,19 @@ def warp_to_anchors(w: np.ndarray, sr: int, src_onsets: np.ndarray,
     dst = np.sort(np.asarray(dst_anchors, dtype=np.float64))
     matches = _monotone_match(src, dst, max_shift)
     t_in = _time_map(n, matches)
-    y = np.interp(t_in, np.arange(n, dtype=np.float64), w.astype(np.float64))
-    return y.astype(np.float32)
+    y = np.interp(t_in, np.arange(n, dtype=np.float64),
+                 w.astype(np.float64)).astype(np.float32)
+    if not return_meta:
+        return y
+    warp_max_rate_dev = (float(np.abs(np.diff(t_in) - 1.0).max())
+                         if len(t_in) > 1 else 0.0)
+    diag = {
+        "n_anchors": len(dst),
+        "n_onsets_matched": len(matches),
+        "n_onsets_total": len(src),
+        "warp_max_rate_dev": warp_max_rate_dev,
+    }
+    return y, diag
 
 
 def reschedule_drips_to(a: np.ndarray, sr: int, n: int, seed: int, *,
@@ -395,24 +417,48 @@ class FusionSpec:
     seed: int = 42
 
 
+# Registro del sr asociado a cada dict de cache, indexado por id(cache) --
+# deliberadamente FUERA del propio dict de cache (no como una entrada mas
+# dentro de el). Guardar el guardarraíl como clave dentro del cache
+# mezclaria un int con las entradas (nombre, duration_s, seed, register_hz,
+# density_mul) -> ndarray que espera la tarea 4; si esta itera
+# cache.values() o usa len(cache) como "numero de padres cacheados",
+# tropezaria con esa entrada extra. Aqui vive aparte y el dict de cache que
+# ve el llamante queda con SOLO las claves literales que pide el brief.
+#
+# Riesgo aceptado y documentado: este registro nunca libera entradas
+# (id(cache) -> sr se queda para siempre), asi que si un dict de cache se
+# recolecta y Python REUTILIZA su id() para un dict nuevo y no relacionado
+# que tambien se use como cache con un sr distinto, el guardarraíl podria
+# disparar una alarma FALSA (ValueError sobre un uso legitimo). Nunca al
+# reves: no puede devolver audio del sr equivocado en silencio, que es el
+# fallo real que este guardarraíl existe para evitar. En el uso previsto
+# (un cache por pareja, vivo durante todo un barrido) este riesgo es
+# teorico.
+_CACHE_SR_REGISTRY: dict[int, int] = {}
+
+
 def _cached_parent(cache: dict | None, name: str, duration_s: float, seed: int,
                    sr: int, register_hz_val: float | None,
                    density_mul: float = 1.0) -> np.ndarray:
     """Renderiza (o recupera de `cache`) un padre via chimera_parent_v4.
 
     Clave de cache: (nombre, duration_s, seed, register_hz, density_mul) --
-    literal segun el brief, SIN sr. Eso es correcto mientras un mismo
-    `cache` se use siempre al mismo sr (el uso previsto: un barrido de la
-    tarea 4 que fija sr=44100 para todas sus ~100 llamadas por pareja); si
-    se reutilizase el mismo dict de cache con dos sr distintos devolveria
-    audio del sr equivocado sin avisar. Guardarraíl barato: se anota el sr
-    del cache bajo una clave reservada la primera vez que se usa, y se
-    lanza un error claro si una llamada posterior trae un sr distinto.
+    literal segun el brief, SIN sr, y son las UNICAS entradas que este
+    modulo escribe en `cache`. Eso es correcto mientras un mismo `cache`
+    se use siempre al mismo sr (el uso previsto: un barrido de la tarea 4
+    que fija sr=44100 para todas sus ~100 llamadas por pareja); si se
+    reutilizase el mismo dict de cache con dos sr distintos devolveria
+    audio del sr equivocado sin avisar. Guardarraíl barato: el sr de cada
+    `cache` se anota en _CACHE_SR_REGISTRY (fuera del propio dict, ver su
+    comentario) la primera vez que se usa, y se lanza un error claro si
+    una llamada posterior trae un sr distinto para el mismo `cache`.
     """
     if cache is not None:
-        cached_sr = cache.get("_sr")
+        cache_id = id(cache)
+        cached_sr = _CACHE_SR_REGISTRY.get(cache_id)
         if cached_sr is None:
-            cache["_sr"] = sr
+            _CACHE_SR_REGISTRY[cache_id] = sr
         elif cached_sr != sr:
             raise ValueError(
                 f"cache de render_fusion creado con sr={cached_sr} y "
@@ -487,6 +533,39 @@ def _apply_stats_finish(blend: np.ndarray, a: np.ndarray, sr: int, *,
     return impose_statistics(finish_stats, sr, n / sr, n_iter=n_iter, seed=seed)
 
 
+# color_mix y a_floor_db solo los lee auditory_chimera_colored, que solo se
+# invoca bajo method="chimera" (paso 3 de render_fusion). Bajo los otros
+# tres methods esos dos campos de FusionSpec se ignoran en silencio si no
+# se anota en algun sitio -- y como NINGUNO de los dos cambia la firma de
+# auditory_chimera/_normalize_peak/physical_vocoder, dos FusionSpec que
+# solo difieran en color_mix/a_floor_db con method="chimera_plana" (o
+# "suma", o "vocoder") producen audio BIT-IDENTICO. Para que el barrido de
+# la tarea 4 no lo confunda con dos condiciones experimentales distintas,
+# render_fusion anota en meta["parametros_inertes"] cuales de los campos
+# del spec no tuvieron ningun efecto en ESTE render, dado su method.
+#
+# Dos casos adicionales, mismo tipo de bug, que este mapa estatico NO
+# alcanza a cubrir por si solo (se resuelven con un `if` extra al poblar
+# meta, ver mas abajo en render_fusion):
+# - "suma" tambien deja inerte n_bands: `_normalize_peak(0.6*a+0.6*b)` no
+#   lo lee en absoluto -- el barrido de la tarea 4 sondea n_bands en
+#   {2..32} y tambien emite una fila-ancla method="suma"; sin esto, esa
+#   fila registraria un n_bands que no hizo nada.
+# - "chimera" deja inerte a_floor_db CUANDO color_mix es None (el default
+#   de FusionSpec): en blend.py, auditory_chimera_colored solo lee
+#   a_floor_db dentro de `if color_mix is not None:` -- con color_mix=None
+#   se toma la rama color_from (bit-identica a la version sin suelo) y
+#   a_floor_db nunca se evalua. El brief de la tarea 4 incluye
+#   explicitamente una celda "baseline V11 exacto (coloreada,
+#   color_mix=None, ...)" que cae justo en este caso.
+_INERT_PARAMS_BY_METHOD: dict[str, tuple[str, ...]] = {
+    "chimera": (),
+    "chimera_plana": ("color_mix", "a_floor_db"),
+    "suma": ("color_mix", "a_floor_db", "n_bands"),
+    "vocoder": ("color_mix", "a_floor_db"),
+}
+
+
 def render_fusion(spec: FusionSpec, sr: int = 44_100,
                   cache: dict | None = None) -> tuple[np.ndarray, dict]:
     """Orquesta la cadena completa de fusion segun `spec`. Devuelve
@@ -527,13 +606,38 @@ def render_fusion(spec: FusionSpec, sr: int = 44_100,
     el articulador para method="vocoder" no lo pide el brief y mezclaria
     dos decisiones de diseno independientes) pero queda anotado aqui y en
     el informe de la tarea para que no se lea como que el warp fallo.
+
+    NOTA: color_mix y a_floor_db solo los consume auditory_chimera_colored,
+    es decir SOLO aplican bajo method="chimera". Bajo "chimera_plana"
+    (auditory_chimera no los acepta), "suma" (formula fija 0.6a+0.6b) y
+    "vocoder" (physical_vocoder no los acepta) quedan sin efecto: dos
+    FusionSpec que solo difieran en esos dos campos con el mismo method no
+    "chimera" dan audio bit-identico. Dos matices mas finos, mismo
+    problema: `n_bands` tambien queda inerte bajo "suma" (no lo lee la
+    formula 0.6a+0.6b); y `a_floor_db` queda inerte incluso bajo
+    "chimera" cuando `color_mix is None` (el default de FusionSpec) --
+    auditory_chimera_colored solo evalua a_floor_db dentro de la rama
+    `color_mix is not None`. meta["parametros_inertes"] (ver
+    _INERT_PARAMS_BY_METHOD y el `if` que lo completa mas abajo) deja
+    constancia de TODO esto por render, no solo por method, para que el
+    barrido de la tarea 4 no lo lea como condiciones experimentales
+    distintas cuando no lo son.
     """
     if spec.method not in _METHODS:
         raise ValueError(f"method desconocido: {spec.method!r} "
                          f"(validos: {sorted(_METHODS)})")
 
+    parametros_inertes = list(_INERT_PARAMS_BY_METHOD[spec.method])
+    if spec.method == "chimera" and spec.color_mix is None:
+        # a_floor_db solo se lee dentro de la rama `color_mix is not None`
+        # de auditory_chimera_colored (blend.py) -- con color_mix=None
+        # (el default de FusionSpec) esta inerte tambien bajo "chimera".
+        # Ver comentario largo junto a _INERT_PARAMS_BY_METHOD.
+        parametros_inertes.append("a_floor_db")
+
     meta: dict = {"n_bands": spec.n_bands,
-                 "onset_expected_rate_hz": _ONSET_EXPECTED_RATE_HZ}
+                 "onset_expected_rate_hz": _ONSET_EXPECTED_RATE_HZ,
+                 "parametros_inertes": parametros_inertes}
 
     seed_env = spec.seed
     seed_fine = spec.seed + 17
@@ -559,21 +663,25 @@ def render_fusion(spec: FusionSpec, sr: int = 44_100,
             align_noop = True
         else:
             if fine_movable:
-                moved_parent, moved_seed, anchor_audio, unmoved_audio = (
+                moved_parent, moved_seed, anchor_audio, audio_antes_de_mover = (
                     spec.fine_parent, seed_fine, a, b)
             else:
-                moved_parent, moved_seed, anchor_audio, unmoved_audio = (
+                moved_parent, moved_seed, anchor_audio, audio_antes_de_mover = (
                     spec.env_parent, seed_env, b, a)
-            # register_before_move_hz: registro del padre movil ANTES de
-            # re-renderizarlo (su render "natural", sin pedir ningun
-            # register_hz). Sin esto, register_error_hz (medido vs. el
+            # register_before_move_hz: registro del padre MOVIL (moved_parent)
+            # medido sobre su render de ANTES de re-renderizarlo con el
+            # register_hz objetivo (su render "natural"). audio_antes_de_mover
+            # es justo eso -- el audio del padre que SI se va a mover, tal
+            # como estaba antes de moverse (nombre elegido para no
+            # confundirlo con "el padre que no se mueve", que es
+            # anchor_audio). Sin este dato, register_error_hz (medido vs. el
             # OBJETIVO, no vs. donde estaba antes) no distingue "la
             # alineacion funciono pero register_hz tiene un sesgo de
             # medida" de "la alineacion no movio nada" -- ambos casos
-            # pueden dar un error absoluto grande. Con este dato el
-            # criterio correcto es "se acerco al objetivo", no "el error
+            # pueden dar un error absoluto grande. Con register_before_move_hz
+            # el criterio correcto es "se acerco al objetivo", no "el error
             # absoluto es pequeno" (ver informe de esta tarea).
-            register_before_move_hz = register_hz(unmoved_audio, sr)
+            register_before_move_hz = register_hz(audio_antes_de_mover, sr)
             target_raw = register_hz(anchor_audio, sr)
             register_target_hz, register_clamped = _clamp_register_hz(target_raw)
             moved_audio = _cached_parent(cache, moved_parent, spec.duration_s,
@@ -622,24 +730,17 @@ def render_fusion(spec: FusionSpec, sr: int = 44_100,
                        n_onsets_matched=n_evt, n_onsets_total=n_evt,
                        warp_max_rate_dev=None)
         else:
-            src = np.sort(detect_onsets(b, sr, _ONSET_EXPECTED_RATE_HZ)
-                          .astype(np.float64))
-            dst = np.sort(_envelope_peaks(a, sr, _ONSET_EXPECTED_RATE_HZ)
-                          .astype(np.float64))
-            matches = _monotone_match(src, dst, 60.0 / 1000.0 * sr)
-            t_in = _time_map(n_common, matches)
-            # warp_max_rate_dev: mayor desviacion local de la pendiente del
-            # mapa de tiempo respecto a 1 (sin warp). Un mapa de tiempo con
-            # pendiente muy distinta de 1 sostenida implica un cambio de
-            # tono audible en B durante el resample lineal (no solo un
-            # desplazamiento pequeno) -- ver docstring de warp_to_anchors.
-            warp_max_rate_dev = (float(np.abs(np.diff(t_in) - 1.0).max())
-                                 if len(t_in) > 1 else 0.0)
-            b = np.interp(t_in, np.arange(n_common, dtype=np.float64),
-                         b.astype(np.float64)).astype(np.float32)
-            meta.update(warp_method="signal_warp", n_anchors=len(dst),
-                       n_onsets_matched=len(matches), n_onsets_total=len(src),
-                       warp_max_rate_dev=warp_max_rate_dev)
+            # Unica fuente de verdad para el warp generico: warp_to_anchors
+            # con return_meta=True (ver su docstring). Antes este bloque
+            # reimplementaba _monotone_match/_time_map/np.interp en linea,
+            # con max_shift_ms hardcodeado por separado -- eso desacoplaba
+            # el comportamiento de render_fusion del default publico de
+            # warp_to_anchors. No se le pasa max_shift_ms explicitamente
+            # para heredar SIEMPRE el default de la funcion publica.
+            src = detect_onsets(b, sr, _ONSET_EXPECTED_RATE_HZ)
+            dst = _envelope_peaks(a, sr, _ONSET_EXPECTED_RATE_HZ)
+            b, warp_diag = warp_to_anchors(b, sr, src, dst, return_meta=True)
+            meta.update(warp_method="signal_warp", **warp_diag)
 
     # --- 3. fusion segun method ---
     if spec.method == "chimera":
