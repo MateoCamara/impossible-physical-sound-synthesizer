@@ -41,11 +41,11 @@ from scipy import signal
 from impossible_mix.physics.analysis import band_envelopes, detect_onsets, smooth_env
 from impossible_mix.physics.blend import (
     BodySpec,
+    EventSchedule,
     align_droplet_radius_to_hz,
     auditory_chimera,
     auditory_chimera_colored,
     physical_vocoder,
-    schedule_from_audio,
 )
 from impossible_mix.physics.blend_recipes import (
     PARENT_MOVABLE,
@@ -114,8 +114,8 @@ def _clamp_register_hz(hz: float) -> tuple[float, bool]:
 # warp_to_anchors: alineacion temporal de B a los picos de A
 # ====================================================================
 
-# Tasa de eventos "esperada" generica que se le pasa a detect_onsets (para
-# fijar la distancia minima entre picos) y a schedule_from_audio. No hay un
+# Tasa de eventos "esperada" generica que se le pasa a detect_onsets y a
+# _envelope_peaks (para fijar la distancia minima entre picos). No hay un
 # valor correcto universal -- los padres van de trueno (cross-driven,
 # 1.5-16 Hz) a fuego (crepitar denso) a goteo (10 Hz fijo) -- asi que esto
 # es un punto medio deliberado, no medido, documentado aqui para que quien
@@ -151,6 +151,63 @@ def _envelope_peaks(w: np.ndarray, sr: int, expected_rate: float) -> np.ndarray:
     min_dist = max(int(0.008 * sr), int(0.5 / max(expected_rate, 1.0) * sr))
     peaks, _ = signal.find_peaks(env, height=thr, distance=min_dist)
     return peaks
+
+
+def _schedule_from_envelope_peaks(w: np.ndarray, sr: int,
+                                  expected_rate: float) -> EventSchedule:
+    """Construye un EventSchedule a partir de _envelope_peaks(w) en vez de
+    blend.schedule_from_audio (que usa analysis.detect_onsets, pasa-alto
+    >1kHz, por dentro).
+
+    RULING sobre el brief (aplicado tras hallazgo medido): el brief define
+    el warp como "onsets de B hacia los PICOS DE LA ENVOLVENTE de A", y
+    solo menciona schedule_from_audio para el caso especial de goteo como
+    atajo de implementacion. Medido en vivo: schedule_from_audio(trueno,
+    sr, 8.0) encuentra 1 evento en 8s (el filtro pasa-alto interno lee
+    ruido de punto flotante en un padre sin agudos, -37 dB relativo en
+    banda >1kHz) donde _envelope_peaks(trueno,...) encuentra 26 -- el
+    mismo problema que _envelope_peaks ya existe para evitar en el camino
+    generico de warp_to_anchors. La especificacion de la ancla ("picos de
+    envolvente") manda sobre el atajo de implementacion nombrado en el
+    brief; por eso reschedule_drips_to usa esta funcion (unica via, sin
+    fallback condicional a schedule_from_audio: mas simple y uniforme con
+    el resto del modulo, que siempre usa _envelope_peaks para las anclas
+    de A).
+
+    Misma normalizacion de amplitud y misma logica de dur_hint que
+    schedule_from_audio (para que el comportamiento aguas abajo de
+    _render_drips -- que lee sched.amps como amplitud por evento -- no
+    cambie de significado): amplitud = envolvente suavizada en el pico,
+    normalizada al maximo; dur_hint = hueco hasta el siguiente pico (el
+    ultimo hueco se repite para el ultimo evento); sin picos, EventSchedule
+    vacio.
+    """
+    peaks = _envelope_peaks(w, sr, expected_rate)
+    if len(peaks) == 0:
+        return EventSchedule(
+            starts=np.zeros(0, dtype=np.int64),
+            amps=np.zeros(0, dtype=np.float64),
+            vels=np.zeros(0, dtype=np.float64),
+            dur_hint=np.zeros(0, dtype=np.float64),
+            meta={"source": "envelope_peaks", "expected_rate": expected_rate},
+        )
+    env = smooth_env(w, sr, win_ms=5.0)
+    env_idx = np.clip(peaks, 0, len(env) - 1)
+    amps_at_peaks = env[env_idx]
+    peak_max = float(amps_at_peaks.max())
+    amps_norm = amps_at_peaks / (peak_max + 1e-12)
+    if len(peaks) > 1:
+        gaps_s = np.diff(peaks).astype(np.float64) / sr
+        last_gap = gaps_s[-1] if len(gaps_s) else 1.0 / max(expected_rate, 1e-6)
+        dur_hint = np.append(gaps_s, last_gap)
+    else:
+        dur_hint = np.array([1.0 / max(expected_rate, 1e-6)], dtype=np.float64)
+    return EventSchedule(
+        starts=peaks.astype(np.int64), amps=amps_norm.astype(np.float64),
+        vels=np.ones(len(peaks), dtype=np.float64),
+        dur_hint=dur_hint.astype(np.float64),
+        meta={"source": "envelope_peaks", "expected_rate": expected_rate},
+    )
 
 
 def _monotone_match(src: np.ndarray, dst: np.ndarray,
@@ -234,22 +291,39 @@ def reschedule_drips_to(a: np.ndarray, sr: int, n: int, seed: int, *,
                         surface: str = "water") -> np.ndarray:
     """Caso especial `goteo`: en vez de resamplear linealmente un goteo ya
     renderizado (warp_to_anchors, que emborronaria el click de cada
-    impacto), RE-AGENDA gotas nuevas exactamente en los onsets de `a`.
+    impacto), RE-AGENDA gotas nuevas exactamente en los picos de la
+    envolvente de `a`.
 
-    blend.schedule_from_audio(a, sr, expected_rate) lee los onsets y
-    amplitudes de `a` directamente (onset-picking + envolvente en los
-    picos, normalizada) y produce un EventSchedule; blend_recipes.
-    _render_drips sintetiza una gota REAL (synth_drip_event) en cada
-    evento de ese schedule. El resultado es exacto y determinista: cada
-    gota nace justo cuando `a` respira, con su timbre de impacto intacto
-    -- preferible al warp de senal cuando aplica (B == "goteo").
+    _schedule_from_envelope_peaks(a, sr, expected_rate) lee los picos de
+    envolvente banda ancha de `a` y sus amplitudes (normalizadas) y
+    produce un EventSchedule -- MISMAS anclas que warp_to_anchors usa para
+    el resto de padres (ver _envelope_peaks: picos de envolvente, no
+    onsets de transitorios agudos); blend_recipes._render_drips sintetiza
+    una gota REAL (synth_drip_event) en cada evento de ese schedule. El
+    resultado es exacto y determinista: cada gota nace justo cuando `a`
+    respira, con su timbre de impacto intacto -- preferible al warp de
+    senal cuando aplica (B == "goteo").
+
+    HISTORIAL (por que no es blend.schedule_from_audio, que el brief
+    original nombraba para este camino): la primera version de esta
+    funcion usaba schedule_from_audio, que filtra pasa-alto >1kHz antes de
+    picar picos (analysis.detect_onsets). Medido en trueno(a): 1 evento
+    reagendado en 8s (RMS de B cae ~-18 dB) frente a 26 picos de
+    envolvente reales sobre la MISMA senal -- trueno esta a -37 dB
+    relativo en banda >1kHz, asi que detect_onsets estaba pickeando ruido
+    de punto flotante, no eventos. El brief define la ancla del warp como
+    "picos de la envolvente de A"; schedule_from_audio era solo un atajo
+    de implementacion para este caso que resulto incorrecto con un padre
+    grave sin agudos marcados. Corregido tras ruling explicito para usar
+    las mismas anclas que el camino generico de warp_to_anchors, sin
+    fallback condicional a schedule_from_audio (uniforme y mas simple).
 
     `radius_mm` debe ser el mismo radio que ya se uso para renderizar el
     goteo (2.2mm por defecto, o align_droplet_radius_to_hz(registro) si
     hubo alineacion de registro) para que el timbre de las gotas
     reagendadas sea consistente con el resto del pipeline.
     """
-    sched = schedule_from_audio(a, sr, expected_rate)
+    sched = _schedule_from_envelope_peaks(a, sr, expected_rate)
     n_evt = len(sched.starts)
     sched.radii_mm = (np.full(n_evt, radius_mm, dtype=np.float64)
                       if n_evt else None)
@@ -534,18 +608,16 @@ def render_fusion(spec: FusionSpec, sr: int = 44_100,
             b = reschedule_drips_to(a, sr, n_common, seed_fine,
                                     expected_rate=_ONSET_EXPECTED_RATE_HZ,
                                     radius_mm=radius)
-            # n_evt: cuantos onsets de A encontro schedule_from_audio (que
-            # usa analysis.detect_onsets internamente, pasa-alto >1kHz --
-            # ver _envelope_peaks arriba para por que eso puede ser MUY
-            # pocos cuando A no tiene agudos, p.ej. trueno). Aqui
-            # matched==total==n_anchors por construccion (CADA onset de A
+            # n_evt: cuantos picos de envolvente de A uso reschedule_drips_to
+            # (MISMAS anclas, _envelope_peaks -- ver su docstring y el
+            # HISTORIAL en reschedule_drips_to: ya NO es
+            # schedule_from_audio/detect_onsets, que pickeaba ruido de
+            # punto flotante en padres graves como trueno). Aqui
+            # matched==total==n_anchors por construccion (CADA pico de A
             # se convierte en una gota, no hay descarte por max_shift como
-            # en el camino generico) -- eso NO significa "100% de exito":
-            # si n_evt es bajo, B (goteo) queda con casi ningun evento
-            # aunque el ratio matched/total salga 1.0. Reportado con
-            # numeros reales en el informe de esta tarea (medido: trueno x
-            # goteo, 8s -> 1 solo evento, RMS de B cae -21 dB).
-            n_evt = len(schedule_from_audio(a, sr, _ONSET_EXPECTED_RATE_HZ).starts)
+            # en el camino generico) -- eso no es una "tasa de exito", es
+            # el numero total de eventos reagendados.
+            n_evt = len(_envelope_peaks(a, sr, _ONSET_EXPECTED_RATE_HZ))
             meta.update(warp_method="reschedule_drips", n_anchors=n_evt,
                        n_onsets_matched=n_evt, n_onsets_total=n_evt,
                        warp_max_rate_dev=None)
