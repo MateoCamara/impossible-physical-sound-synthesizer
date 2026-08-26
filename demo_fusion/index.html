@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>De dos sonidos a un objeto imposible — demo de fusión</title>
+<style>
+:root {
+  --bg: #0a0d12;
+  --panel: #141a23;
+  --panel2: #1c2531;
+  --text: #f4f6f8;
+  --muted: #b7c2d0;
+  --dinamica: #ff9248;
+  --materia: #4fd1ff;
+  --warn-bg: #3a2a12;
+  --warn-text: #ffd485;
+  --border: #2a3242;
+  --ok: #6fdc8c;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; padding: 0 1.2rem 4rem;
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(16px, 1.1vw + 0.6rem, 20px);
+  line-height: 1.5;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+h1 { font-size: clamp(1.6rem, 1rem + 2vw, 2.6rem); margin: 1.4rem 0 0.3rem; }
+h2 { font-size: clamp(1.2rem, 0.9rem + 1vw, 1.6rem); margin: 2.2rem 0 0.6rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { font-size: 1.05rem; margin: 0 0 0.3rem; }
+p.lead { color: var(--muted); font-size: 1.05em; max-width: 62ch; }
+.hidden { display: none !important; }
+
+#file-warning {
+  background: var(--warn-bg); color: var(--warn-text);
+  border: 1px solid #6b4d1a; border-radius: 10px;
+  padding: 1rem 1.2rem; margin: 1rem 0; font-size: 1rem;
+}
+#file-warning code { background: #00000055; padding: 0.1rem 0.4rem; border-radius: 4px; }
+
+nav#pareja-selector { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0 1.6rem; }
+.pareja-btn {
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.6rem 1.1rem; font-size: 1rem; cursor: pointer;
+}
+.pareja-btn.activo { background: linear-gradient(90deg, var(--dinamica), var(--materia)); color: #0a0d12; font-weight: 600; border-color: transparent; }
+
+section { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem 1.6rem; margin-bottom: 1.4rem; }
+
+#explicacion { font-size: 1.15em; margin: 0 0 1.2rem; }
+
+.slider-block { margin: 1.4rem 0; }
+.slider-block label { display: block; font-size: 1.02rem; color: var(--muted); margin-bottom: 0.5rem; }
+input[type=range] { width: 100%; height: 2.2rem; accent-color: var(--materia); cursor: pointer; }
+#slider-colormix { accent-color: var(--dinamica); }
+.axis-endpoints { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--muted); margin-top: 0.2rem; }
+.axis-endpoints .izq { color: var(--dinamica); } .axis-endpoints .der { color: var(--materia); }
+#nbands-tick-labels { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; padding: 0 0.2rem; }
+.value-readout { margin-top: 0.5rem; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+#colormix-warning { margin-top: 0.5rem; background: var(--warn-bg); color: var(--warn-text); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.95rem; }
+
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin: 1.2rem 0; }
+.transport button {
+  font-size: 1.05rem; padding: 0.6rem 1.3rem; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--panel2); color: var(--text); cursor: pointer;
+}
+#play-btn { border-color: var(--ok); }
+.transport .vol-block { display: flex; align-items: center; gap: 0.5rem; min-width: 180px; }
+.transport .vol-block input { width: 140px; height: 1.6rem; }
+#progress-indicator { color: var(--materia); font-size: 0.95rem; }
+
+#active-metrics { color: var(--muted); font-size: 0.95rem; margin-top: 0.6rem; }
+
+.ab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.ab-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+.ab-card .metric { color: var(--muted); font-size: 0.9rem; margin: 0.3rem 0 0.6rem; }
+.ab-card audio { width: 100%; }
+
+footer { color: var(--muted); font-size: 0.9rem; margin-top: 2rem; }
+footer code { background: var(--panel2); padding: 0.15rem 0.45rem; border-radius: 5px; }
+
+@media (max-width: 600px) {
+  section { padding: 1rem; }
+  .transport { flex-direction: column; align-items: stretch; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>De dos sonidos a un objeto imposible</h1>
+  <p class="lead">Fusión de identidad por chimera auditiva: un padre pone la <b>dinámica</b>
+  (envolvente/ritmo), otro pone la <b>materia</b> (estructura fina/timbre) — una sola señal por
+  construcción, no dos sonidos sonando a la vez. Mueve los sliders y compáralo con el panel A/B
+  para oír la diferencia.</p>
+
+  <div id="file-warning" class="hidden">
+    <b>Modo degradado (sin servidor):</b> esta página se abrió con <code>file://</code>, donde el
+    navegador bloquea la carga de audio por <code>fetch</code>. Los sliders siguen funcionando,
+    pero conmutan al punto de rejilla grabado más cercano <b>sin crossfade</b> (con un pequeño
+    corte al cambiar). Para la experiencia completa (crossfade real de color, offline, sin wifi):
+    abre una terminal en la carpeta del proyecto y ejecuta
+    <code>python3 -m http.server -d demo_fusion 8000</code>, luego visita
+    <code>http://localhost:8000/</code>.
+  </div>
+
+  <nav id="pareja-selector" role="tablist" aria-label="Selector de pareja"></nav>
+
+  <section id="pad-section">
+    <p id="explicacion"></p>
+
+    <div class="slider-block">
+      <label for="slider-nbands">Bandas del filtro — eje discreto, se conmuta (nunca se interpola entre bandas)</label>
+      <input type="range" id="slider-nbands" min="0" max="7" step="1" value="4" list="nbands-ticks">
+      <datalist id="nbands-ticks">
+        <option value="0"></option><option value="1"></option><option value="2"></option>
+        <option value="3"></option><option value="4"></option><option value="5"></option>
+        <option value="6"></option><option value="7"></option>
+      </datalist>
+      <div id="nbands-tick-labels"></div>
+      <div id="nbands-readout" class="value-readout">—</div>
+    </div>
+
+    <div class="slider-block">
+      <label for="slider-colormix">Color: dinámica ↔ materia — eje continuo, con crossfade real</label>
+      <input type="range" id="slider-colormix" min="0" max="1" step="0.001" value="0.5" list="colormix-ticks">
+      <datalist id="colormix-ticks">
+        <option value="0"></option><option value="0.125"></option><option value="0.25"></option>
+        <option value="0.375"></option><option value="0.5"></option><option value="0.625"></option>
+        <option value="0.75"></option><option value="0.875"></option><option value="1"></option>
+      </datalist>
+      <div class="axis-endpoints"><span class="izq">dinámica</span><span class="der">materia</span></div>
+      <div id="colormix-readout" class="value-readout">—</div>
+      <div id="colormix-warning" class="hidden"></div>
+    </div>
+
+    <div class="transport">
+      <button id="play-btn" type="button">▶ Reproducir</button>
+      <button id="stop-btn" type="button">■ Detener</button>
+      <div class="vol-block">
+        <label for="master-vol">Volumen</label>
+        <input type="range" id="master-vol" min="0" max="1" step="0.02" value="0.85">
+      </div>
+      <div id="progress-indicator" class="hidden">decodificando…</div>
+    </div>
+    <div id="active-metrics"></div>
+    <audio id="fallback-audio" preload="none" loop></audio>
+  </section>
+
+  <section id="ab-section">
+    <h2>Panel A/B — el argumento del paper, con el sonido delante</h2>
+    <p class="lead">Cuatro referencias fijas de la pareja activa (fuera de la rejilla de
+    crossfade: la igualación de sonoridad les aplica a veces un limitador no lineal). Compara su
+    <code>crest_db</code> y <code>SSO</code> (medidos sobre el audio crudo, antes de igualar
+    sonoridad — igual que el punto activo de arriba, los números son comparables entre sí) con los
+    del punto activo: la cresta alta separa lo defectuoso ("dos capas") de lo sano.</p>
+    <div class="ab-grid" id="ab-grid"></div>
+  </section>
+
+  <footer>
+    Servir sin wifi: <code>python3 -m http.server -d demo_fusion 8000</code> desde la raíz del
+    proyecto, luego abrir <code>http://localhost:8000/</code>. Detalles, honestidades y
+    limitaciones conocidas: <code>demo_fusion/LEEME.md</code>.
+  </footer>
+</div>
+<noscript>Esta demo necesita JavaScript (Web Audio API) para reproducir sonido.</noscript>
+<script src="fusionpad.js"></script>
+</body>
+</html>
