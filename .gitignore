@@ -34,6 +34,11 @@ perceptual_test/interactive_demo/audio/
 # Form audios (regenerables desde scripts/16; ya estan en perceptual_test/stimuli)
 perceptual_test/form/audio/
 
+# Audios del set grande de fusion para la demo con sliders (regenerables
+# desde scripts/42_fusion_set.py; el .git del repo ya esta en 15 GB).
+# manifest.json SI se versiona (es el fichero pequeno que consume la web).
+demo_fusion/audio/
+
 # Respuestas de oyentes (privadas)
 perceptual_test/responses/
 perceptual_test/responses.csv
