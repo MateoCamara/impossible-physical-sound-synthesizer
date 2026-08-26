@@ -146,6 +146,25 @@ N_LISTEN_DIVERSE = 8  # candidatos por diversidad; + baseline_v11 + suma_ancla
                       # (SIEMPRE incluidos como referencias fijas) = 10
                       # clips/pareja, el extremo superior del rango 8-10
                       # que pidio el coordinador ("mas no se escucha bien").
+MIN_MECANISMO_COVERAGE = 3  # cuota MINIMA orientativa de muestras con
+                            # align=True y de muestras con warp=True dentro
+                            # del lote de N_LISTEN_DIVERSE (Arreglo 2 del
+                            # informe de la tarea): el greedy de cobertura
+                            # puro (_select_diverse) trata align/warp como
+                            # un eje mas de 2 valores -- en cuanto cubre UNA
+                            # muestra de cada estado dejan de aportar
+                            # ganancia marginal, y el resto de picks se
+                            # reparte segun otros ejes (method/n_bands/
+                            # color_mix), dejando lotes reales con
+                            # align=True en 1/8 (fuego_hecho_de_vidrio) o
+                            # warp=True en 1/8 (trueno_hecho_de_agua) --
+                            # align y warp son justo los DOS mecanismos
+                            # nuevos que hay que evaluar de oido, y con 1/8
+                            # no se puede concluir nada sobre ellos. Si el
+                            # pool filtrado de una pareja no llega a esta
+                            # cuota, se coge todo lo que haya (ver
+                            # crest_filter_vacio / los "n_align_muestras"
+                            # del resumen impreso).
 
 # ====================================================================
 # GANADORES_V12: se rellena tras la escucha de escucha_AB/fusion_v12/
@@ -255,16 +274,48 @@ def _metric_parents(spec: FusionSpec, sr: int, cache: dict, meta: dict):
     return a[:n], b_aligned[:n], b_original
 
 
+def _sso_cache_key(spec: FusionSpec, meta: dict, n_bands: int) -> tuple:
+    """Clave de sso_cache por DATOS, no por direcciones de memoria.
+
+    sso solo depende de que padres entraron en el blend (parent_a,
+    parent_b_aligned), y eso depende SOLO del estado de alineacion: env_
+    parent, fine_parent, duration_s, seed (fijan los padres crudos) mas
+    moved_parent/register_target_hz (fijan si/como se movio uno de ellos).
+    render_fusion documenta que moved_parent/register_target_hz dependen
+    solo del padre-ancla, nunca de n_bands/color_mix/warp del candidato
+    (ver docstring de render_fusion en fusion_chain.py) -- asi que esta
+    clave colapsa a como mucho 2 valores distintos por pareja (align False/
+    True), igual que antes, pero sin depender de que un array efimero siga
+    vivo en memoria."""
+    return (spec.env_parent, spec.fine_parent, spec.duration_s, spec.seed,
+            meta.get("moved_parent"), meta.get("register_target_hz"), n_bands)
+
+
 def _composite_fusion_fast(blend: np.ndarray, parent_a: np.ndarray,
                            parent_b_aligned: np.ndarray, parent_b_original: np.ndarray,
-                           sr: int, sso_cache: dict,
+                           sr: int, sso_cache: dict, spec: FusionSpec, meta: dict,
                            n_bands: int = METRIC_N_BANDS) -> CompositeFusionReport:
-    """Igual que analysis.composite_fusion(), pero memoiza _sso por
-    (id(parent_a), id(parent_b_aligned)): SSO no depende del blend, solo de
-    los padres, y con METRIC_N_BANDS fijo hay como mucho 2 pares (a,b)
-    distintos por pareja (align False/align True) -- medido en vivo, _sso
-    cuesta ~0.9s por llamada (band_envelopes x2), el componente MAS caro de
-    los 4; sin memo se recalcularia ~170 veces por pareja el MISMO numero.
+    """Igual que analysis.composite_fusion(), pero memoiza _sso por una
+    clave DE DATOS (ver _sso_cache_key): SSO no depende del blend, solo de
+    los padres, y con METRIC_N_BANDS fijo hay como mucho 2 claves distintas
+    por pareja (align False/align True) -- medido en vivo, _sso cuesta
+    ~0.9s por llamada (band_envelopes x2), el componente MAS caro de los 4;
+    sin memo se recalcularia ~170 veces por pareja el MISMO numero.
+
+    BUG REAL encontrado y corregido (revision independiente con
+    verdad-terreno, ver informe de la tarea): la version anterior indexaba
+    sso_cache por (id(parent_a), id(parent_b_aligned), n_bands). Esos NO
+    son los arrays persistentes de `cache` (que SI viven toda la pareja):
+    son los slices a[:n]/b_aligned[:n] que _metric_parents crea DE NUEVO en
+    CADA llamada -- efimeros, se liberan, y CPython reutiliza su id() DENTRO
+    de la misma pareja, produciendo colisiones de clave silenciosas. Mismo
+    patron que el bug ya corregido de _REGISTER_HZ_MEMO (ver su docstring),
+    sin generalizar aqui entonces. Confirmado en el barrido real: 162/1065
+    filas (15.2%) con sso incorrecto; en oceano_hecho_de_campana las 80
+    filas con align=True tenian TODAS el valor de align=False (0.7091 en
+    vez de 0.5493). Con la clave por datos la colision es estructuralmente
+    imposible: dos llamadas dan la misma clave si y solo si describen el
+    MISMO par de padres, nunca por casualidad de direccion de memoria.
 
     Reimplementa la formula del FCI (0.55*mci - 0.30*dop - 0.15*bri) en vez
     de llamar a composite_fusion() directamente -- duplicacion deliberada,
@@ -274,7 +325,7 @@ def _composite_fusion_fast(blend: np.ndarray, parent_a: np.ndarray,
     detecta.
     """
     mci = _mci(blend, sr, n_bands)
-    key = (id(parent_a), id(parent_b_aligned), n_bands)
+    key = _sso_cache_key(spec, meta, n_bands)
     if key not in sso_cache:
         sso_cache[key] = _sso(parent_a, parent_b_aligned, sr, n_bands)
     sso = sso_cache[key]
@@ -466,7 +517,7 @@ def _process_candidate(pareja: str, grupo: str, spec: FusionSpec, notas: str,
     t0 = time.time()
     w, meta = render_fusion(spec, sr=sr, cache=cache)
     a_used, b_aligned, b_original = _metric_parents(spec, sr, cache, meta)
-    rep = _composite_fusion_fast(w, a_used, b_aligned, b_original, sr, sso_cache)
+    rep = _composite_fusion_fast(w, a_used, b_aligned, b_original, sr, sso_cache, spec, meta)
     crest = crest_factor_db(w)
     orphan = "" if spec.method == "suma" else _count_orphan_bands_a(a_used, sr, spec.n_bands)
     row = _empty_row()
@@ -493,16 +544,22 @@ def _process_candidate(pareja: str, grupo: str, spec: FusionSpec, notas: str,
 
 
 def _spec_from_row(row: dict) -> FusionSpec:
-    """Reconstruye un FusionSpec desde una fila EN MEMORIA de `rows` (con
-    tipos Python reales: bool/float/None), no desde una fila releida de un
-    CSV en disco (donde todo es str y bool("False") seria un bug: eso NO
-    ocurre en este script -- _spec_from_row solo se llama sobre filas que
-    acaban de salir de _process_candidate, nunca sobre filas leidas con
-    csv.DictReader)."""
+    """Reconstruye un FusionSpec desde una fila con tipos Python reales
+    (bool/float/None) -- NUNCA desde una fila cruda releida de un CSV en
+    disco sin pasar antes por una coercion de tipos (bool("False") seria un
+    bug: cualquier string no vacio es Truthy). Dos origenes validos: filas
+    que acaban de salir de _process_candidate (in-memory, `run_pair`), o
+    filas de CSV ya coercionadas por _row_typed_for_selection
+    (`regenerate_batch`/--relabel).
+
+    `color_mix` se compara contra `("", None)`, no solo `""`, para ser
+    idempotente entre ambos origenes: _row_typed_for_selection YA convierte
+    "" a None antes de llegar aqui, asi que `float(row["color_mix"])` no
+    debe intentarse dos veces sobre ese caso (float(None) revienta)."""
     return FusionSpec(
         env_parent=row["env_parent"], fine_parent=row["fine_parent"],
         n_bands=int(row["n_bands"]), align=bool(row["align"]), warp=bool(row["warp"]),
-        color_mix=(None if row["color_mix"] == "" else float(row["color_mix"])),
+        color_mix=(None if row["color_mix"] in ("", None) else float(row["color_mix"])),
         a_floor_db=float(row["a_floor_db"]), stats_finish=bool(row["stats_finish"]),
         method=row["method"], duration_s=float(row["duration_s"]), seed=int(row["seed"]))
 
@@ -560,7 +617,38 @@ def _select_diverse(survivors: list[dict], n_target: int) -> list[dict]:
     aleatoriedad). No es optimo (cobertura maxima es NP-dificil en
     general), pero es simple, determinista y suficiente para el objetivo
     declarado: "que el usuario oiga un abanico representativo, no cinco
-    variantes casi identicas"."""
+    variantes casi identicas".
+
+    ARREGLO 2 (informe de la tarea): fase previa de CUOTA MINIMA para
+    align=True y warp=True (MIN_MECANISMO_COVERAGE). El greedy de
+    cobertura por si solo trata align/warp como un eje de 2 valores: en
+    cuanto cubre una muestra True y una False dejan de dar ganancia
+    marginal, y con align/warp mayoritarios en False dentro del pool (el
+    grid tiene el doble de celdas align=False/warp=False que True cuando
+    se cruzan con el resto de ejes), el resto de picks tiende a caer del
+    lado False -- medido en vivo: align=True en 1/8 (fuego_hecho_de_vidrio)
+    y warp=True en 1/8 (trueno_hecho_de_agua), los DOS mecanismos nuevos
+    que hay que evaluar de oido.
+
+    La fase de cuota PREFIERE muestras "puras" de cada mecanismo (align=True
+    CON warp=False para la cuota de align; warp=True CON align=False para
+    la de warp) sobre muestras con AMBOS a la vez: version anterior de este
+    arreglo llenaba la cuota con los primeros candidatos align=True Y
+    warp=True que encontraba (maximizan cobertura de AMBOS ejes en un solo
+    pick, greedy puro), y en la practica eso dejaba las 3 muestras de la
+    cuota de align y las 3 de warp siendo LAS MISMAS 3 filas (align+warp a
+    la vez) en la mitad de las parejas -- el oyente solo llegaba a comparar
+    "los dos mecanismos activos" contra "los dos apagados", nunca a atribuir
+    un efecto a align o a warp por separado, que es justo el objetivo de
+    este arreglo. Con el grid siendo un producto cartesiano completo
+    (align x n_bands x color_mix x warp), hay tantas celdas align-puro como
+    align+warp, asi que el pool de "puras" normalmente alcanza para las dos
+    cuotas sin necesitar solape; solo si el pool filtrado de cresta se queda
+    corto de muestras puras cae al relleno con "ambos a la vez" (fase 1b) --
+    la cuota GLOBAL (align=True en >= MIN_MECANISMO_COVERAGE muestras,
+    cualquiera que sea warp) sigue garantizada igual que antes. Tras la
+    cuota, la fase normal de cobertura completa los huecos restantes
+    exactamente como antes."""
     if len(survivors) <= n_target:
         return list(survivors)
 
@@ -572,15 +660,51 @@ def _select_diverse(survivors: list[dict], n_target: int) -> list[dict]:
     chosen: list[dict] = []
     covered: set = set()
     remaining = list(range(len(survivors)))
-    while len(chosen) < n_target and remaining:
-        best_i, best_gain = remaining[0], -1
-        for i in remaining:
+
+    def _pick_best(pool_idx: list[int]) -> int | None:
+        best_i, best_gain = None, -1
+        for i in pool_idx:
             gain = len(axis_tokens(survivors[i]) - covered)
             if gain > best_gain:
                 best_i, best_gain = i, gain
-        chosen.append(survivors[best_i])
-        covered |= axis_tokens(survivors[best_i])
-        remaining.remove(best_i)
+        return best_i
+
+    def _take(i: int) -> None:
+        chosen.append(survivors[i])
+        covered.update(axis_tokens(survivors[i]))
+        remaining.remove(i)
+
+    # --- fase 1: cuota minima de align=True / warp=True, PURAS primero ---
+    quota_align = min(MIN_MECANISMO_COVERAGE,
+                      sum(1 for r in survivors if r["align"] is True))
+    quota_warp = min(MIN_MECANISMO_COVERAGE,
+                     sum(1 for r in survivors if r["warp"] is True))
+
+    def _fill_quota(predicate, target: int) -> None:
+        """Rellena `chosen` con filas de `remaining` que cumplen
+        `predicate`, por ganancia marginal maxima, hasta que `target`
+        filas de `chosen` cumplan `predicate` o se agote el pool
+        elegible."""
+        while len(chosen) < n_target and remaining:
+            if sum(1 for r in chosen if predicate(r)) >= target:
+                return
+            pool_idx = [i for i in remaining if predicate(survivors[i])]
+            if not pool_idx:
+                return
+            _take(_pick_best(pool_idx))
+
+    # 1a: puras (un mecanismo sin el otro) -- separables de oido.
+    _fill_quota(lambda r: r["align"] is True and r["warp"] is False, quota_align)
+    _fill_quota(lambda r: r["warp"] is True and r["align"] is False, quota_warp)
+    # 1b: relleno con "ambos a la vez" solo si 1a no llego a la cuota
+    # (pool de puras agotado para ese mecanismo en esta pareja).
+    _fill_quota(lambda r: r["align"] is True, quota_align)
+    _fill_quota(lambda r: r["warp"] is True, quota_warp)
+
+    # --- fase 2: cobertura de diversidad normal sobre el resto (identica
+    # al comportamiento previo a este arreglo) ---
+    while len(chosen) < n_target and remaining:
+        _take(_pick_best(remaining))
     return chosen
 
 
@@ -683,6 +807,8 @@ def run_pair(pareja: str, env: str, fine: str, results_dir: Path, listen_dir: Pa
     # suma_ancla SIEMPRE como referencias fijas ---
     seleccion, crest_threshold_pareja, n_survivors_crest, crest_filter_vacio = (
         _select_for_listening(pool_rows))
+    n_align_muestras = sum(1 for r in seleccion if r["align"] is True)
+    n_warp_muestras = sum(1 for r in seleccion if r["warp"] is True)
 
     baseline_row = next(r for r in rows if r["grupo"] == "baseline_v11")
     suma_row = next(r for r in rows if r["grupo"] == "suma_ancla")
@@ -724,6 +850,7 @@ def run_pair(pareja: str, env: str, fine: str, results_dir: Path, listen_dir: Pa
         "crest_threshold_pareja": crest_threshold_pareja,
         "n_survivors_crest": n_survivors_crest,
         "crest_filter_vacio": crest_filter_vacio,
+        "n_align_muestras": n_align_muestras, "n_warp_muestras": n_warp_muestras,
         "export_table": export_table, "csv_path": str(csv_path),
     }
     if verbose:
@@ -750,6 +877,9 @@ def _print_pilot_summary(s: dict) -> None:
          f"{int(CREST_QUANTILE*100)}): {s['crest_threshold_pareja']:.1f}dB -- "
          f"supervivientes: {s['n_survivors_crest']}/{s['n_pool']}"
          f"{'  (VACIO -- fallback a los de menor cresta)' if s['crest_filter_vacio'] else ''}")
+    print(f"  cobertura align=True: {s['n_align_muestras']}/{N_LISTEN_DIVERSE} muestras | "
+         f"warp=True: {s['n_warp_muestras']}/{N_LISTEN_DIVERSE} muestras "
+         f"(cuota objetivo: {MIN_MECANISMO_COVERAGE})")
     print("  lote de escucha (filtro cresta + diversidad, NO ranking por FCI -- ver Ruling):")
     for e in s["export_table"]:
         print(f"    {e['tag']:12s} fci={e['fci']:.4f} crest_db={e['crest_db']:.1f} "
@@ -759,11 +889,156 @@ def _print_pilot_summary(s: dict) -> None:
 
 
 # ====================================================================
+# regenerate_batch (--relabel): re-renderiza SOLO el lote de escucha de una
+# pareja a partir del CSV ya calculado, sin volver a barrer el grid
+# ====================================================================
+
+def _row_typed_for_selection(raw: dict) -> dict:
+    """Copia de una fila de CSV releida (csv.DictReader, TODO str) con los
+    campos que _spec_from_row/_select_for_listening/_select_diverse/
+    export_table necesitan en su tipo real -- align/warp/stats_finish a
+    bool de verdad (bool('False') es Truthy: cualquier string no vacio lo
+    es, un bug clasico -- se compara contra el literal 'True'),
+    n_bands/seed a int, color_mix/a_floor_db/duration_s a float (o None
+    para color_mix vacio) y crest_db/mci/dop/bri/fci a float o "" si
+    estaban vacios en el CSV. TODAS las conversiones numericas estan
+    guardadas con `!= ""`: las filas `vocoder_omitido` (spec=None en
+    _grid_candidates, p.ej. la unica de canica_hecha_de_fuego porque
+    "fuego" no tiene BodySpec) vienen de _empty_row() -- TODOS sus campos
+    de spec son "" -- y sin guarda `int("")`/`float("")` revienta con
+    ValueError. Esas filas no pasan el filtro de `grupo` que arma
+    `pool_rows`, pero pasan igualmente por aqui (se coercionan TODAS las
+    filas del CSV, no solo pool_rows) porque baseline_row/suma_row se
+    buscan sobre `typed_rows` completo. El resto de claves se deja tal
+    cual (string), no las necesita ninguna de esas funciones."""
+    r = dict(raw)
+    r["align"] = raw["align"] == "True"
+    r["warp"] = raw["warp"] == "True"
+    r["stats_finish"] = raw["stats_finish"] == "True"
+    for k in ("n_bands", "seed"):
+        r[k] = "" if raw[k] == "" else int(raw[k])
+    for k in ("duration_s", "a_floor_db"):
+        r[k] = "" if raw[k] == "" else float(raw[k])
+    r["color_mix"] = None if raw["color_mix"] == "" else float(raw["color_mix"])
+    for k in ("crest_db", "mci", "dop", "bri", "fci"):
+        r[k] = "" if raw[k] == "" else float(raw[k])
+    return r
+
+
+def regenerate_batch(pareja: str, results_dir: Path, listen_dir: Path,
+                     sr: int = SR, verbose: bool = True) -> dict:
+    """Re-renderiza SOLO el lote de escucha de `pareja` a partir del CSV ya
+    calculado (`results_dir/<pareja>.csv`), SIN recalcular ni una sola
+    metrica ni volver a barrer el grid -- para cuando cambia el CRITERIO de
+    seleccion (p.ej. la cuota de align/warp del Arreglo 2) y hay que
+    renderizar el lote nuevo en minutos, no en la hora que cuesta un
+    barrido completo. Reusa EXACTAMENTE `_select_for_listening` (la misma
+    funcion que usa `run_pair`), asi que ambos caminos jamas pueden
+    divergir en el criterio.
+
+    Actualiza tambien las columnas de exportacion (exportado/rank_export/
+    wav_path/factor_rms_aplicado/metodo_igualacion/pico_recortado/
+    rms_final_db_vs_objetivo) del propio CSV para que sigan describiendo
+    el lote REALMENTE presente en `listen_dir/<pareja>/` -- limpia esas
+    columnas en todas las filas antes de reescribirlas, y borra los .wav
+    del lote anterior en disco, para que no queden ni marcas de
+    "exportado=True" de candidatos ya no seleccionados ni clips huerfanos
+    de una seleccion vieja."""
+    csv_path = results_dir / f"{pareja}.csv"
+    with open(csv_path, encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        raw_rows = list(reader)
+    assert fieldnames == FIELDNAMES, (
+        f"{csv_path} tiene columnas distintas de FIELDNAMES -- probablemente de una "
+        "version anterior del script; regenera el barrido completo en vez de --relabel.")
+
+    typed_rows = [_row_typed_for_selection(r) for r in raw_rows]
+    for i, r in enumerate(typed_rows):
+        r["_csv_idx"] = i  # aparea de vuelta con raw_rows sin usar id()
+
+    pool_rows = [r for r in typed_rows
+                if r["grupo"] in ("chimera_grid", "chimera_plana", "vocoder")]
+    seleccion, crest_threshold_pareja, n_survivors_crest, crest_filter_vacio = (
+        _select_for_listening(pool_rows))
+    n_align_muestras = sum(1 for r in seleccion if r["align"] is True)
+    n_warp_muestras = sum(1 for r in seleccion if r["warp"] is True)
+
+    baseline_row = next(r for r in typed_rows if r["grupo"] == "baseline_v11")
+    suma_row = next(r for r in typed_rows if r["grupo"] == "suma_ancla")
+    export_targets = [(f"muestra{i}", r) for i, r in enumerate(seleccion, 1)] + [
+        ("baseline_v11", baseline_row), ("suma_ancla", suma_row)]
+
+    # limpia los marcadores de exportacion de TODAS las filas -- si el lote
+    # anterior exportaba candidatos que ya no entran en la nueva seleccion,
+    # sus filas no deben seguir diciendo exportado=True.
+    for raw in raw_rows:
+        raw.update(exportado="", rank_export="", wav_path="", factor_rms_aplicado="",
+                  metodo_igualacion="", pico_recortado="", rms_final_db_vs_objetivo="")
+
+    pareja_dir = listen_dir / pareja
+    pareja_dir.mkdir(parents=True, exist_ok=True)
+
+    # Renderiza el lote NUEVO primero, borra el lote VIEJO despues -- si un
+    # render revienta a mitad de pareja, el lote anterior en disco se queda
+    # intacto en vez de quedar a medias (escucha_AB/ esta gitignorado, sin
+    # red de seguridad de git si se hubiera borrado antes).
+    cache: dict = {}
+    export_table = []
+    new_fnames: set[str] = set()
+    for tag, r in export_targets:
+        spec_e = _spec_from_row(r)
+        w_e, _meta_e = render_fusion(spec_e, sr=sr, cache=cache)
+        w9, info = _match_loudness(w_e)
+        fname = f"{tag}__{r['descriptor']}.wav"
+        path = pareja_dir / fname
+        save_wav(path, w9, sr)
+        new_fnames.add(fname)
+        raw = raw_rows[r["_csv_idx"]]
+        raw.update(exportado=True, rank_export=tag, wav_path=str(path),
+                  factor_rms_aplicado=info["factor_rms_aplicado"],
+                  metodo_igualacion=info["metodo_igualacion"],
+                  pico_recortado=info["pico_recortado"],
+                  rms_final_db_vs_objetivo=info["rms_final_db_vs_objetivo"])
+        export_table.append({"tag": tag, "descriptor": r["descriptor"], "fci": r["fci"],
+                             "mci": r["mci"], "dop": r["dop"], "bri": r["bri"],
+                             "crest_db": r["crest_db"], **info, "fname": fname})
+
+    for old_wav in pareja_dir.glob("*.wav"):
+        if old_wav.name not in new_fnames:
+            old_wav.unlink()  # huerfano del lote anterior, ya no en la seleccion
+
+    _write_csv(csv_path, raw_rows)
+
+    n_pool = len(pool_rows)
+    summary = {
+        "pareja": pareja, "n_pool": n_pool,
+        "crest_threshold_pareja": crest_threshold_pareja,
+        "n_survivors_crest": n_survivors_crest, "crest_filter_vacio": crest_filter_vacio,
+        "n_align_muestras": n_align_muestras, "n_warp_muestras": n_warp_muestras,
+        "export_table": export_table, "csv_path": str(csv_path),
+    }
+    if verbose:
+        print(f"\n=== {pareja} (--relabel: solo re-render del lote de escucha) ===")
+        print(f"  umbral de cresta EFECTIVO (percentil {int(CREST_QUANTILE*100)}): "
+             f"{crest_threshold_pareja:.1f}dB -- supervivientes: {n_survivors_crest}/{n_pool}"
+             f"{'  (VACIO -- fallback a los de menor cresta)' if crest_filter_vacio else ''}")
+        print(f"  cobertura align=True: {n_align_muestras}/{N_LISTEN_DIVERSE} muestras | "
+             f"warp=True: {n_warp_muestras}/{N_LISTEN_DIVERSE} muestras "
+             f"(cuota objetivo: {MIN_MECANISMO_COVERAGE})")
+        for e in export_table:
+            print(f"    {e['tag']:12s} fci={e['fci']:.4f} crest_db={e['crest_db']:.1f} "
+                 f"metodo_igualacion={e['metodo_igualacion']} -> {e['fname']}")
+        print(f"  CSV actualizado: {csv_path}")
+    return summary
+
+
+# ====================================================================
 # LEEME.md del lote de escucha
 # ====================================================================
 
 def _write_leeme(listen_dir: Path, summaries: list[dict]) -> None:
-    parts = ["""# Barrido de fusion v12 -- lote de escucha por pareja
+    parts = [f"""# Barrido de fusion v12 -- lote de escucha por pareja
 
 ## La metrica compuesta (FCI) FALLO como criterio de seleccion -- tu oido es el arbitro
 
@@ -799,7 +1074,15 @@ NO deciden que hay en estas carpetas.** La seleccion de cada lote es:
    parametros (distintos `n_bands`, distintos `color_mix`, con y sin
    `align`, con y sin `warp`, y los metodos alternativos `chimera_plana`/
    `vocoder` cuando aplican) -- NO una metrica. El objetivo es que oigas un
-   abanico representativo, no cinco variantes casi identicas.
+   abanico representativo, no cinco variantes casi identicas. Con una cuota
+   MINIMA reservada para `align=True` y para `warp=True`
+   ({MIN_MECANISMO_COVERAGE} de las 8 muestras por diversidad, o todas las
+   que haya si el pool filtrado no llega a esa cuota): son los DOS mecanismos nuevos
+   que hay que evaluar de oido, y un greedy de cobertura sin cuota los
+   dejaba en 1 de 8 muestras en varias parejas -- con eso no se puede
+   concluir nada sobre ellos. La cobertura por pareja (cuantas de las 8
+   muestras tienen `align=True`/`warp=True`) se indica en su tabla mas
+   abajo.
 3. SIEMPRE se incluyen, como referencias fijas y etiquetadas como tales:
    `baseline_v11` (exactamente la demo actual: coloreada, sin alinear, sin
    suelo activo -- el "hoy") y `suma_ancla` (los mismos dos padres sumados
@@ -863,6 +1146,10 @@ de TODOS los candidatos del barrido, no solo estos 10 por pareja) estan en
                         f"(percentil {int(CREST_QUANTILE*100)} del pool): "
                         f"**{s['crest_threshold_pareja']:.1f} dB**. "
                         f"Supervivientes: {s['n_survivors_crest']}/{s['n_pool']}.\n\n")
+        parts.append(f"Cobertura de mecanismos en las {N_LISTEN_DIVERSE} muestras por "
+                    f"diversidad (cuota objetivo {MIN_MECANISMO_COVERAGE}): "
+                    f"`align=True` en **{s['n_align_muestras']}/{N_LISTEN_DIVERSE}**, "
+                    f"`warp=True` en **{s['n_warp_muestras']}/{N_LISTEN_DIVERSE}**.\n\n")
         parts.append("| clip | fci (diagnostico, NO decide) | mci | dop | bri | "
                     "crest_db | igualacion |\n")
         parts.append("|---|---|---|---|---|---|---|\n")
@@ -1025,7 +1312,7 @@ def _check_metric_fast_matches_reference() -> list[str]:
                           align=align, method="chimera", duration_s=3.0, seed=SEED)
         w, meta = render_fusion(spec, sr=SR, cache=cache)
         a_used, b_aligned, b_original = _metric_parents(spec, SR, cache, meta)
-        fast = _composite_fusion_fast(w, a_used, b_aligned, b_original, SR, sso_cache)
+        fast = _composite_fusion_fast(w, a_used, b_aligned, b_original, SR, sso_cache, spec, meta)
         ref = composite_fusion(w, a_used, b_aligned, b_original, SR)
         ok = (fast.mci == ref.mci and fast.sso == ref.sso and fast.dop == ref.dop
              and fast.bri == ref.bri and fast.fci == ref.fci)
@@ -1101,6 +1388,56 @@ def _check_register_hz_memo_cross_pareja() -> list[str]:
     return failures
 
 
+def _check_sso_cache_shared_across_pair() -> list[str]:
+    """Regresion del bug REAL de sso_cache (arreglo 1 del informe de la
+    tarea): _process_candidate se llama DECENAS de veces DENTRO de una
+    pareja compartiendo un unico `sso_cache` -- exactamente el patron de
+    `run_pair`. Los smokes previos eran ciegos a esto: smoke2b usa un
+    `sso_cache={}` NUEVO en cada llamada (nunca comparte estado entre
+    candidatos, asi que nunca podia ver una colision entre llamadas);
+    smoke2d ejercita el memo de `register_hz`, no `_composite_fusion_fast`
+    (no pasa por sso_cache en absoluto).
+
+    Este smoke reproduce el patron real: muchas llamadas secuenciales a
+    `_process_candidate` con el MISMO `cache`/`sso_cache` dentro de una
+    pareja, variando n_bands/color_mix/warp con align fijo y alternando
+    align, con `gc.collect()` entre llamadas para maximizar la
+    probabilidad de reutilizacion de `id()` (mismo truco que smoke2d). Cada
+    fila se compara contra `composite_fusion()` calculado DIRECTAMENTE
+    sobre los padres reconstruidos para ESA fila, sin pasar por sso_cache
+    -- referencia limpia, sin memoizacion alguna. Bajo la clave por `id()`
+    anterior esto reproducia colisiones reales (162/1065 filas del barrido
+    completo); con la clave por datos (_sso_cache_key) debe pasar siempre,
+    por construccion."""
+    import gc
+    failures = []
+    env, fine = "trueno", "goteo"
+    cache: dict = {}
+    sso_cache: dict = {}
+    specs = []
+    for align in (False, True, False, True, False, True):
+        for nb, mix, warp in ((4, 0.0, False), (8, 0.5, True), (16, 1.0, False),
+                              (24, 0.75, True)):
+            specs.append(FusionSpec(env_parent=env, fine_parent=fine, n_bands=nb,
+                                    align=align, warp=warp, color_mix=mix,
+                                    method="chimera", duration_s=2.0, seed=SEED))
+    for i, spec in enumerate(specs):
+        row = _process_candidate("check_sso_shared", "chimera_grid", spec, "",
+                                 cache, sso_cache, SR)
+        w, meta = render_fusion(spec, sr=SR, cache=cache)
+        a_used, b_aligned, b_original = _metric_parents(spec, SR, cache, meta)
+        ref = composite_fusion(w, a_used, b_aligned, b_original, SR)
+        ok = row["sso"] == ref.sso
+        if not ok:
+            failures.append(f"candidato {i} (align={spec.align} nb={spec.n_bands} "
+                            f"warp={spec.warp}): cache={row['sso']} ref={ref.sso}")
+        gc.collect()
+    print(f"smoke2e (sso_cache compartido entre {len(specs)} llamadas de una "
+         f"pareja, patron real de run_pair): "
+         f"{'OK' if not failures else 'FALLOS: ' + str(failures)}")
+    return failures
+
+
 def _check_autocalibracion() -> list[str]:
     """Ruling 7 (progress.md): con align y color fijos en la config de V11
     (align=False, color_mix=None), el FCI debe rankear el n_bands validado
@@ -1124,7 +1461,8 @@ def _check_autocalibracion() -> list[str]:
                                   duration_s=dur, seed=SEED)
                 w, meta = render_fusion(spec, sr=SR, cache=cache)
                 a_used, b_aligned, b_original = _metric_parents(spec, SR, cache, meta)
-                rep = _composite_fusion_fast(w, a_used, b_aligned, b_original, SR, sso_cache)
+                rep = _composite_fusion_fast(w, a_used, b_aligned, b_original, SR, sso_cache,
+                                             spec, meta)
                 results.append((nb, rep.fci))
             ranked = sorted(results, key=lambda t: t[1], reverse=True)
             top2 = [nb for nb, _ in ranked[:2]]
@@ -1212,6 +1550,7 @@ def check() -> int:
     all_failures += _check_metric_fast_matches_reference()
     all_failures += _check_register_hz_memo()
     all_failures += _check_register_hz_memo_cross_pareja()
+    all_failures += _check_sso_cache_shared_across_pair()
     all_failures += _check_autocalibracion()
     all_failures += _check_csv_roundtrip()
     all_failures += _check_freeze_empty_fails_clean()
@@ -1234,6 +1573,10 @@ def main() -> int:
                     help="ejecuta solo esta pareja (pilotaje antes del barrido completo)")
     ap.add_argument("--freeze", action="store_true",
                     help="congela estimulos de GANADORES_V12 para el mini-test T5")
+    ap.add_argument("--relabel", action="store_true",
+                    help="re-renderiza SOLO el lote de escucha (escucha_AB/) desde los "
+                         "CSV ya calculados, sin volver a barrer el grid -- usa --pair "
+                         "para una sola pareja, o solo para las 6 de PAREJAS_V12")
     ap.add_argument("--results-dir", type=Path, default=OUT_RESULTS)
     ap.add_argument("--listen-dir", type=Path, default=OUT_LISTEN)
     ap.add_argument("--freeze-dir", type=Path, default=OUT_FREEZE)
@@ -1244,6 +1587,23 @@ def main() -> int:
         return check()
     if args.freeze:
         return freeze(args.freeze_dir, args.freeze_manifest)
+    if args.relabel:
+        if args.pair:
+            match = next((n for n, _, _ in PAREJAS_V12 if n == args.pair), None)
+            if match is None:
+                print(f"pareja desconocida: {args.pair!r}. Validas: "
+                     f"{[n for n, _, _ in PAREJAS_V12]}", file=sys.stderr)
+                return 1
+            regenerate_batch(match, args.results_dir, args.listen_dir)
+            _write_resumen(args.results_dir)
+            print("NOTA: --relabel --pair no reescribe LEEME.md (solo tiene el resumen de "
+                 "UNA pareja) -- relanza --relabel sin --pair para regenerarlo con las 6.")
+            return 0
+        summaries = [regenerate_batch(name, args.results_dir, args.listen_dir)
+                    for name, _, _ in PAREJAS_V12]
+        _write_resumen(args.results_dir)
+        _write_leeme(args.listen_dir, summaries)
+        return 0
     if args.pair:
         match = next(((n, e, f) for n, e, f in PAREJAS_V12 if n == args.pair), None)
         if match is None:

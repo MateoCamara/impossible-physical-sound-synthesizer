@@ -426,16 +426,32 @@ class FusionSpec:
 # tropezaria con esa entrada extra. Aqui vive aparte y el dict de cache que
 # ve el llamante queda con SOLO las claves literales que pide el brief.
 #
-# Riesgo aceptado y documentado: este registro nunca libera entradas
-# (id(cache) -> sr se queda para siempre), asi que si un dict de cache se
-# recolecta y Python REUTILIZA su id() para un dict nuevo y no relacionado
-# que tambien se use como cache con un sr distinto, el guardarraíl podria
-# disparar una alarma FALSA (ValueError sobre un uso legitimo). Nunca al
-# reves: no puede devolver audio del sr equivocado en silencio, que es el
-# fallo real que este guardarraíl existe para evitar. En el uso previsto
-# (un cache por pareja, vivo durante todo un barrido) este riesgo es
-# teorico.
-_CACHE_SR_REGISTRY: dict[int, int] = {}
+# ARREGLO (mismo patron que _REGISTER_HZ_MEMO en scripts/39_fusion_search.py,
+# aplicado aqui tambien -- ver informe de la tarea, arreglo 3): la version
+# anterior guardaba SOLO `sr` por `id(cache)`, sin retener el propio dict de
+# cache. Si un `cache` se recolectaba y Python reutilizaba su `id()` para un
+# dict nuevo y no relacionado usado tambien como cache con un sr distinto,
+# el guardarraíl podia disparar una alarma FALSA (ValueError sobre un uso
+# legitimo) -- nunca al reves (nunca devolvia audio del sr equivocado en
+# silencio, que es el fallo real que este guardarraíl existe para evitar),
+# pero era ruidoso. Ahora se guarda `(sr, cache)` -- la referencia fuerte al
+# propio dict impide que Python reutilice su `id()` mientras la entrada siga
+# en el registro, así que la colision queda eliminada por construccion, no
+# solo por disciplina de scope (identidad `cache_ref is cache` verificada
+# igualmente, como cinturon y tirantes).
+#
+# Coste aceptado (igual que _REGISTER_HZ_MEMO, que ya retiene sus arrays
+# medidos de la misma forma): este registro nunca libera entradas, asi que
+# cada `cache` que pase por `_cached_parent` queda vivo en memoria durante
+# TODO el proceso, no solo mientras el llamante lo use. Para el uso previsto
+# (un `cache` por pareja dentro de un barrido de la tarea 4, <=6 parejas por
+# proceso) esto es aceptable -- unos pocos cache dicts de padres renderizados
+# retenidos hasta que el proceso termina. Un futuro llamador de larga vida
+# (p.ej. un servidor) que cree muchos `cache` efimeros a lo largo de horas
+# SI vería crecer esta memoria sin limite; no es el uso actual de este
+# modulo (solo lo llama scripts/39_fusion_search.py), pero queda anotado
+# para quien reutilice `_cached_parent` en ese contexto.
+_CACHE_SR_REGISTRY: dict[int, tuple[int, dict]] = {}
 
 
 def _cached_parent(cache: dict | None, name: str, duration_s: float, seed: int,
@@ -456,12 +472,17 @@ def _cached_parent(cache: dict | None, name: str, duration_s: float, seed: int,
     """
     if cache is not None:
         cache_id = id(cache)
-        cached_sr = _CACHE_SR_REGISTRY.get(cache_id)
-        if cached_sr is None:
-            _CACHE_SR_REGISTRY[cache_id] = sr
-        elif cached_sr != sr:
+        entry = _CACHE_SR_REGISTRY.get(cache_id)
+        if entry is None or entry[1] is not cache:
+            # Entrada nueva, o `id()` reutilizado por un dict distinto --
+            # con la referencia fuerte esto ultimo ya no deberia poder
+            # pasar mientras la entrada vieja siga viva, pero se comprueba
+            # la identidad real igualmente (cinturon y tirantes, mismo
+            # patron que _register_hz_memoized).
+            _CACHE_SR_REGISTRY[cache_id] = (sr, cache)
+        elif entry[0] != sr:
             raise ValueError(
-                f"cache de render_fusion creado con sr={cached_sr} y "
+                f"cache de render_fusion creado con sr={entry[0]} y "
                 f"reutilizado con sr={sr}: la clave de cache no incluye sr "
                 "(asi lo pide el brief), asi que mezclar sr distintos en el "
                 "mismo dict devolveria audio del sr equivocado. Usa un "
