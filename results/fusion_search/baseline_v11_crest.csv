@@ -1,0 +1,13 @@
+pareja,env_parent,fine_parent,n_bands,duration_s,crest_db
+trueno_hecho_de_agua,trueno,goteo,6,6.0,47.4582
+trueno_hecho_de_agua,trueno,goteo,6,8.0,47.7068
+fuego_hecho_de_vidrio,fuego,vidrio,16,6.0,29.522
+fuego_hecho_de_vidrio,fuego,vidrio,16,8.0,32.2819
+canica_hecha_de_fuego,canica,fuego,16,6.0,27.018
+canica_hecha_de_fuego,canica,fuego,16,8.0,27.4551
+trueno_hecho_de_canica,trueno,canica,6,6.0,47.2853
+trueno_hecho_de_canica,trueno,canica,6,8.0,47.5083
+oceano_hecho_de_campana,oceano,campana_tela,16,6.0,19.4692
+oceano_hecho_de_campana,oceano,campana_tela,16,8.0,19.9935
+goteo_hecho_de_campana,goteo,campana_tela,6,6.0,28.033
+goteo_hecho_de_campana,goteo,campana_tela,6,8.0,28.5201
