@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Test de escucha: fusion de sonidos</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; color: #222; }
+h1 { font-size: 1.4em; }
+.stimulus { border: 1px solid #ddd; padding: 16px 18px; margin: 16px 0; border-radius: 8px; background: #fafafa; }
+audio { width: 100%; margin: 8px 0; }
+fieldset { border: 0; padding: 0; margin: 12px 0; }
+label { display: inline-block; padding: 2px 6px; }
+.likert label { padding: 4px 10px; border: 1px solid #ccc; margin: 2px; border-radius: 4px; cursor: pointer; }
+.likert input[type=radio] { display: none; }
+.likert input[type=radio]:checked + span { background: #5e8de2; color: white; padding: 4px 8px; border-radius: 3px; }
+button { background: #2e6fd2; color: white; border: 0; padding: 10px 24px; font-size: 1em; border-radius: 6px; cursor: pointer; }
+button:hover { background: #1c54a8; }
+button:disabled { background: #999; cursor: default; }
+.progress { font-weight: bold; color: #2e6fd2; }
+.intro { background: #eef5ff; padding: 12px 16px; border-radius: 6px; }
+.warn { color: #b71c1c; font-size: 0.9em; }
+select { font-size: 0.95em; padding: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Test de escucha: fusion de sonidos</h1>
+<div class="intro">
+  <p>Este estudio compara dos formas de combinar dos sonidos en un mismo evento
+  (posiblemente imposible en la realidad): una <strong>suma</strong> simple de
+  las dos señales y una <strong>fusion</strong> mas elaborada. Vas a escuchar
+  una serie de sonidos cortos en orden aleatorio (normalmente 6: 3 parejas de
+  sonidos x 2 versiones cada una). Para cada uno, responde tres preguntas
+  cortas con tu oido; no hace falta ningun conocimiento tecnico.</p>
+  <p><strong>~3.5 minutos en total</strong>. Usa auriculares si puedes.</p>
+  <p class="warn">No se recogen datos personales. Al terminar se ofrece un CSV
+  para descargar: guardalo en <code>perceptual_test/responses_fusion/</code> y
+  enviaselo al experimentador.</p>
+  <p id="manifest-status" class="warn" style="display:none"></p>
+</div>
+
+<p>Identificador de oyente (cualquier cadena corta; ayuda a deduplicar):
+  <input id="listener" type="text" placeholder="p.ej. L01" size="10">
+</p>
+<p>Experiencia previa en audio (Foley / mezcla / instrumento):
+  <select id="experience">
+    <option value="0">Ninguna</option>
+    <option value="1">&lt; 1 año</option>
+    <option value="3">1-5 años</option>
+    <option value="7">5-10 años</option>
+    <option value="15">&gt; 10 años</option>
+  </select>
+</p>
+
+<button id="start" onclick="begin()">Comenzar</button>
+
+<div id="test" style="display:none"></div>
+
+<script>
+/*
+ * Contrato de datos (lo escribe scripts/39_fusion_search.py --freeze, NO se
+ * toca desde aqui):
+ *   perceptual_test/fusion_manifest.csv con columnas exactas
+ *   pareja,condicion,path,config_json  (config_json = FusionSpec serializado,
+ *   se espera que traiga al menos env_parent/fine_parent).
+ *
+ * Este formulario vive en perceptual_test/form_fusion/, un nivel POR DEBAJO
+ * de perceptual_test/. Para servir el test real hay dos formas validas:
+ *   (a) servidor con raiz en perceptual_test/  (p.ej. `python -m http.server
+ *       -d perceptual_test 8000`, abrir /form_fusion/) -- el fetch usa
+ *       "../fusion_manifest.csv" y "../stimuli_fusion/...".
+ *   (b) copiar fusion_manifest.csv y stimuli_fusion/ DENTRO de esta carpeta
+ *       (mismo patron que scripts/16_build_perceptual_form.py hace con
+ *       form/audio/) y servir con la raiz en form_fusion/ -- el fetch usa
+ *       "fusion_manifest.csv" en el mismo directorio.
+ * Se prueban ambas rutas en ese orden (ver MANIFEST_CANDIDATES). Si ninguna
+ * responde (p.ej. todavia no se ha corrido --freeze), se muestra un aviso en
+ * vez de romper la pagina.
+ *
+ * Modo demo (?demo=1 en la URL): usa una lista de 6 filas SINTETICAS
+ * embebidas (DEMO_ROWS) para poder revisar visualmente el formulario -- los
+ * tres items, la inyeccion de X/Y, y el CSV descargado -- sin depender de
+ * que existan los estimulos reales. El listener id se fuerza a empezar por
+ * "DEMO_" (scripts/40_analyze_fusion_test.py descarta ese prefijo si
+ * aparece por error en perceptual_test/responses_fusion/).
+ */
+
+const MANIFEST_CANDIDATES = ["fusion_manifest.csv", "../fusion_manifest.csv"];
+const MANIFEST_REQUIRED_COLS = ["pareja", "condicion", "path", "config_json"];
+
+const DEMO_ROWS = [
+  {pareja: "trueno_hecho_de_agua", condicion: "suma",
+   path: "perceptual_test/stimuli_fusion/trueno_hecho_de_agua__suma.wav",
+   config_json: '{"env_parent":"trueno","fine_parent":"goteo"}'},
+  {pareja: "trueno_hecho_de_agua", condicion: "fusion",
+   path: "perceptual_test/stimuli_fusion/trueno_hecho_de_agua__fusion.wav",
+   config_json: '{"env_parent":"trueno","fine_parent":"goteo"}'},
+  {pareja: "fuego_hecho_de_vidrio", condicion: "suma",
+   path: "stimuli_fusion/fuego_hecho_de_vidrio__suma.wav",
+   config_json: '{"env_parent":"fuego","fine_parent":"vidrio"}'},
+  {pareja: "fuego_hecho_de_vidrio", condicion: "fusion",
+   path: "stimuli_fusion/fuego_hecho_de_vidrio__fusion.wav",
+   config_json: '{"env_parent":"fuego","fine_parent":"vidrio"}'},
+  // config_json vacio a proposito: ejercita el fallback por nombre de
+  // pareja (y el genero "hecha", frente a "hecho" de las dos de arriba).
+  {pareja: "canica_hecha_de_fuego", condicion: "suma",
+   path: "stimuli_fusion/canica_hecha_de_fuego__suma.wav", config_json: ""},
+  {pareja: "canica_hecha_de_fuego", condicion: "fusion",
+   path: "stimuli_fusion/canica_hecha_de_fuego__fusion.wav", config_json: ""},
+];
+
+let MANIFEST_ROOT = "";  // "" o "../", segun donde respondio el manifest
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function humanize(name) {
+  return String(name || "").replace(/_/g, " ").trim();
+}
+
+// "trueno_hecho_de_agua" -> ["trueno","agua"]; "canica_hecha_de_fuego" ->
+// ["canica","fuego"]. Concordancia de genero en español (hecho/hecha):
+// aceptamos ambas formas.
+function splitParejaFallback(pareja) {
+  const m = /^(.*?)_(?:hecho|hecha)_de_(.*)$/.exec(pareja || "");
+  if (m) return [m[1], m[2]];
+  return [pareja, pareja];
+}
+
+// X = dinamica (env_parent), Y = materia (fine_parent). Primero se intenta
+// leer del config_json (fuente estructurada, no depende de convenciones de
+// nombrado); si falta o no parsea, se cae al nombre de la pareja.
+function xyFromRow(row) {
+  try {
+    const cfg = JSON.parse(row.config_json);
+    if (cfg && cfg.env_parent && cfg.fine_parent) {
+      return [humanize(cfg.env_parent), humanize(cfg.fine_parent)];
+    }
+  } catch (e) { /* config_json vacio o mal formado: cae al fallback */ }
+  const [x, y] = splitParejaFallback(row.pareja);
+  return [humanize(x), humanize(y)];
+}
+
+// Resuelve la ruta reproducible del wav a partir del valor crudo de `path`
+// del manifest, que puede venir como ruta absoluta al repo
+// ("perceptual_test/stimuli_fusion/x.wav") o relativa a perceptual_test/
+// ("stimuli_fusion/x.wav"). Se localiza el segmento "stimuli_fusion/" y se
+// antepone MANIFEST_ROOT (fijado por loadManifest() segun donde respondio).
+function resolveAudioSrc(path) {
+  const marker = "stimuli_fusion/";
+  const raw = path || "";
+  const idx = raw.indexOf(marker);
+  const rel = idx >= 0 ? raw.slice(idx) : raw;
+  return MANIFEST_ROOT + rel;
+}
+
+// Parser CSV minimo (RFC4180-ish: comillas dobles, "" como escape de
+// comilla). No soporta saltos de linea dentro de un campo -- config_json se
+// serializa compacto (json.dumps sin indent), asi que no debería traerlos.
+function parseCsvLine(line) {
+  const out = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      out.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseCsv(text) {
+  const lines = text.split(/\r\n|\n/).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+  const header = parseCsvLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const fields = parseCsvLine(lines[i]);
+    const row = {};
+    header.forEach((h, idx) => { row[h] = fields[idx]; });
+    rows.push(row);
+  }
+  return rows;
+}
+
+async function loadManifest() {
+  for (const candidate of MANIFEST_CANDIDATES) {
+    try {
+      const resp = await fetch(candidate, {cache: "no-store"});
+      if (!resp.ok) continue;
+      const text = await resp.text();
+      const rows = parseCsv(text);
+      if (!rows.length) continue;
+      const faltan = MANIFEST_REQUIRED_COLS.filter(c => !(c in rows[0]));
+      if (faltan.length) {
+        console.warn(`${candidate}: faltan columnas ${faltan}`);
+        continue;
+      }
+      MANIFEST_ROOT = candidate.startsWith("../") ? "../" : "";
+      return rows;
+    } catch (e) {
+      // siguiente candidato
+    }
+  }
+  return null;
+}
+
+function rowsToStimuli(rows) {
+  return rows.map(r => {
+    const [x, y] = xyFromRow(r);
+    return {
+      pareja: r.pareja,
+      condicion: r.condicion,
+      x, y,
+      file: (r.path || "").split("/").pop(),
+      src: resolveAudioSrc(r.path),
+    };
+  });
+}
+
+async function begin() {
+  const statusEl = document.getElementById('manifest-status');
+  const startBtn = document.getElementById('start');
+  const isDemo = new URLSearchParams(window.location.search).get('demo') === '1';
+  const listenerInput = document.getElementById('listener').value.trim();
+
+  if (!isDemo && !listenerInput) {
+    alert('Por favor, introduce un identificador de oyente.');
+    return;
+  }
+
+  startBtn.disabled = true;
+  let listener = listenerInput;
+  let rows = isDemo ? null : await loadManifest();
+
+  if (!rows) {
+    if (isDemo) {
+      MANIFEST_ROOT = "";
+      rows = DEMO_ROWS;
+      listener = "DEMO_" + (listenerInput || Math.random().toString(36).slice(2, 8));
+      statusEl.style.display = '';
+      statusEl.textContent = 'MODO DEMO: datos SINTETICOS embebidos para revisar el ' +
+        'formulario (no se ha encontrado fusion_manifest.csv real). No envies el CSV ' +
+        'que descargues en este modo.';
+    } else {
+      statusEl.style.display = '';
+      statusEl.textContent = 'No se ha encontrado perceptual_test/fusion_manifest.csv. ' +
+        'Genera los estimulos primero con: PYTHONPATH=. .venv/bin/python ' +
+        'scripts/39_fusion_search.py --freeze';
+      startBtn.disabled = false;
+      return;
+    }
+  }
+
+  document.getElementById('listener').value = listener;
+  document.getElementById('listener').disabled = true;
+  document.getElementById('experience').disabled = true;
+
+  const stimuli = shuffle(rowsToStimuli(rows));
+  buildTest(stimuli, listener);
+}
+
+function buildTest(stimuli, listener) {
+  const div = document.getElementById('test');
+  div.style.display = '';
+  stimuli.forEach((s, idx) => div.appendChild(makeBlock(s, idx, stimuli.length)));
+  const submit = document.createElement('button');
+  submit.textContent = 'Enviar y descargar CSV';
+  submit.onclick = () => collect(stimuli, listener);
+  div.appendChild(submit);
+}
+
+function makeBlock(s, idx, total) {
+  const block = document.createElement('div');
+  block.className = 'stimulus';
+  // La condicion (suma/fusion) NUNCA se muestra: solo se usa X (dinamica) e
+  // Y (materia), que son las mismas para ambas condiciones de una pareja.
+  block.innerHTML = `
+    <p class="progress">Sonido ${idx + 1} de ${total}</p>
+    <audio controls src="${s.src}"></audio>
+    <fieldset class="likert">
+      <label><strong>Unidad.</strong> ¿Oyes UN solo objeto/evento, o DOS sonidos superpuestos?</label><br>
+      <label><input type="radio" name="unidad_${idx}" value="un_objeto"><span>Un solo objeto</span></label>
+      <label><input type="radio" name="unidad_${idx}" value="dos_sonidos"><span>Dos sonidos superpuestos</span></label>
+    </fieldset>
+    <fieldset class="likert">
+      <label><strong>Fidelidad de la mezcla.</strong> ¿Se reconocen A LA VEZ la dinamica de
+      "${s.x}" y la materia de "${s.y}"? (1 = solo se oye uno o ninguno; 5 = ambos claramente presentes a la vez)</label><br>
+      ${[1, 2, 3, 4, 5].map(v => `<label><input type="radio" name="fid_${idx}" value="${v}"><span>${v}</span></label>`).join('')}
+    </fieldset>
+    <fieldset class="likert">
+      <label><strong>Credibilidad.</strong> ¿Como de creible suena como objeto o evento real,
+      aunque sea fisicamente imposible? (1 = artificial/sintetico; 5 = totalmente creible)</label><br>
+      ${[1, 2, 3, 4, 5].map(v => `<label><input type="radio" name="cred_${idx}" value="${v}"><span>${v}</span></label>`).join('')}
+    </fieldset>
+  `;
+  return block;
+}
+
+function collect(stimuli, listener) {
+  const experience = document.getElementById('experience').value;
+
+  // Primera pasada: validar que TODOS los estimulos tienen los tres items
+  // respondidos antes de construir nada. (El formulario original de
+  // perceptual_test/form/ valida dentro de un forEach con `return`, que solo
+  // corta esa iteracion y deja pasar filas incompletas -- no se replica ese
+  // fallo aqui.)
+  const faltan = [];
+  stimuli.forEach((s, idx) => {
+    const un = document.querySelector(`input[name=unidad_${idx}]:checked`);
+    const fid = document.querySelector(`input[name=fid_${idx}]:checked`);
+    const cred = document.querySelector(`input[name=cred_${idx}]:checked`);
+    if (!un || !fid || !cred) faltan.push(idx + 1);
+  });
+  if (faltan.length) {
+    alert('Faltan respuestas en el/los sonido(s): ' + faltan.join(', ') +
+      '. Completa los tres items de cada sonido antes de enviar.');
+    return;
+  }
+
+  // Segunda pasada: ya sabemos que todo esta completo, se puede construir el CSV.
+  const rows = [['listener', 'experience', 'stim_file', 'pareja', 'condicion',
+                 'unidad', 'fidelidad_mos', 'credibilidad_mos']];
+  stimuli.forEach((s, idx) => {
+    const un = document.querySelector(`input[name=unidad_${idx}]:checked`).value;
+    const fid = document.querySelector(`input[name=fid_${idx}]:checked`).value;
+    const cred = document.querySelector(`input[name=cred_${idx}]:checked`).value;
+    rows.push([listener, experience, s.file, s.pareja, s.condicion, un, fid, cred]);
+  });
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `respuestas_fusion_${listener}_${Date.now()}.csv`;
+  a.click();
+  alert('Gracias. Guarda el CSV descargado en perceptual_test/responses_fusion/ y enviaselo al experimentador.');
+}
+</script>
+
+</body>
+</html>
