@@ -124,7 +124,24 @@ METRIC_N_BANDS = 12  # fijo (default de composite_fusion), NO el n_bands del
 # (validado de oido) quedo ULTIMO (8/8) en fuego_hecho_de_vidrio -- el
 # smoke fallo limpio, sin que se tocaran los pesos para forzarlo a pasar
 # (ver informe de la tarea).
-CREST_HEALTHY_DB = 25.0  # filtro duro: por encima de esto, cresta patologica.
+# CORRECCION del coordinador (mismo dia, tras revisar el barrido completo de
+# 6 parejas): el umbral ABSOLUTO de 25 dB no es comparable entre parejas.
+# Percentiles de cresta por pareja (del resumen.csv real):
+#   fuego_hecho_de_vidrio: 25%=29.6 50%=30.1 75%=30.7 -- el vidrio tiene
+#   transitorios agudos por naturaleza, su cresta "sana" nativa YA esta en
+#   ~30dB. El umbral absoluto de 25dB eliminaba TODAS sus chimeras (3
+#   supervivientes de 171, los 3 vocoder) -- justo la pareja que el usuario
+#   valido de oido se quedo sin una sola variante del metodo principal.
+# Arreglo: umbral RELATIVO por pareja (percentil dentro del propio pool de
+# esa pareja), no un numero fijo global -- descarta lo anomalo PARA ESE
+# MATERIAL, no lo que supera una escala absoluta calibrada en otro material
+# (trueno, donde 20dB=sano y 49dB=patologico). Con esto fuego_hecho_de_vidrio
+# conserva sus chimeras de ~30dB (su normal) y trueno_hecho_de_agua sigue
+# descartando sus configuraciones de ~47dB (que si son patologicas incluso
+# para su propia escala).
+CREST_QUANTILE = 0.75  # conserva el cuartil inferior (75%) de cresta DENTRO
+                       # de cada pareja; descarta el cuartil superior de esa
+                       # misma pareja como "anomalo para su propio material".
 N_LISTEN_DIVERSE = 8  # candidatos por diversidad; + baseline_v11 + suma_ancla
                       # (SIEMPRE incluidos como referencias fijas) = 10
                       # clips/pareja, el extremo superior del rango 8-10
@@ -165,17 +182,42 @@ def _register_hz_memoized(w, sr, n_bands=24, lo=60.0, hi=8000.0):
     """Envoltorio de memo sobre fusion_chain.register_hz (parchea el
     ATRIBUTO del modulo importado, no el fichero fusion_chain.py en disco).
 
-    register_hz es puro (sin estado, sin aleatoriedad): memorizar por
-    identidad de objeto (id(w)) es seguro mientras el array siga vivo, y en
-    este barrido SIEMPRE sigue vivo (vive dentro de `cache`, que se
-    mantiene durante toda una pareja). Ver _check_register_hz_memo() en
-    --check para la verificacion de bit-identidad frente al register_hz
-    original.
+    BUG REAL encontrado y corregido (no solo teorico -- confirmado en el
+    barrido completo de 6 parejas: 4 de 6 con register_achieved_hz corrupto,
+    1 de esas 4 ademas con register_target_hz corrupto, lo que significa
+    audio realmente mal alineado, no solo un diagnostico erroneo). La
+    version anterior memoizaba por `id(w)` asumiendo que el array vive
+    "mientras dure una pareja" -- cierto para el `cache` de padres (que
+    SI se mantiene vivo toda la pareja), pero FALSO para este memo: es un
+    dict a nivel de MODULO, compartido por las 6 parejas de un barrido
+    completo (`main()` crea un `cache` nuevo por pareja via `run_pair`).
+    Al terminar una pareja su `cache` sale de alcance, Python libera esos
+    arrays, y el recolector de memoria REUTILIZA esas direcciones para los
+    arrays de la SIGUIENTE pareja -- un `id()` que coincide por casualidad
+    con una entrada vieja del memo devuelve el valor de OTRA pareja en
+    silencio. Confirmado en vivo: `fuego_hecho_de_vidrio` (pareja #2)
+    devolvio register_achieved_hz=181.9 (el valor de trueno_hecho_de_agua,
+    pareja #1) en vez de su valor real 1743.1.
+
+    ARREGLO: el memo guarda una referencia FUERTE a `w` junto al resultado
+    (`_REGISTER_HZ_MEMO[key] = (valor, w)`), no solo el resultado. Mientras
+    una entrada siga en el dict, esa referencia mantiene vivo al array, y
+    Python NUNCA puede reutilizar su direccion de memoria para otro array
+    -- la colision por `id()` queda estructuralmente eliminada, no solo
+    evitada por disciplina de scope. Ademas se verifica identidad real
+    (`w_ref is w`) al leer, como cinturon y tirantes. register_hz sigue
+    siendo puro (sin estado, sin aleatoriedad): el valor cacheado para el
+    MISMO objeto es siempre correcto por construccion.
     """
     key = (id(w), w.shape, sr, n_bands, lo, hi)
-    if key not in _REGISTER_HZ_MEMO:
-        _REGISTER_HZ_MEMO[key] = _ORIG_REGISTER_HZ(w, sr, n_bands=n_bands, lo=lo, hi=hi)
-    return _REGISTER_HZ_MEMO[key]
+    cached = _REGISTER_HZ_MEMO.get(key)
+    if cached is not None:
+        val, w_ref = cached
+        if w_ref is w:
+            return val
+    val = _ORIG_REGISTER_HZ(w, sr, n_bands=n_bands, lo=lo, hi=hi)
+    _REGISTER_HZ_MEMO[key] = (val, w)
+    return val
 
 
 _fc_module.register_hz = _register_hz_memoized
@@ -542,6 +584,31 @@ def _select_diverse(survivors: list[dict], n_target: int) -> list[dict]:
     return chosen
 
 
+def _select_for_listening(pool_rows: list[dict]) -> tuple[list[dict], float, int, bool]:
+    """Logica COMPARTIDA de seleccion del lote de escucha -- usada tanto por
+    `run_pair` (barrido completo) como por `regenerate_batch` (`--relabel`,
+    reutiliza CSVs ya calculados) para que ambos caminos apliquen EXACTAMENTE
+    el mismo criterio.
+
+    Devuelve (seleccion, threshold_efectivo_db, n_survivors, filtro_vacio).
+    Umbral RELATIVO a la pareja: percentil CREST_QUANTILE de `crest_db`
+    DENTRO de `pool_rows` (ver comentario largo junto a CREST_QUANTILE)."""
+    crest_vals = [r["crest_db"] for r in pool_rows if r["crest_db"] != ""]
+    threshold = float(np.quantile(crest_vals, CREST_QUANTILE)) if crest_vals else float("inf")
+    survivors = [r for r in pool_rows if r["crest_db"] != "" and r["crest_db"] <= threshold]
+    n_survivors = len(survivors)
+    crest_filter_vacio = n_survivors == 0
+    if crest_filter_vacio:
+        # Defensivo: con un umbral relativo esto no deberia poder pasar
+        # (el propio percentil garantiza supervivientes salvo pool vacio),
+        # pero se mantiene el fallback por si `pool_rows` esta vacio o
+        # todos los crest_db son NaN/"".
+        survivors = sorted((r for r in pool_rows if r["crest_db"] != ""),
+                           key=lambda r: r["crest_db"])[:N_LISTEN_DIVERSE]
+    seleccion = _select_diverse(survivors, N_LISTEN_DIVERSE)
+    return seleccion, threshold, n_survivors, crest_filter_vacio
+
+
 # ====================================================================
 # run_pair: etapa 1 + etapa 2 (top-5 FCI, solo para stats_finish) + lote
 # de escucha (filtro de cresta + diversidad) + CSV
@@ -608,22 +675,14 @@ def run_pair(pareja: str, env: str, fine: str, results_dir: Path, listen_dir: Pa
         rows.append(row2)
     t_stats1 = time.time()
 
-    # --- lote de escucha: filtro de cresta sana + cobertura de diversidad
-    # (Ruling del coordinador -- el FCI ya NO decide esto, ver constantes
-    # CREST_HEALTHY_DB / N_LISTEN_DIVERSE arriba: esta anticorrelado con el
-    # objetivo, medido corr(fci,crest_db)=+0.68 en este mismo pilotaje) +
-    # baseline_v11 y suma_ancla SIEMPRE como referencias fijas ---
-    survivors = [r for r in pool_rows if r["crest_db"] != "" and r["crest_db"] < CREST_HEALTHY_DB]
-    n_survivors_crest = len(survivors)
-    crest_filter_vacio = n_survivors_crest == 0
-    if crest_filter_vacio:
-        # Ningun candidato paso el filtro: en vez de exportar un lote
-        # vacio, se cae a los N_LISTEN_DIVERSE de MENOR cresta (los menos
-        # malos), anotado explicitamente para que quede claro que esta
-        # pareja no tiene NINGUNA configuracion sana en el grid actual.
-        survivors = sorted((r for r in pool_rows if r["crest_db"] != ""),
-                           key=lambda r: r["crest_db"])[:N_LISTEN_DIVERSE]
-    seleccion = _select_diverse(survivors, N_LISTEN_DIVERSE)
+    # --- lote de escucha: filtro de cresta RELATIVO a la pareja + cobertura
+    # de diversidad (Ruling del coordinador -- el FCI ya NO decide esto:
+    # esta anticorrelado con el objetivo, corr(fci,crest_db)=+0.42 global
+    # sobre las 6 parejas; y el umbral es relativo, no absoluto, tras la
+    # correccion del mismo dia -- ver CREST_QUANTILE) + baseline_v11 y
+    # suma_ancla SIEMPRE como referencias fijas ---
+    seleccion, crest_threshold_pareja, n_survivors_crest, crest_filter_vacio = (
+        _select_for_listening(pool_rows))
 
     baseline_row = next(r for r in rows if r["grupo"] == "baseline_v11")
     suma_row = next(r for r in rows if r["grupo"] == "suma_ancla")
@@ -662,6 +721,7 @@ def run_pair(pareja: str, env: str, fine: str, results_dir: Path, listen_dir: Pa
         "std": stds, "sso_valores_unicos": sso_vals,
         "align_noop_alguna_vez": align_noop_true, "n_nan_fci": n_nan_fci,
         "n_chimera_grid": len(chimera_rows), "n_pool": len(pool_rows),
+        "crest_threshold_pareja": crest_threshold_pareja,
         "n_survivors_crest": n_survivors_crest,
         "crest_filter_vacio": crest_filter_vacio,
         "export_table": export_table, "csv_path": str(csv_path),
@@ -686,8 +746,10 @@ def _print_pilot_summary(s: dict) -> None:
          f"(esperado: <=2 por pareja)")
     print(f"  align_noop=True en alguna fila: {s['align_noop_alguna_vez']} (esperado: False)")
     print(f"  fci=NaN en el pool: {s['n_nan_fci']}")
-    print(f"  supervivientes filtro cresta<{CREST_HEALTHY_DB}dB: {s['n_survivors_crest']}/"
-         f"{s['n_pool']}{'  (VACIO -- fallback a los de menor cresta)' if s['crest_filter_vacio'] else ''}")
+    print(f"  umbral de cresta EFECTIVO para esta pareja (percentil "
+         f"{int(CREST_QUANTILE*100)}): {s['crest_threshold_pareja']:.1f}dB -- "
+         f"supervivientes: {s['n_survivors_crest']}/{s['n_pool']}"
+         f"{'  (VACIO -- fallback a los de menor cresta)' if s['crest_filter_vacio'] else ''}")
     print("  lote de escucha (filtro cresta + diversidad, NO ranking por FCI -- ver Ruling):")
     for e in s["export_table"]:
         print(f"    {e['tag']:12s} fci={e['fci']:.4f} crest_db={e['crest_db']:.1f} "
@@ -706,26 +768,33 @@ def _write_leeme(listen_dir: Path, summaries: list[dict]) -> None:
 ## La metrica compuesta (FCI) FALLO como criterio de seleccion -- tu oido es el arbitro
 
 El barrido calcula un indice compuesto (FCI = 0.55*mci - 0.30*dop - 0.15*bri)
-pensado para rankear candidatos automaticamente. Al analizar el CSV del
-pilotaje (`trueno_hecho_de_agua`, 171 candidatos) resulto que el FCI esta
-ANTICORRELADO con lo que buscamos: `corr(fci, crest_db) = +0.68` -- el FCI
-premia la cresta alta (pico aislado, sin cuerpo), que es justo el sintoma
-medido del defecto de "dos capas" (audio sano 10-20 dB; la config rota de la
-demo V11 llega a 49.4 dB). Entre los candidatos de cresta SANA (<22 dB), el
-que gana por FCI es la suma ponderada (`suma_ancla`, fci=0.208) -- la propia
-ancla de "dos sonidos superpuestos" le gana por FCI a TODAS las chimeras
-genuinas de esa franja (la mejor solo llega a 0.116). Motivo probable: el
-componente MCI (peso 0.55) premia que las bandas "respiren juntas" en 2-16 Hz,
-y eso lo consigue tanto una fusion real como una suma con envolvente
-compartida o una chimera patologica con bandas de A ausentes -- el mismo
-fallo que ya hundio a `stream_unity_index` en V8.
+pensado para rankear candidatos automaticamente. Al analizar los CSV del
+barrido completo (6 parejas, 1065 candidatos con FCI definido) resulto que
+el FCI esta ANTICORRELADO con lo que buscamos: `corr(fci, crest_db) =
++0.42` global -- el FCI premia la cresta alta (pico aislado, sin cuerpo),
+que es justo el sintoma medido del defecto de "dos capas" (la config rota
+de la demo V11 en trueno_hecho_de_agua llega a 49.4 dB de cresta). Entre los
+candidatos de cresta sana de `trueno_hecho_de_agua`, el que gana por FCI es
+la suma ponderada (`suma_ancla`) -- la propia ancla de "dos sonidos
+superpuestos" le gana por FCI a TODAS las chimeras genuinas de esa franja.
+Motivo probable: el componente MCI (peso 0.55) premia que las bandas
+"respiren juntas" en 2-16 Hz, y eso lo consigue tanto una fusion real como
+una suma con envolvente compartida o una chimera patologica con bandas de A
+ausentes -- el mismo fallo que ya hundio a `stream_unity_index` en V8.
 
 **Consecuencia practica: el FCI y sus 4 componentes se calculan y guardan
 integros en el CSV (es un resultado negativo citable para el paper), pero
 NO deciden que hay en estas carpetas.** La seleccion de cada lote es:
 
-1. Filtro DURO: descarta cualquier candidato con `crest_db >= 25` (cresta
-   patologica -- el sintoma medido del defecto).
+1. Filtro de cresta RELATIVO A CADA PAREJA: descarta el cuartil superior
+   (percentil 75) de `crest_db` DENTRO del propio pool de esa pareja, no un
+   numero fijo global. Motivo: la cresta "sana" varia por material -- el
+   vidrio tiene transitorios agudos por naturaleza y su normal ya esta en
+   ~30 dB (frente a ~20 dB de trueno), asi que un umbral absoluto (se probo
+   primero con 25 dB fijo) eliminaba TODAS las chimeras de `fuego_hecho_de_
+   vidrio` -- justo la pareja que el usuario ya habia validado de oido. El
+   umbral EFECTIVO (en dB) que resulto para cada pareja se muestra en su
+   tabla mas abajo.
 2. Entre los que pasan el filtro, cobertura de DIVERSIDAD del espacio de
    parametros (distintos `n_bands`, distintos `color_mix`, con y sin
    `align`, con y sin `warp`, y los metodos alternativos `chimera_plana`/
@@ -785,13 +854,15 @@ de TODOS los candidatos del barrido, no solo estos 10 por pareja) estan en
         parts.append(f"\n### {s['pareja']}\n")
         if s["crest_filter_vacio"]:
             parts.append(
-                f"**Aviso**: NINGUN candidato de esta pareja bajo de "
-                f"{CREST_HEALTHY_DB} dB de cresta; el lote de abajo son los "
+                f"**Aviso**: no se pudo calcular un umbral de cresta valido "
+                f"para esta pareja; el lote de abajo son los "
                 f"{s['n_survivors_crest'] or N_LISTEN_DIVERSE} de MENOR cresta "
                 f"(los menos malos, no candidatos sanos).\n\n")
         else:
-            parts.append(f"Supervivientes del filtro de cresta: "
-                        f"{s['n_survivors_crest']}/{s['n_pool']}.\n\n")
+            parts.append(f"Umbral de cresta EFECTIVO para esta pareja "
+                        f"(percentil {int(CREST_QUANTILE*100)} del pool): "
+                        f"**{s['crest_threshold_pareja']:.1f} dB**. "
+                        f"Supervivientes: {s['n_survivors_crest']}/{s['n_pool']}.\n\n")
         parts.append("| clip | fci (diagnostico, NO decide) | mci | dop | bri | "
                     "crest_db | igualacion |\n")
         parts.append("|---|---|---|---|---|---|---|\n")
@@ -982,6 +1053,54 @@ def _check_register_hz_memo() -> list[str]:
     return [] if ok else ["register_hz_memo"]
 
 
+def _check_register_hz_memo_cross_pareja() -> list[str]:
+    """Regresion del bug REAL (no solo teorico) encontrado en el barrido
+    completo: el memo de register_hz es un dict de MODULO compartido entre
+    parejas -- si el `cache` de padres de una pareja se libera y Python
+    reutiliza su `id()` de memoria para los padres de la SIGUIENTE pareja
+    DENTRO DEL MISMO PROCESO, el memo (antes del arreglo) devolvia el valor
+    de la pareja vieja en silencio. Este smoke reproduce exactamente el
+    patron de `main()` (N parejas, cache nuevo por pareja, en el mismo
+    proceso) con un `gc.collect()` explicito entre medias para maximizar
+    la probabilidad de reutilizacion de `id()`, y compara cada resultado
+    contra una referencia calculada con register_hz SIN memoizar. Con el
+    arreglo (referencia fuerte al array en el propio memo) la reutilizacion
+    de `id()` es imposible por construccion, asi que esto debe pasar
+    siempre, no solo "probablemente"."""
+    import gc
+    failures = []
+    specs = [
+        ("A", FusionSpec(env_parent="trueno", fine_parent="goteo", n_bands=6, align=True,
+                         method="chimera", duration_s=2.0, seed=SEED)),
+        ("B", FusionSpec(env_parent="fuego", fine_parent="vidrio", n_bands=6, align=True,
+                         method="chimera", duration_s=2.0, seed=SEED)),
+        ("C", FusionSpec(env_parent="oceano", fine_parent="campana_tela", n_bands=6,
+                         align=True, method="chimera", duration_s=2.0, seed=SEED)),
+    ]
+    memoized_results = {}
+    for label, spec in specs:
+        cache: dict = {}
+        _, meta = render_fusion(spec, sr=SR, cache=cache)
+        memoized_results[label] = meta["register_achieved_hz"]
+        del cache
+        gc.collect()
+    _fc_module.register_hz = _ORIG_REGISTER_HZ
+    try:
+        for label, spec in specs:
+            _, meta_ref = render_fusion(spec, sr=SR, cache={})
+            ref = meta_ref["register_achieved_hz"]
+            got = memoized_results[label]
+            ok = (got == ref)
+            print(f"  pareja {label}: memoizado={got} referencia={ref} {'OK' if ok else 'FALLO'}")
+            if not ok:
+                failures.append(f"cross_pareja_{label}")
+    finally:
+        _fc_module.register_hz = _register_hz_memoized
+    print(f"smoke2d (register_hz memoizado: sin colision entre parejas del mismo "
+         f"proceso): {'OK' if not failures else 'FALLOS: ' + str(failures)}")
+    return failures
+
+
 def _check_autocalibracion() -> list[str]:
     """Ruling 7 (progress.md): con align y color fijos en la config de V11
     (align=False, color_mix=None), el FCI debe rankear el n_bands validado
@@ -1092,6 +1211,7 @@ def check() -> int:
     all_failures += _check_methods_and_mechanisms()
     all_failures += _check_metric_fast_matches_reference()
     all_failures += _check_register_hz_memo()
+    all_failures += _check_register_hz_memo_cross_pareja()
     all_failures += _check_autocalibracion()
     all_failures += _check_csv_roundtrip()
     all_failures += _check_freeze_empty_fails_clean()
