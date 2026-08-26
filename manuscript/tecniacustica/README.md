@@ -75,7 +75,13 @@ El paper referencia figuras en `../../figures/`:
 - `F2_rolling_droplet_spectrograms.png`
 - `F3_monotonicity_heatmap.png`
 - `F4_sweep_curves.png`
-- `F5_master_comparison.png`
+- `F6_fusion.png`
+
+`F5_master_comparison.png` se retiró del paper en la Tarea 7 (Nivel 2,
+recorte de páginas): sus cifras ya estaban en `tab:master`, la tabla
+maestra de la Sección de Evaluación, así que la figura era redundante.
+El fichero PNG se conserva en `figures/` por si se reutiliza en otro
+sitio, pero ya no se cita desde `paper.tex`.
 
 Si las regeneras con `scripts/15_figures.py` o
 `scripts/18_compare_physics_vs_neural.py`, las referencias del paper
@@ -83,10 +89,27 @@ las recogen automáticamente.
 
 ## PACS y palabras clave
 
-PACS sugeridos:
-- **43.60.Lq** Speech and Music Perception · Computer algorithms, synthesis
-- **43.58.Ta** Instrumentation · Digital signal processing
-- **43.66.Lj** Hearing · Psychoacoustics
+PACS del paper (verificados 2026-08-26 contra el listado oficial AIP/JASA
+"Appendix to 43: Acoustics", PACS 2010):
+- **43.60.Lq** Acoustic imaging, displays, pattern recognition, feature extraction
+- **43.58.Ta** Computers and computer programs in acoustics
+- **43.60.Uv** Model-based signal processing
+
+Las anotaciones anteriores de 43.60.Lq ("Speech and Music Perception ·
+Computer algorithms, synthesis") y 43.58.Ta ("Instrumentation · Digital
+signal processing") eran incorrectas frente al listado oficial; quedan
+corregidas arriba. El código perceptual **43.66.Lj** (Hearing ·
+Psychoacoustics — oficialmente "Perceptual effects of sound") se retiró
+al eliminar el estudio perceptual piloto del paper (Tarea 7) y se
+sustituyó por **43.60.Uv**, que encaja con el procesado basado en
+modelos físicos que vertebra tanto el motor de síntesis como la
+recuperación diferenciable de parámetros.
+
+Nota: el `abstract.txt` enviado al congreso (meses antes que el paper
+completo) sí menciona el estudio piloto perceptual. **No se reenvía**
+— es el comportamiento normal del proceso de envío — y por tanto queda
+una diferencia intencionada entre lo enviado como abstract y el paper
+final.
 
 Palabras clave: *síntesis de sonido, Foley, física-DSP, sonidos
 imposibles, DDSP, inversión de parámetros*.
