@@ -61,8 +61,20 @@ select { font-size: 0.95em; padding: 4px; }
  * Contrato de datos (lo escribe scripts/39_fusion_search.py --freeze, NO se
  * toca desde aqui):
  *   perceptual_test/fusion_manifest.csv con columnas exactas
- *   pareja,condicion,path,config_json  (config_json = FusionSpec serializado,
- *   se espera que traiga al menos env_parent/fine_parent).
+ *   pareja,condicion,path,config_json  (config_json = FusionSpec serializado;
+ *   DEBE traer env_parent/fine_parent -- xyFromRow() falla con un mensaje
+ *   claro si faltan, no adivina por el nombre de la pareja: ver su
+ *   comentario).
+ *   El VALOR de `path` (el nombre de fichero del wav) tiene que ser OPACO
+ *   (p.ej. est_01.wav..est_06.wav, sin relacion visible con pareja ni
+ *   condicion): ese valor termina en el atributo `src` de `<audio>`, que
+ *   esta en el DOM y es visible con "Inspeccionar elemento" o la pestaña
+ *   de red, AUNQUE el texto en pantalla sea neutro -- hallazgo de la ronda
+ *   de revision de la Tarea 5. Coordinado con el implementador de script
+ *   39 (nombrara asi los wavs reales); este fichero no depende del nombre
+ *   de fichero para nada semantico (ver DEMO_ROWS), pero tampoco puede
+ *   blanquear un nombre de fichero que ya trae la condicion escrita si
+ *   script 39 no cumple su parte del contrato.
  *
  * Este formulario vive en perceptual_test/form_fusion/, un nivel POR DEBAJO
  * de perceptual_test/. Para servir el test real hay dos formas validas:
@@ -88,25 +100,36 @@ select { font-size: 0.95em; padding: 4px; }
 const MANIFEST_CANDIDATES = ["fusion_manifest.csv", "../fusion_manifest.csv"];
 const MANIFEST_REQUIRED_COLS = ["pareja", "condicion", "path", "config_json"];
 
+// Rutas OPACAS a proposito (est_01.wav..est_06.wav, sin ninguna relacion
+// visible con la pareja ni la condicion): coordinado con el implementador
+// de scripts/39_fusion_search.py, que nombrara asi los wavs reales en
+// perceptual_test/stimuli_fusion/ -- el mapeo real vive SOLO en
+// fusion_manifest.csv. Antes esta lista usaba nombres tipo
+// "trueno_hecho_de_agua__suma.wav": el atributo src de <audio> queda en el
+// DOM (visible con "Inspeccionar elemento" o la pestaña de red) aunque el
+// TEXTO en pantalla fuera neutro, asi que el nombre de fichero rompia el
+// doble ciego igual que si se hubiera escrito en pantalla (hallazgo de la
+// ronda de revision de la Tarea 5). Los 6 tienen config_json valido: ya no
+// hay fallback por nombre de pareja que probar (ver xyFromRow()).
 const DEMO_ROWS = [
   {pareja: "trueno_hecho_de_agua", condicion: "suma",
-   path: "perceptual_test/stimuli_fusion/trueno_hecho_de_agua__suma.wav",
+   path: "perceptual_test/stimuli_fusion/est_01.wav",
    config_json: '{"env_parent":"trueno","fine_parent":"goteo"}'},
-  {pareja: "trueno_hecho_de_agua", condicion: "fusion",
-   path: "perceptual_test/stimuli_fusion/trueno_hecho_de_agua__fusion.wav",
+  {pareja: "trueno_hecho_de_agua", condicion: "ganadora",
+   path: "perceptual_test/stimuli_fusion/est_02.wav",
    config_json: '{"env_parent":"trueno","fine_parent":"goteo"}'},
   {pareja: "fuego_hecho_de_vidrio", condicion: "suma",
-   path: "stimuli_fusion/fuego_hecho_de_vidrio__suma.wav",
+   path: "stimuli_fusion/est_03.wav",
    config_json: '{"env_parent":"fuego","fine_parent":"vidrio"}'},
-  {pareja: "fuego_hecho_de_vidrio", condicion: "fusion",
-   path: "stimuli_fusion/fuego_hecho_de_vidrio__fusion.wav",
+  {pareja: "fuego_hecho_de_vidrio", condicion: "ganadora",
+   path: "stimuli_fusion/est_04.wav",
    config_json: '{"env_parent":"fuego","fine_parent":"vidrio"}'},
-  // config_json vacio a proposito: ejercita el fallback por nombre de
-  // pareja (y el genero "hecha", frente a "hecho" de las dos de arriba).
   {pareja: "canica_hecha_de_fuego", condicion: "suma",
-   path: "stimuli_fusion/canica_hecha_de_fuego__suma.wav", config_json: ""},
-  {pareja: "canica_hecha_de_fuego", condicion: "fusion",
-   path: "stimuli_fusion/canica_hecha_de_fuego__fusion.wav", config_json: ""},
+   path: "stimuli_fusion/est_05.wav",
+   config_json: '{"env_parent":"canica","fine_parent":"fuego"}'},
+  {pareja: "canica_hecha_de_fuego", condicion: "ganadora",
+   path: "stimuli_fusion/est_06.wav",
+   config_json: '{"env_parent":"canica","fine_parent":"fuego"}'},
 ];
 
 let MANIFEST_ROOT = "";  // "" o "../", segun donde respondio el manifest
@@ -119,31 +142,88 @@ function shuffle(a) {
   return a;
 }
 
+// Baraja los estimulos de forma que las DOS condiciones de una misma
+// pareja NUNCA queden en posiciones consecutivas. Motivo (ronda de
+// revision de la Tarea 5): con un Fisher-Yates simple, las dos condiciones
+// de una pareja caen adyacentes la mayoria de las veces con solo 6 items;
+// eso invita a un juicio comparativo A/B directo en vez del juicio
+// ABSOLUTO que piden los tres items, y sesga sobre todo la escala de
+// unidad. El orden sigue siendo aleatorio por oyente, solo se prohibe la
+// adyacencia.
+//
+// Algoritmo (agrupar + dos rondas; nada de "barajar y reintentar", asi que
+// termina siempre en tiempo acotado):
+//   1. Se agrupan los estimulos por pareja. Cada pareja con EXACTAMENTE 2
+//      condiciones aporta un elemento a `ronda1` y el otro a `ronda2`
+//      (a cual va cada uno se decide al azar).
+//   2. `ronda1` y `ronda2` se barajan cada una por separado. Por
+//      construccion cada pareja aporta como mucho 1 elemento a cada
+//      ronda, asi que NINGUNA adyacencia interna a una ronda puede
+//      repetir pareja -- no hace falta comprobarlo.
+//   3. El UNICO punto de contacto posible es la frontera entre rondas (el
+//      ultimo de ronda1 con el primero de ronda2). Se comprueba una vez y,
+//      si coincide, se intercambia por el elemento siguiente disponible.
+//   Parejas con un numero de condiciones distinto de 2 (manifest
+//   incompleto, o mas de 2 condiciones -- fuera del diseño de 3 parejas x
+//   2 condiciones del brief) se barajan sueltas al final, sin garantia de
+//   no-adyacencia entre ellas: es un caso degenerado fuera del diseño.
+function shuffleNoAdjacentPairs(stimuli) {
+  const porPareja = new Map();
+  stimuli.forEach(s => {
+    if (!porPareja.has(s.pareja)) porPareja.set(s.pareja, []);
+    porPareja.get(s.pareja).push(s);
+  });
+
+  const ronda1 = [];
+  const ronda2 = [];
+  const sueltos = [];
+  for (const items of porPareja.values()) {
+    if (items.length !== 2) { sueltos.push(...items); continue; }
+    const [a, b] = Math.random() < 0.5 ? [items[0], items[1]] : [items[1], items[0]];
+    ronda1.push(a);
+    ronda2.push(b);
+  }
+  shuffle(ronda1);
+  shuffle(ronda2);
+
+  if (ronda1.length && ronda2.length &&
+      ronda1[ronda1.length - 1].pareja === ronda2[0].pareja) {
+    if (ronda2.length > 1) {
+      [ronda2[0], ronda2[1]] = [ronda2[1], ronda2[0]];
+    } else if (ronda1.length > 1) {
+      const n = ronda1.length;
+      [ronda1[n - 1], ronda1[n - 2]] = [ronda1[n - 2], ronda1[n - 1]];
+    }
+    // Con una unica pareja en TOTAL (ronda1.length===1 && ronda2.length===1)
+    // la adyacencia es inevitable: solo hay una posicion posible para el
+    // segundo elemento. No es un bug, es el minimo caso degenerado.
+  }
+
+  return [...ronda1, ...ronda2, ...shuffle(sueltos)];
+}
+
 function humanize(name) {
   return String(name || "").replace(/_/g, " ").trim();
 }
 
-// "trueno_hecho_de_agua" -> ["trueno","agua"]; "canica_hecha_de_fuego" ->
-// ["canica","fuego"]. Concordancia de genero en español (hecho/hecha):
-// aceptamos ambas formas.
-function splitParejaFallback(pareja) {
-  const m = /^(.*?)_(?:hecho|hecha)_de_(.*)$/.exec(pareja || "");
-  if (m) return [m[1], m[2]];
-  return [pareja, pareja];
-}
-
-// X = dinamica (env_parent), Y = materia (fine_parent). Primero se intenta
-// leer del config_json (fuente estructurada, no depende de convenciones de
-// nombrado); si falta o no parsea, se cae al nombre de la pareja.
+// X = dinamica (env_parent), Y = materia (fine_parent), leidos SIEMPRE del
+// config_json (fuente estructurada). NO hay fallback por nombre de pareja:
+// se probo y se quito (ronda de revision de la Tarea 5) porque los nombres
+// de pareja son poeticos, no literales -- "trueno_hecho_de_agua" tiene
+// fine_parent="goteo", no "agua" -- y un fallback que parte el nombre de
+// la pareja mostraria al oyente el material EQUIVOCADO en la pregunta de
+// fidelidad. Es preferible fallar aqui con un mensaje claro (ver begin())
+// a adivinar mal en silencio.
 function xyFromRow(row) {
-  try {
-    const cfg = JSON.parse(row.config_json);
-    if (cfg && cfg.env_parent && cfg.fine_parent) {
-      return [humanize(cfg.env_parent), humanize(cfg.fine_parent)];
-    }
-  } catch (e) { /* config_json vacio o mal formado: cae al fallback */ }
-  const [x, y] = splitParejaFallback(row.pareja);
-  return [humanize(x), humanize(y)];
+  let cfg = null;
+  try { cfg = JSON.parse(row.config_json); } catch (e) { /* cfg queda null */ }
+  if (!cfg || !cfg.env_parent || !cfg.fine_parent) {
+    throw new Error(
+      `fila del manifest sin config_json valido (se necesitan env_parent y ` +
+      `fine_parent) para pareja="${row.pareja}" condicion="${row.condicion}"`
+    );
+  }
+  return [humanize(cfg.env_parent), humanize(cfg.fine_parent)];
 }
 
 // Resuelve la ruta reproducible del wav a partir del valor crudo de `path`
@@ -202,6 +282,19 @@ function parseCsv(text) {
   return rows;
 }
 
+// Valida que TODAS las filas (no solo la primera, que era el bug original)
+// tengan las columnas requeridas. Con solo la primera fila, un manifest con
+// una fila rota a mitad de fichero (p.ej. una coma suelta dentro de un
+// config_json mal escapado que desplaza columnas) pasaria esta validacion
+// y fallaria mas tarde, en otro sitio, con un error menos claro.
+function manifestColumnsCheck(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const faltan = MANIFEST_REQUIRED_COLS.filter(c => !(c in rows[i]));
+    if (faltan.length) return {ok: false, fila: i, faltan};
+  }
+  return {ok: true, fila: null, faltan: []};
+}
+
 async function loadManifest() {
   for (const candidate of MANIFEST_CANDIDATES) {
     try {
@@ -210,9 +303,9 @@ async function loadManifest() {
       const text = await resp.text();
       const rows = parseCsv(text);
       if (!rows.length) continue;
-      const faltan = MANIFEST_REQUIRED_COLS.filter(c => !(c in rows[0]));
-      if (faltan.length) {
-        console.warn(`${candidate}: faltan columnas ${faltan}`);
+      const chk = manifestColumnsCheck(rows);
+      if (!chk.ok) {
+        console.warn(`${candidate}: fila ${chk.fila} sin columnas ${chk.faltan.join(', ')}`);
         continue;
       }
       MANIFEST_ROOT = candidate.startsWith("../") ? "../" : "";
@@ -271,11 +364,24 @@ async function begin() {
     }
   }
 
+  // rowsToStimuli() puede lanzar (xyFromRow(): config_json invalido). Se
+  // comprueba ANTES de deshabilitar los campos de cabecera, para poder
+  // dejarlos editables de nuevo si hay que abortar.
+  let stimuli;
+  try {
+    stimuli = shuffleNoAdjacentPairs(rowsToStimuli(rows));
+  } catch (e) {
+    statusEl.style.display = '';
+    statusEl.textContent = 'Manifest invalido: ' + e.message + '. Revisa que ' +
+      'scripts/39_fusion_search.py --freeze escribio config_json completo en cada fila.';
+    startBtn.disabled = false;
+    return;
+  }
+
   document.getElementById('listener').value = listener;
   document.getElementById('listener').disabled = true;
   document.getElementById('experience').disabled = true;
 
-  const stimuli = shuffle(rowsToStimuli(rows));
   buildTest(stimuli, listener);
 }
 
@@ -292,8 +398,15 @@ function buildTest(stimuli, listener) {
 function makeBlock(s, idx, total) {
   const block = document.createElement('div');
   block.className = 'stimulus';
-  // La condicion (suma/fusion) NUNCA se muestra: solo se usa X (dinamica) e
-  // Y (materia), que son las mismas para ambas condiciones de una pareja.
+  // La condicion (suma/ganadora) y el nombre de la pareja NUNCA se
+  // interpolan aqui, ni en texto visible ni en atributos: solo se usan
+  // s.x/s.y (los dos nombres de padre, iguales para ambas condiciones de
+  // una pareja) y s.src. Que s.src en si no filtre la condicion depende de
+  // que scripts/39_fusion_search.py --freeze nombre los wavs de forma
+  // opaca (ver el comentario de contrato de datos, arriba del todo) --
+  // este fichero no controla esa parte. La verificacion con Node de esta
+  // tarea comprueba el HTML COMPLETO que produce esta funcion (atributos
+  // incluidos, no solo el texto visible) contra los DEMO_ROWS opacos.
   block.innerHTML = `
     <p class="progress">Sonido ${idx + 1} de ${total}</p>
     <audio controls src="${s.src}"></audio>
