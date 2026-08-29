@@ -6,6 +6,9 @@
 % =====================================================================
 \documentclass{tecniacustica}
 \usepackage{multicol}
+\setlength{\textfloatsep}{10pt plus 2pt minus 4pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
 
 \title{¿Cómo suena una gota que rueda? Un marco paramétrico físicamente informado para la síntesis de sonidos imposibles}
 
@@ -34,7 +37,7 @@ Audiovisual sound design requires material--interaction combinations that do not
 \section{Introducción}
 % ============================================================
 
-El diseño sonoro para cine, animación, videojuegos y medios inmersivos requiere a menudo sonidos que \emph{no} existen como grabaciones. Una animación pide una gota de mercurio que rueda. Un equipo de audio para videojuegos necesita grava raspando dentro de una cueva inundada. Una pieza experimental busca una roca líquida. Dos rutas han dominado la práctica.
+El diseño sonoro para cine, animación, videojuegos y medios inmersivos requiere a menudo sonidos que \emph{no} existen como grabaciones. Una animación pide una gota de mercurio que rueda. Un equipo de audio para videojuegos necesita grava raspando dentro de una cueva inundada. Una pieza experimental busca una roca líquida. En la práctica dominan dos rutas.
 
 El \textbf{Foley clásico} combina capas grabadas en estudio que se procesan a mano: gran calidad, pero costoso, lento y poco reproducible, sin forma sistemática de pedir «más mojado» o «menos granuloso» sobre un evento existente. Los \textbf{enfoques generativos neurales}, basados en codificadores preentrenados (EnCodec~\cite{defossez2022encodec}, RAVE~\cite{caillon2021rave}, DAC~\cite{kumar2023dac}) o difusión latente condicionada por texto (AudioLDM~\cite{liu2023audioldm}, Stable Audio Open~\cite{evans2024stableaudio}), prometen mayor rapidez, pero con dos límites recurrentes: sus espacios latentes están optimizados para \emph{reconstrucción general de audio}, no para semántica de material o interacción, sin anclaje en atributos físicos. Y al manipular esas representaciones para mezclas tipo «más líquido» o «más rocoso», el espectro cambia de forma medible (RMS, rango dinámico, centroide), pero el carácter percibido a menudo \emph{no} cambia: el oyente no oye un líquido donde no lo había~\cite{roche2021autoencoders,devis2023control}.
 
@@ -42,7 +45,7 @@ Esta disociación entre \emph{monotonía cuantitativa} en el espacio de métrica
 
 El resultado es un marco donde cada control produce una transformación audible coherente con su significado físico (más humedad incrementa la viscosidad de la gota, más rigidez desplaza las fundamentales modales hacia arriba) sin aprendizaje de por medio. El caso de la \textbf{gota rodante}, un sonido sin referente natural que podamos grabar, ilustra el enfoque en detalle más adelante.
 
-Las contribuciones de este trabajo son: (i) una biblioteca modular de primitivas físicamente informadas (modal, fricción, granular, gota con dinámica de Minnaert, salpicadura y vertido); (ii) un compositor genérico para combinaciones materia--interacción imposibles; (iii) un controlador con monotonía objetiva demostrable; (iv) un conjunto abierto de 24 estímulos imposibles con metadatos; (v) una contraparte diferenciable que recupera parámetros físicos por gradiente sin entrenar redes neuronales; y (vi) fusión de identidad entre materiales mediante quimeras con alineación de registro físicamente exacta, con el resultado negativo, documentado sin atenuarlo, de que el índice compuesto de fusión no ordena los candidatos como lo hace el oído.
+Las contribuciones de este trabajo son: (i) una biblioteca modular de primitivas físicamente informadas (modal, fricción, granular, gota con dinámica de Minnaert, salpicadura y vertido). (ii) un compositor genérico para combinaciones materia--interacción imposibles. (iii) un controlador con monotonía objetiva demostrable. (iv) un conjunto abierto de 24 estímulos imposibles con metadatos. (v) una contraparte diferenciable que recupera parámetros físicos por gradiente sin entrenar redes neuronales. (vi) fusión de identidad entre materiales mediante quimeras con alineación de registro físicamente exacta, con el resultado negativo, documentado sin atenuarlo, de que el índice compuesto de fusión no ordena los candidatos como lo hace el oído.
 
 % ============================================================
 \section{Trabajo relacionado}
