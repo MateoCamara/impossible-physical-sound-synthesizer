@@ -1,115 +1,102 @@
 # Envío Tecniacústica 2026
 
-Carpeta con el material listo para enviar al **57º Congreso Español
-de Acústica · XIII Congreso Ibérico de Acústica · TECNIACÚSTICA 2026**
-(Granada, 21–23 octubre 2026).
+Material de envío al **57º Congreso Español de Acústica · XIV Congreso
+Ibérico de Acústica · TECNIACÚSTICA 2026** (Granada, 21–23 de octubre de 2026).
+
+## Datos del congreso verificados el 2026-09-07
+
+Fuente: `tecniacustica.es/TECNIACUSTICA2026/comunicaciones/normativa` y
+`.../comunicaciones/plantillas-finales`.
+
+- **Fecha límite del paper completo:** la normativa dice «nueva fecha! 14 de
+  septiembre de 2026». La página de fechas importantes seguía diciendo 7 de
+  septiembre. Ante la duda, secretaría técnica: tecniacustica@viajeseci.es.
+- **No es doble ciego.** «Todos los autores deben indicar nombre, apellidos y
+  filiación». El PDF va directo al Libro de Actas «sin posibilidad de ser
+  editado posteriormente». Los abstracts se aceptaron en junio.
+- **Extensión: entre 4 y 8 páginas**, figuras, tablas y referencias incluidas.
+  Resumen y abstract de 250 palabras como máximo. Palabras clave en español
+  e inglés, obligatorias.
+- **Plantilla oficial obligatoria.** «No se publicará en el libro de actas
+  ningún artículo que no se ajuste a las plantillas suministradas». Solo se
+  admite PDF sin proteger, máximo 10 MB.
+- Idiomas admitidos: español, portugués, inglés.
+- Sesiones sugeridas: A09-1 (ML/IA en Acústica), A16-1 (Procesamiento y
+  Aprendizaje para Señales Acústicas), A24-1 (Acústica Virtual).
 
 ## Estructura
 
 ```
 manuscript/tecniacustica/
-├── abstract.txt          Texto del abstract para el formulario online
-├── paper.tex             Paper completo en español (≈8 páginas)
-├── tecniacustica.cls     Plantilla LaTeX no oficial (reproduce el look
-│                          del 53º Congreso, Elche 2022)
-└── README.md             Este fichero
+├── paper.tex               Paper completo en español (8 páginas)
+├── tecniacustica2026.sty   Plantilla oficial (publicada el 30/06/2026). NO tocar.
+├── Tecni_Banner.pdf        Banner de la portada (plantilla oficial)
+├── footer_logo_sea.png     Logos del pie de la portada (plantilla oficial)
+├── logo_spacustica_1.png
+├── abstract.txt            Texto del abstract enviado en mayo (ya aceptado)
+└── README.md               Este fichero
 ```
 
-## Compilar el paper
+La plantilla oficial viene de `LaTeX_TecniAcustica2026_Templates-ES.zip`
+(web del congreso). Fija Times 11 pt, márgenes 25/35 mm, portada exclusiva
+en la página 1 (banner, título, autores, afiliaciones, resumen, abstract,
+palabras clave) y el cuerpo desde la página 2. La bibliografía va en estilo
+IEEE numérico a tamaño normal, sin columnas.
+
+La clase no oficial `tecniacustica.cls` (imitación de Elche 2022) se retiró
+el 2026-09-07; está en el historial de git si hiciera falta.
+
+## Compilar
+
+No hay LaTeX instalado en la máquina. Con docker, montando `figures` aparte
+porque el paper usa rutas `../../figures/`:
 
 ```bash
-cd manuscript/tecniacustica
-pdflatex paper.tex
-pdflatex paper.tex      # 2ª pasada para resolver referencias
+docker run --rm -v "$PWD/manuscript/tecniacustica:/w" -v "$PWD/figures:/figures" -w /w \
+  texlive/texlive sh -c 'pdflatex -interaction=nonstopmode paper.tex >/dev/null 2>&1; \
+                         pdflatex -interaction=nonstopmode paper.tex 2>&1 | tail -2'
 ```
 
-El PDF resultante reproduce el formato visual del congreso (header
-verde con texto del congreso, A4 una columna, secciones numéricas en
-mayúsculas, ortografía española).
+La imagen `texlive/texlive:latest-small` no sirve (faltan `titlesec` y
+`tikz`). El número de páginas sale en la última línea de pdflatex; el paper
+tiene que dar 8.
 
-## Sustituir por la plantilla oficial cuando aparezca
-
-`tecniacustica.cls` es un **esqueleto razonable** mientras la
-organización no publique la plantilla oficial. Cuando aparezca en
-[tecniacustica.es](https://www.tecniacustica.es/TECNIACUSTICA2026/)
-o en [sea-acustica.es](https://www.sea-acustica.es/):
-
-1. Descargar la plantilla oficial (LaTeX o Word).
-2. Si es Word: pegar el contenido de `paper.tex` sección a sección,
-   conservando formato de la plantilla.
-3. Si es LaTeX: cambiar `\documentclass{tecniacustica}` por
-   `\documentclass{oficial}` y revisar comandos.
-
-## Logo del congreso
-
-`tecniacustica.cls` deja preparado un `\includegraphics` en el header
-comentado. Cuando se descargue el logo oficial, guardarlo en esta
-carpeta como `tecniacustica-logo.png` y descomentar la línea.
-
-## Doble ciego — checklist antes de enviar
+## Checklist antes de enviar
 
 ```bash
-# Estas líneas deben dar cero resultados en el abstract y paper:
-grep -i "mateo\|camara\|upm\|alumnos" abstract.txt paper.tex
-grep -i "github\.com/MateoCamara\|our previous\|nuestro trabajo previo" paper.tex
+# Autores, afiliación y correo reales (la plantilla los imprime en la portada):
+grep -n "PENDIENTE" paper.tex                       # debe dar cero
+# Nada de restos de la versión anónima:
+grep -n -i "doble ciego\|anónim" paper.tex           # debe dar cero
+# 8 páginas y cero referencias sin resolver:
+grep -a -E "Output written|undefined" paper.log
 ```
-
-El paper incluye `[Doble ciego: autores y afiliaciones se añaden tras
-revisión]` en el bloque de autores. Sustituir tras aceptación.
-
-## Datos importantes del congreso
-
-- **Lugar**: Granada, España
-- **Fechas**: 21–23 octubre 2026
-- **Fecha límite abstract**: pendiente confirmación (revisar web del congreso)
-- **Fecha límite paper completo**: pendiente confirmación
-- **Idiomas admitidos**: español, portugués, inglés
-- **Sesiones objetivo recomendadas**:
-  - A09-1 ML/IA en Acústica
-  - A16-1 Procesamiento y Aprendizaje para Señales Acústicas
-  - A24-1 Acústica Virtual
 
 ## Figuras
 
-El paper referencia figuras en `../../figures/`:
-- `F2_rolling_droplet_spectrograms.png`
-- `F3_monotonicity_heatmap.png`
-- `F4_sweep_curves.png`
-- `F6_fusion.png`
+El paper incluye `../../figures/F3_monotonicity_heatmap.png` (mapa de calor
+de monotonía) y `../../figures/F6_fusion.png` (FCI frente a factor de cresta,
+un solo panel). Se regeneran con `scripts/15_figures.py` y
+`scripts/41_fusion_evidence.py`; los PNG no llevan título incrustado, el pie
+lo pone LaTeX.
 
-`F5_master_comparison.png` se retiró del paper en la Tarea 7 (Nivel 2,
-recorte de páginas): sus cifras ya estaban en `tab:master`, la tabla
-maestra de la Sección de Evaluación, así que la figura era redundante.
-El fichero PNG se conserva en `figures/` por si se reutiliza en otro
-sitio, pero ya no se cita desde `paper.tex`.
-
-Si las regeneras con `scripts/15_figures.py` o
-`scripts/18_compare_physics_vs_neural.py`, las referencias del paper
-las recogen automáticamente.
+`F2_rolling_droplet_spectrograms.png` (espectrogramas de la gota rodante)
+está regenerada en español y sin título, pero no cabe en las 8 páginas con la
+plantilla oficial: incluirla cuesta unas 8 líneas más de lo que hay.
+`F5_master_comparison.png` y `F4_sweep_curves.png` no se citan.
 
 ## PACS y palabras clave
 
-PACS del paper (verificados 2026-08-26 contra el listado oficial AIP/JASA
-"Appendix to 43: Acoustics", PACS 2010):
-- **43.60.Lq** Acoustic imaging, displays, pattern recognition, feature extraction
-- **43.58.Ta** Computers and computer programs in acoustics
-- **43.60.Uv** Model-based signal processing
+PACS (verificados contra el listado oficial AIP/JASA, PACS 2010):
+**43.60.Lq** (pattern recognition, feature extraction), **43.58.Ta**
+(computers and computer programs in acoustics), **43.60.Uv** (model-based
+signal processing). El código perceptual 43.66.Lj se retiró al eliminar el
+estudio piloto del paper.
 
-Las anotaciones anteriores de 43.60.Lq ("Speech and Music Perception ·
-Computer algorithms, synthesis") y 43.58.Ta ("Instrumentation · Digital
-signal processing") eran incorrectas frente al listado oficial; quedan
-corregidas arriba. El código perceptual **43.66.Lj** (Hearing ·
-Psychoacoustics — oficialmente "Perceptual effects of sound") se retiró
-al eliminar el estudio perceptual piloto del paper (Tarea 7) y se
-sustituyó por **43.60.Uv**, que encaja con el procesado basado en
-modelos físicos que vertebra tanto el motor de síntesis como la
-recuperación diferenciable de parámetros.
+Nota: el `abstract.txt` enviado en mayo sí menciona el estudio piloto
+perceptual. No se reenvía, es el flujo normal del congreso, y queda una
+diferencia intencionada entre el abstract y el paper final.
 
-Nota: el `abstract.txt` enviado al congreso (meses antes que el paper
-completo) sí menciona el estudio piloto perceptual. **No se reenvía**
-— es el comportamiento normal del proceso de envío — y por tanto queda
-una diferencia intencionada entre lo enviado como abstract y el paper
-final.
-
-Palabras clave: *síntesis de sonido, Foley, física-DSP, sonidos
-imposibles, DDSP, inversión de parámetros*.
+Palabras clave: *síntesis de sonido, Foley, física-DSP, sonidos imposibles,
+DDSP, inversión de parámetros* / *sound synthesis, Foley, physics-DSP,
+impossible sounds, DDSP, parameter inversion*.

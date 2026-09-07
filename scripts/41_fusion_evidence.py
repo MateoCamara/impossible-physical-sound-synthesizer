@@ -29,7 +29,8 @@ Genera en results/fusion_search/:
                               fuente_csv, filtro_o_fila -- auditable con
                               --check.
 
-Genera en figures/: F6_fusion.png (2 paneles, un solo flotante).
+Genera en figures/: F6_fusion.png (panel FCI vs cresta; el solape por pareja
+ya va en la tabla del paper, así que el segundo panel no se dibuja).
 
 Reutiliza scripts/39_fusion_search.py (PAREJAS_V12, N_BANDS_GRID,
 COLOR_MIX_GRID, ORPHAN_FLOOR_DB, DUR_GRID, _count_orphan_bands_a,
@@ -504,8 +505,8 @@ def _panel_a(ax, resumen: pd.DataFrame, corr_fci_crest: float) -> None:
     ax.scatter(others["fci"], others["crest_db"], s=6, color="#9a9a9a", alpha=0.35,
               linewidths=0, zorder=1, label=f"candidatos (n={len(sub)})")
     for grupo, marker, fc, label in (
-            ("suma_ancla", "*", "#1b5e20", "suma_ancla (6)"),
-            ("baseline_v11", "X", "#c1272d", "baseline_v11 (6)")):
+            ("suma_ancla", "*", "#1b5e20", "suma ponderada (6)"),
+            ("baseline_v11", "X", "#c1272d", "quimera de referencia (6)")):
         g = sub[sub["grupo"] == grupo]
         ax.scatter(g["fci"], g["crest_db"], s=85, marker=marker, facecolor=fc,
                   edgecolor="black", linewidths=0.6, zorder=3, label=label)
@@ -515,7 +516,7 @@ def _panel_a(ax, resumen: pd.DataFrame, corr_fci_crest: float) -> None:
     # los 12 puntos (suma_ancla/baseline_v11) sin nombrar cada uno evita el
     # amontonamiento de 6+6 etiquetas que se pisaban entre si.
     cited = sub[(sub["pareja"] == "trueno_hecho_de_agua") & (sub["grupo"] == "baseline_v11")].iloc[0]
-    ax.annotate(f"baseline_v11\ntrueno x agua\n({_es(cited['crest_db'], 1)} dB)",
+    ax.annotate(f"referencia\ntrueno x goteo\n({_es(cited['crest_db'], 1)} dB)",
                xy=(cited["fci"], cited["crest_db"]),
                xycoords="data", xytext=(0.50, 0.72), textcoords="axes fraction",
                fontsize=6.3, ha="center", va="center", color="#c1272d",
@@ -524,11 +525,11 @@ def _panel_a(ax, resumen: pd.DataFrame, corr_fci_crest: float) -> None:
     ax.set_ylim(top=sub["crest_db"].max() + 4)
     ax.margins(x=0.12)
     ax.xaxis.set_major_formatter(_comma_formatter)
-    ax.set_xlabel("FCI (indice compuesto de fusion)")
-    ax.set_ylabel("crest factor (dB)")
-    ax.set_title(f"(a) el FCI premia la cresta alta ($r$ = {_es(corr_fci_crest, 2, signed=True)})",
+    ax.set_xlabel("FCI (índice compuesto de fusión)")
+    ax.set_ylabel("factor de cresta (dB)")
+    ax.set_title(f"el FCI premia la cresta alta ($r$ = {_es(corr_fci_crest, 2, signed=True)})",
                 fontsize=10)
-    ax.legend(loc="upper left", fontsize=6, framealpha=0.9, borderaxespad=0.3)
+    ax.legend(loc="upper left", fontsize=7, framealpha=0.9, borderaxespad=0.3)
 
 
 def _panel_b(ax, resumen: pd.DataFrame) -> None:
@@ -581,28 +582,16 @@ def _panel_footer(ax, overshoots: dict[str, dict], n_aligned: int, n_clamped: in
 
 
 def make_figure(resumen: pd.DataFrame, corr_fci_crest: float) -> None:
-    """Layout horizontal (2 paneles lado a lado, 1 fila x 2 columnas): el
-    paper es a una columna ancha (~16cm util en A4), no a dos columnas
-    estrechas -- un flotante apilado verticalmente se comia media pagina
-    (pedido de la revision del coordinador). El pie con los sobredisparos
-    va en una franja fina a todo el ancho, debajo de ambos paneles."""
+    """Un solo panel (FCI vs factor de cresta). El panel (b) de solape por
+    pareja duplicaba numero a numero la tabla del paper y el pie con los
+    sobredisparos era ilegible al tamano de pagina: ambos salen del PNG y
+    quedan en el texto/tabla (revision de 2026-09-07). _panel_b y
+    _panel_footer se conservan por si hace falta la version de dos paneles."""
     FIG_DIR.mkdir(exist_ok=True, parents=True)
-    overshoots = compute_overshoots(resumen)
-    n_aligned, n_clamped = compute_clamped_stats(resumen)
-    fig = plt.figure(figsize=(10.4, 4.5), constrained_layout=True)
-    gs = fig.add_gridspec(2, 2, height_ratios=(1.0, 0.14))
-    ax_a = fig.add_subplot(gs[0, 0])
-    ax_b = fig.add_subplot(gs[0, 1])
-    ax_foot = fig.add_subplot(gs[1, :])
-    _panel_a(ax_a, resumen, corr_fci_crest)
-    _panel_b(ax_b, resumen)
-    _panel_footer(ax_foot, overshoots, n_aligned, n_clamped)
-    # Sin titulo general dentro de la imagen: el pie de figura ("Fig. 6 ...")
-    # va en LaTeX via \caption{}, fuera del PNG -- ponerlo aqui tambien
-    # lo duplicaria (pedido de la revision del coordinador). Los titulos
-    # (a)/(b) de cada panel si se quedan.
+    fig, ax = plt.subplots(figsize=(7.2, 3.1), constrained_layout=True)
+    _panel_a(ax, resumen, corr_fci_crest)
     # metadata explicita y vacia de campos libres: ningun backend debe
-    # filtrar ruta/usuario de la maquina en el PNG (paper a doble ciego).
+    # filtrar ruta/usuario de la maquina en el PNG.
     fig.savefig(FIG_PATH, metadata={"Software": "matplotlib", "Author": "", "Comment": ""})
     plt.close(fig)
     print(f"Figura: {FIG_PATH}")

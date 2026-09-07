@@ -1,0 +1,357 @@
+% =====================================================================
+% tecniacustica2026.sty
+% Paquete de estilo para los artículos de TecniAcústica 2026 – Granada
+% (XIII Congreso Ibérico de Acústica / 56º Congreso Español de Acústica)
+% 21–23 de octubre de 2026
+%
+%
+% Compilador objetivo: pdfLaTeX
+% =====================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tecniacustica2026}[2026/05/27 v1.0 TecniAcústica 2026]
+
+% ---------------------------------------------------------------------
+% Encoding y tipografía
+% ---------------------------------------------------------------------
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[T1]{fontenc}
+\RequirePackage{mathptmx}     % Times New Roman para cuerpo y matemáticas
+
+% ---------------------------------------------------------------------
+% Idiomas (español por defecto; añade portugués e inglés para resúmenes)
+% ---------------------------------------------------------------------
+\RequirePackage[english,portuguese,spanish]{babel}
+
+% ---------------------------------------------------------------------
+% Geometría —  A4, márgenes 35 mm sup/inf, 25 mm izq/der, header a 20 mm
+% ---------------------------------------------------------------------
+\RequirePackage[a4paper,
+  top=35mm, bottom=35mm, left=25mm, right=25mm,
+  headheight=14pt, headsep=8mm, footskip=22mm]{geometry}
+\raggedbottom
+% ---------------------------------------------------------------------
+% Cuerpo del texto: 11 pt, justificado, sin sangría de primera línea
+% y separación entre párrafos
+% ---------------------------------------------------------------------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 1pt minus 1pt}
+
+% Tamaños relativos a 11pt base
+\renewcommand{\normalsize}{\fontsize{11pt}{13.5pt}\selectfont}
+\renewcommand{\small}{\fontsize{10pt}{12pt}\selectfont}
+\renewcommand{\footnotesize}{\fontsize{9pt}{11pt}\selectfont}
+
+% ---------------------------------------------------------------------
+% Encabezados de sección
+%   H1: 14 pt Bold     H2: 11 pt Bold     H3: 11 pt Bold italic
+% (En Word, H2 y H3 son del mismo tamaño que el cuerpo; usamos italic
+%  en H3 para diferenciar visualmente sin romper la equivalencia.)
+% ---------------------------------------------------------------------
+\RequirePackage{titlesec}
+
+\titleformat{\section}
+  {\normalfont\fontsize{14pt}{17pt}\bfseries}
+  {\thesection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{10mm}{4mm}
+
+\titleformat{\subsection}
+  {\normalfont\fontsize{11pt}{13.5pt}\bfseries}
+  {\thesubsection.}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{6mm}{2mm}
+
+\titleformat{\subsubsection}
+  {\normalfont\fontsize{11pt}{13.5pt}\bfseries\itshape}
+  {\thesubsubsection.}{0.6em}{}
+\titlespacing*{\subsubsection}{0pt}{4mm}{2mm}
+
+\titleformat{name=\section,numberless}
+  {\normalfont\fontsize{14pt}{17pt}\bfseries}
+  {}{0pt}{}
+
+% ---------------------------------------------------------------------
+% Cabecera y pie
+%   Par:    autores cortos (centrados, cursiva 10 pt)
+%   Impar:  congreso + fechas + lugar (centrado, cursiva 10 pt)
+%   1ª pág: con banner, footer con copyright.
+% ---------------------------------------------------------------------
+\RequirePackage{fancyhdr}
+\RequirePackage{refcount} % para el salto de página condicional de \finportada
+
+\newcommand{\@shortauthorsTAC}{}%
+\newcommand{\shortauthors}[1]{\renewcommand{\@shortauthorsTAC}{#1}}
+
+\newcommand{\@congressheaderTAC}{%
+  TecniAc\'ustica 2026 -- XIV Congreso Ib\'erico de Ac\'ustica, 21--23 de octubre, Granada, Espa\~na%
+}
+\addto\captionsspanish{\renewcommand{\@congressheaderTAC}{TecniAc\'ustica 2026 -- XIV Congreso Ib\'erico de Ac\'ustica, 21--23 de octubre, Granada, Espa\~na}}
+\addto\captionsportuguese{\renewcommand{\@congressheaderTAC}{TecniAc\'ustica 2026 -- XIV Congresso Ib\'erico de Ac\'ustica, 21--23 de outubro, Granada, Espanha}}
+\addto\captionsenglish{\renewcommand{\@congressheaderTAC}{TecniAc\'ustica 2026 -- 14th Iberian Congress on Acoustics, 21--23 October, Granada, Spain}}
+\newcommand{\congressheader}[1]{\renewcommand{\@congressheaderTAC}{#1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[CE]{\small\itshape\@shortauthorsTAC}
+\fancyhead[CO]{\small\itshape\@congressheaderTAC}
+% Sin número de página: el editor lo añade al ensamblar el libro de actas
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Estilo de la primera página: sin cabecera; pie con los dos logos de las
+% sociedades organizadoras (SEA izquierda, SPA derecha) a ancho
+% centrado, y la nota de copyright CC BY debajo. El banner superior y estos
+% logos aparecen ÚNICAMENTE en la primera página; el resto de páginas llevan
+% solo la cabecera de autores/congreso. Sin número de página (lo añade el
+% editor al ensamblar las actas).
+\fancypagestyle{firstpage}{%
+  \fancyhf{}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \fancyfoot[C]{%
+  \raisebox{0pt}{
+    \parbox[b]{\textwidth}{%
+      \centering
+      \includegraphics[height=14mm]{footer_logo_sea.png}%
+      \hspace{3cm}% 
+      \includegraphics[height=12.5mm]{logo_spacustica_1.png}%
+      \par\vspace{1.5mm}%
+      \fontsize{7pt}{8.5pt}\selectfont
+      \@firstpagefooterTAC
+      }
+    }%
+  }%
+}
+
+\newcommand{\@firstpagefooterTAC}{}% por defecto vacío
+\newcommand{\firstpagefooter}[1]{\renewcommand{\@firstpagefooterTAC}{#1}}
+
+% CC BY: se guardan año y autor; el texto se construye en \maketitle, ya
+% dentro del documento y con el idioma correcto activo.
+\newcommand{\@ccbyYearTAC}{}
+\newcommand{\@ccbyAuthorTAC}{}
+\newif\if@ccbyTAC \@ccbyTACfalse
+\newcommand{\enableCCBY}[2]{%
+  \@ccbyTACtrue
+  \renewcommand{\@ccbyYearTAC}{#1}%
+  \renewcommand{\@ccbyAuthorTAC}{#2}%
+}
+
+% Plantillas de texto CC BY por idioma (se eligen en \maketitle).
+\newcommand{\@ccbyES}{Distribuido bajo licencia Creative Commons Attribution 4.0 International (CC BY 4.0).}
+\newcommand{\@ccbyPT}{Distribu\'ido sob licen\c{c}a Creative Commons Attribution 4.0 International (CC BY 4.0).}
+\newcommand{\@ccbyEN}{Distributed under a Creative Commons Attribution 4.0 International (CC BY 4.0) licence.}
+\newcommand{\@ccbylangTAC}{\@ccbyES}
+\addto\captionsspanish{\renewcommand{\@ccbylangTAC}{\@ccbyES}}
+\addto\captionsportuguese{\renewcommand{\@ccbylangTAC}{\@ccbyPT}}
+\addto\captionsenglish{\renewcommand{\@ccbylangTAC}{\@ccbyEN}}
+
+% ---------------------------------------------------------------------
+% Bloque de título — Title 16 pt Bold centrado, autores debajo
+% ---------------------------------------------------------------------
+\newcommand{\@authorblockTAC}{}%
+\newcommand{\@affilblockTAC}{}%
+
+% \papertitle{...}      título del artículo
+% \addauthor{Nombre}{n} añade un autor con superíndice de afiliación n
+% \addauthor*{Nombre}{n} autor de correspondencia (asterisco automático)
+% \addaffil{n}{texto de la afiliación}{email}
+%
+% Se procesan en \maketitle.
+
+
+
+\newif\if@hasCorrAuthor
+\@hasCorrAuthorfalse
+\newif\if@firstauthorTAC
+\@firstauthorTACtrue
+
+\newcommand{\addauthor}{\@ifstar{\@addCorrAuthor}{\@addAuthor}}
+
+\newcommand{\@addAuthor}[2]{%
+  \if@firstauthorTAC \@firstauthorTACfalse \else
+    \g@addto@macro\@authorblockTAC{, }%
+  \fi
+  \g@addto@macro\@authorblockTAC{#1\textsuperscript{#2}}%
+}
+
+\newcommand{\@addCorrAuthor}[3]{%
+  \@hasCorrAuthortrue
+  \renewcommand{\@correspondingemailTAC}{#3}%
+  \if@firstauthorTAC \@firstauthorTACfalse \else
+    \g@addto@macro\@authorblockTAC{, }%
+  \fi
+  \g@addto@macro\@authorblockTAC{#1\textsuperscript{#2,*}}%
+}
+
+% Afiliaciones a toda anchura, justificadas
+
+
+\newcommand{\addaffil}[2]{%
+  \g@addto@macro\@affilblockTAC{%
+    \par\noindent\textsuperscript{#1}\,#2%
+  }%
+}
+
+\RequirePackage{tikz}
+
+\newcommand{\@correspondingemailTAC}{}
+
+% Etiqueta «autor de correspondencia» según el idioma activo de babel.
+\newcommand{\@corrauthorlabelTAC}{Autor de correspondencia}
+\addto\captionsspanish{\renewcommand{\@corrauthorlabelTAC}{Autor de correspondencia}}
+\addto\captionsportuguese{\renewcommand{\@corrauthorlabelTAC}{Autor de correspond\^encia}}
+\addto\captionsenglish{\renewcommand{\@corrauthorlabelTAC}{Corresponding author}}
+
+\renewcommand{\maketitle}{%
+  \thispagestyle{firstpage}%
+  % Construir la nota CC BY con el idioma ya activo (si se pidió \enableCCBY)
+  \if@ccbyTAC
+    \firstpagefooter{\fontsize{7.5pt}{9pt}\selectfont
+      Copyright: \textcopyright\,\@ccbyYearTAC\ \@ccbyAuthorTAC\ \@ccbylangTAC}%
+  \fi
+  % Banner como overlay TikZ -- ancho completo del área de texto
+  \begin{tikzpicture}[overlay,remember picture]
+    \node[anchor=north, inner sep=0]
+      at ([yshift=-5mm]current page.north) {%
+        \includegraphics[width=\textwidth]{\bannerFileTAC}%
+      };
+  \end{tikzpicture}%
+  % Empujar el cuerpo hacia abajo para hacer hueco al banner
+  \vspace*{22mm}%
+  \begin{center}
+    {\fontsize{16pt}{19pt}\bfseries\MakeUppercase{\@title}\par}%
+    \vspace{3mm}%
+    {\fontsize{11pt}{13.5pt}\bfseries\@authorblockTAC\par}%
+  \end{center}
+  \vspace{2mm}%
+  % Afiliaciones a toda anchura, párrafos justificados
+  \begingroup
+  \fontsize{10pt}{12pt}\selectfont
+  \setlength{\parskip}{0pt}% Elimina el exceso de 6pt entre afiliaciones
+  \@affilblockTAC\par % \par obligatorio para consolidar el interlineado local
+  \if@hasCorrAuthor
+    \vspace{1.5mm}%
+    \noindent\textsuperscript{*}\,\@corrauthorlabelTAC: \@correspondingemailTAC\par
+  \fi
+  \endgroup
+  \vspace{3mm}%
+}
+
+% Banner del congreso (sustituible para PT con \setbanner{...})
+\newcommand{\bannerFileTAC}{Tecni_Banner.pdf}
+\newcommand{\setbanner}[1]{\renewcommand{\bannerFileTAC}{#1}}
+
+% ---------------------------------------------------------------------
+% Resumen / Abstract / Palabras clave / Keywords / PACS
+%
+% El resumen (en la lengua del trabajo) y el abstract (en inglés) se
+% componen a 10 pt (medio punto por debajo del cuerpo, vía \small) para
+% diferenciarlos visualmente y compactarlos, igual que hacen muchas
+% revistas con el resumen secundario. Las etiquetas «Resumen.», «Abstract.»,
+% «Palabras clave:» y «Keywords:» se generan automáticamente; el autor solo
+% escribe el contenido.
+% ---------------------------------------------------------------------
+
+\newenvironment{resumen}{%
+  \small\noindent\textbf{Resumen.\,}\ignorespaces
+}{\par}
+
+\renewenvironment{abstract}{%
+  \small\noindent\textbf{Abstract.\,}\ignorespaces
+}{\par}
+
+\newcommand{\palabrasclave}[1]{%
+  \par\vspace{2mm}\noindent{\small\textbf{Palabras clave:}\enspace\textit{#1}}\par%
+}
+
+\newcommand{\keywords}[1]{%
+  \par\vspace{2mm}\noindent{\small\textbf{Keywords:}\enspace\textit{#1}}\par%
+}
+
+% Variantes en portugués (para la edición lusófona): «Resumo» y
+% «Palavras-chave». Funcionalmente idénticas a \resumen y \palabrasclave.
+\newenvironment{resumo}{%
+  \small\noindent\textbf{Resumo.\,}\ignorespaces
+}{\par}
+
+\newcommand{\palavraschave}[1]{%
+  \par\vspace{2mm}\noindent{\small\textbf{Palavras-chave:}\enspace\textit{#1}}\par%
+}
+
+\newcommand{\@pacslabelTAC}{PACS n\textsuperscript{o}.:}
+\addto\captionsspanish{\renewcommand{\@pacslabelTAC}{PACS n\textsuperscript{o}.:}}
+\addto\captionsportuguese{\renewcommand{\@pacslabelTAC}{PACS n\textsuperscript{o}.:}}
+\addto\captionsenglish{\renewcommand{\@pacslabelTAC}{PACS no.:}}
+
+\newcommand{\pacs}[1]{%
+  \par\noindent\textbf{\@pacslabelTAC} #1\par\addvspace{2mm}%
+}
+
+% ---------------------------------------------------------------------
+% Fin de la portada. La 1ª página es SIEMPRE una portada: banner, título,
+% autores, afiliaciones, autor de correspondencia, resumen, abstract
+% y palabras clave. El cuerpo del artículo (Sección 1) empieza SIEMPRE en
+% la página 2. Si el resumen/abstract son tan largos que invaden la 2ª
+% página, el cuerpo arranca en la 2ª directamente.
+%
+\newcommand{\finportada}{%
+  % Marca la posición donde TERMINA la portada (sin salto todavía).
+  \label{tac@finportada}%
+  % Decide el salto leyendo la página de esa marca en la pasada anterior:
+  %   • marca en página 1  -> la portada cupo en la 1ª -> saltamos a la 2ª.
+  %   • marca en página >=2 -> la portada se desbordó    -> seguimos debajo.
+  % \getpagerefnumber (refcount) devuelve 0 si la marca aún no existe
+  % (1ª pasada): en ese caso saltamos por defecto, y se estabiliza en la 2ª.
+  \edef\tac@pp{\getpagerefnumber{tac@finportada}}%
+  \ifnum\tac@pp<2\relax
+    \clearpage
+  \fi
+}
+
+% ---------------------------------------------------------------------
+% Atajos de referencia (sensibles al idioma de babel)
+% ---------------------------------------------------------------------
+\newcommand{\@fignameTAC}{Figura}
+\newcommand{\@tabnameTAC}{Tabla}
+\newcommand{\@eqnnameTAC}{Ecuaci\'on}
+\addto\captionsspanish{%
+  \renewcommand{\@fignameTAC}{Figura}%
+  \renewcommand{\@tabnameTAC}{Tabla}%
+  \renewcommand{\@eqnnameTAC}{Ecuaci\'on}%
+}
+\addto\captionsportuguese{%
+  \renewcommand{\@fignameTAC}{Figura}%
+  \renewcommand{\@tabnameTAC}{Tabela}%
+  \renewcommand{\@eqnnameTAC}{Equa\c{c}\~ao}%
+}
+\addto\captionsenglish{%
+  \renewcommand{\@fignameTAC}{Figure}%
+  \renewcommand{\@tabnameTAC}{Table}%
+  \renewcommand{\@eqnnameTAC}{Equation}%
+}
+
+\newcommand{\figref}[1]{\@fignameTAC~\ref{#1}}
+\newcommand{\tabref}[1]{\@tabnameTAC~\ref{#1}}
+\newcommand{\eqnref}[1]{\@eqnnameTAC~(\ref{#1})}
+
+% Sección sin numerar (Agradecimientos, Referencias…)
+\newcommand{\unnumberedsection}[1]{\section*{#1}}
+
+% ---------------------------------------------------------------------
+% Figuras, tablas, captions
+% ---------------------------------------------------------------------
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\RequirePackage{caption}
+\captionsetup{labelsep=endash, labelfont=bf, font=small, justification=centering}
+\renewcommand{\figurename}{Figura}
+\renewcommand{\tablename}{Tabla}
+% Babel español por defecto traduce \tablename como "Cuadro"; lo forzamos a "Tabla"
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}\renewcommand{\figurename}{Figura}}
+\addto\captionsportuguese{\renewcommand{\tablename}{Tabela}\renewcommand{\figurename}{Figura}}
+
+% ---------------------------------------------------------------------
+% Hipervínculos (al final para evitar conflictos)
+% ---------------------------------------------------------------------
+\RequirePackage[hidelinks]{hyperref}
+\urlstyle{same}
+
+\endinput
